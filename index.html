@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>مساعد — PT Session Scribe</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#123f3a">
+<link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="مساعد">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Aref+Ruqaa:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1b2b2b;
+    --paper:#f6f7f5;
+    --panel:#ffffff;
+    --line:#dfe3df;
+    --maroon:#1f5c56;
+    --maroon-deep:#123f3a;
+    --gold:#b8894f;
+    --doctor:#1f5c56;
+    --patient:#7a5c3e;
+    --danger:#a33d3d;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"Noto Naskh Arabic","Amiri",serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .display{
+    font-family:"Amiri",serif;
+  }
+  header{
+    background:var(--maroon-deep);
+    color:#f3e9d6;
+    padding:20px 26px;
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    flex-wrap:wrap;
+    border-bottom:4px double var(--gold);
+  }
+  header h1{
+    font-size:1.6rem;
+    margin:0;
+    letter-spacing:0.01em;
+    font-weight:700;
+  }
+  .logo-shimmer{
+    background:linear-gradient(90deg, #a97c2f 0%, #f3e6c8 50%, #a97c2f 100%);
+    background-size:220% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    color:transparent;
+    animation:shimmer 3.5s linear infinite;
+  }
+  @keyframes shimmer{
+    0%{ background-position:200% center; }
+    100%{ background-position:-40% center; }
+  }
+  header .tag{
+    font-size:0.8rem;
+    opacity:0.8;
+    letter-spacing:0.02em;
+  }
+  .layout{
+    display:grid;
+    grid-template-columns:1fr 270px;
+    min-height:calc(100vh - 68px);
+  }
+  @media (max-width:800px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{order:2; border-top:2px solid var(--line); border-right:none !important; border-left:none !important;}
+  }
+  .sidebar{
+    background:var(--panel);
+    border-left:2px solid var(--line);
+    padding:18px;
+  }
+  .sidebar h2{
+    font-size:0.78rem;
+    letter-spacing:0.03em;
+    color:var(--maroon);
+    margin:4px 0 12px;
+    font-weight:700;
+    border-bottom:1px solid var(--gold);
+    padding-bottom:8px;
+  }
+  .new-session-btn{
+    width:100%;
+    padding:11px;
+    background:var(--maroon);
+    color:#fff;
+    border:1px solid var(--maroon-deep);
+    border-radius:var(--radius);
+    font-size:0.95rem;
+    font-family:inherit;
+    cursor:pointer;
+    margin-bottom:18px;
+  }
+  .new-session-btn:hover{background:var(--maroon-deep);}
+  .session-item{
+    padding:10px 12px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    margin-bottom:5px;
+    font-size:0.88rem;
+    border:1px solid transparent;
+  }
+  .session-item:hover{background:#f0e6d2;}
+  .session-item.active{
+    background:#f0e6d2;
+    border-color:var(--maroon);
+  }
+  .session-item .name{font-weight:600;}
+  .session-item .date{color:#8a938e; font-size:0.75rem;}
+  .main{
+    padding:24px 32px;
+    max-width:880px;
+  }
+  .consent-banner{
+    background:#fbf3e7;
+    border:1px solid #e6cfa8;
+    color:#6b4a1e;
+    padding:10px 14px;
+    border-radius:var(--radius);
+    font-size:0.83rem;
+    margin-bottom:20px;
+  }
+  .patient-row{
+    display:flex;
+    gap:12px;
+    margin-bottom:18px;
+    flex-wrap:wrap;
+  }
+  .patient-row input{
+    flex:1;
+    min-width:180px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    font-size:0.95rem;
+    background:var(--panel);
+  }
+  .rec-controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:16px;
+    flex-wrap:wrap;
+  }
+  button.primary{
+    background:var(--maroon);
+    color:#fff;
+    border:none;
+    padding:12px 20px;
+    border-radius:var(--radius);
+    font-size:0.95rem;
+    cursor:pointer;
+  }
+  button.primary:hover{background:var(--maroon-deep);}
+  button.primary:disabled{background:#a9b6b2; cursor:not-allowed;}
+  button.stop{background:var(--danger);}
+  button.stop:hover{background:#832f2f;}
+  button.ghost{
+    background:transparent;
+    border:1px solid var(--line);
+    padding:10px 16px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  button.ghost:hover{background:#f0e6d2;}
+  .session-type-btn.active, .mode-btn.active, .provider-btn.active, .aux-provider-btn.active{
+    background:var(--maroon);
+    color:#fff;
+    border-color:var(--maroon);
+  }
+  .speaker-toggle{
+    display:flex;
+    gap:10px;
+    margin-bottom:18px;
+  }
+  .speaker-btn{
+    flex:1;
+    padding:16px;
+    border-radius:var(--radius);
+    border:2px solid var(--line);
+    background:var(--panel);
+    font-size:1rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:all 0.15s;
+  }
+  .speaker-btn.doctor.active{
+    background:var(--doctor);
+    border-color:var(--doctor);
+    color:#fff;
+  }
+  .speaker-btn.patient.active{
+    background:var(--patient);
+    border-color:var(--patient);
+    color:#fff;
+  }
+  .speaker-btn:disabled{opacity:0.4; cursor:not-allowed;}
+  .rec-indicator{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.85rem;
+    color:var(--danger);
+  }
+  .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--danger);
+    animation:pulse 1.2s infinite;
+  }
+  @keyframes pulse{
+    0%,100%{opacity:1;} 50%{opacity:0.3;}
+  }
+  .transcript{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:14px 16px;
+    min-height:180px;
+    max-height:340px;
+    overflow-y:auto;
+    margin-bottom:20px;
+  }
+  .line{
+    margin-bottom:10px;
+    line-height:1.5;
+    direction:rtl;
+    text-align:right;
+  }
+  .line .who{
+    display:inline-block;
+    direction:ltr;
+    font-size:0.7rem;
+    font-weight:700;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    padding:2px 8px;
+    border-radius:4px;
+    margin-inline-start:8px;
+    vertical-align:middle;
+  }
+  .line.doctor .who{background:#e3ede9; color:var(--doctor);}
+  .line.patient .who{background:#efe6da; color:var(--patient);}
+  .line .interim{opacity:0.5; font-style:italic;}
+  .empty-hint{
+    color:#8a938e;
+    font-size:0.9rem;
+    text-align:center;
+    padding:40px 10px;
+  }
+  .section-title{
+    font-size:0.85rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#5b6863;
+    margin:26px 0 10px;
+  }
+  .note-output{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:18px;
+  }
+  .note-output textarea{
+    width:100%;
+    min-height:340px;
+    border:none;
+    font-family:"SF Mono",Menlo,Consolas,monospace;
+    font-size:0.85rem;
+    line-height:1.55;
+    resize:vertical;
+    background:transparent;
+  }
+  .note-output textarea:focus{outline:none;}
+  .ai-flag{
+    background:#fbf3e7;
+    border-left:3px solid var(--gold);
+    padding:8px 12px;
+    font-size:0.8rem;
+    color:#6b4a1e;
+    margin-bottom:12px;
+    border-radius:4px;
+  }
+  .actions-row{
+    display:flex;
+    gap:10px;
+    margin-top:12px;
+    flex-wrap:wrap;
+  }
+  .status{
+    font-size:0.85rem;
+    color:#6b7773;
+    margin:10px 0;
+  }
+  .warn-box{
+    background:#fbeaea;
+    border:1px solid #e6b8b8;
+    color:#7a2e2e;
+    padding:14px 16px;
+    border-radius:var(--radius);
+    font-size:0.9rem;
+    margin-bottom:18px;
+  }
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:#c9d0cc; border-radius:4px;}
+</style>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<header>
+  <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
+  <span class="tag">PT session scribe — pilot build</span>
+</header>
+
+<div class="layout">
+  <div class="sidebar">
+    <h2>Sessions</h2>
+    <button class="new-session-btn" id="newSessionBtn">+ New session</button>
+    <div id="sessionList"></div>
+  </div>
+
+  <div class="main">
+    <div id="browserWarning" class="warn-box" style="display:none;">
+      This browser doesn't support audio recording (getUserMedia). Try Safari or Chrome on a recent
+      iOS/Android device.
+    </div>
+
+    <div class="consent-banner">
+      Confirm the patient has agreed to this session being recorded before you start.
+    </div>
+
+    <div class="patient-row" style="margin-bottom:8px;">
+      <input type="password" id="apiKeyInput" placeholder="Deepgram API key (for Arabic transcription + speaker separation)" style="flex:2;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
+        <input type="checkbox" id="rememberKey"> remember on this device
+      </label>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;">
+      <input type="password" id="anthropicKeyInput" placeholder="Anthropic API key (for note structuring + translation)" style="flex:2;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
+        <input type="checkbox" id="rememberAnthropicKey"> remember on this device
+      </label>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;" id="geminiKeyRow">
+      <input type="password" id="geminiKeyInput" placeholder="Gemini API key (free, no card needed — aistudio.google.com)" style="flex:2;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
+        <input type="checkbox" id="rememberGeminiKey"> remember on this device
+      </label>
+    </div>
+    <div class="patient-row" style="margin-bottom:4px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">For generating the note itself:</label>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost provider-btn active" id="providerAnthropicBtn" data-provider="anthropic" style="flex:1;">Claude (Anthropic)</button>
+        <button type="button" class="ghost provider-btn" id="providerGeminiBtn" data-provider="gemini" style="flex:1;">Gemini (free)</button>
+      </div>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">For terminology correction only (an extra call — kept separate so it doesn't eat into your note-generation usage):</label>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost aux-provider-btn" id="auxProviderAnthropicBtn" data-provider="anthropic" style="flex:1;">Claude (Anthropic)</button>
+        <button type="button" class="ghost aux-provider-btn active" id="auxProviderGeminiBtn" data-provider="gemini" style="flex:1;">Gemini (free)</button>
+      </div>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;">
+      <select id="dialectSelect" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.9rem;">
+        <option value="ar">Arabic (general)</option>
+        <option value="ar-SA">Saudi Arabian Arabic</option>
+        <option value="ar-AE">UAE Arabic</option>
+        <option value="ar-QA">Qatari Arabic</option>
+        <option value="ar-KW">Kuwaiti Arabic</option>
+        <option value="ar-SY">Syrian Arabic</option>
+        <option value="ar-LB">Lebanese Arabic</option>
+        <option value="ar-PS">Palestinian Arabic</option>
+        <option value="ar-JO">Jordanian Arabic</option>
+        <option value="ar-EG">Egyptian Arabic</option>
+        <option value="ar-SD">Sudanese Arabic</option>
+        <option value="ar-MA">Moroccan Arabic</option>
+        <option value="ar-DZ">Algerian Arabic</option>
+        <option value="ar-TN">Tunisian Arabic</option>
+        <option value="ar-IQ">Iraqi Arabic</option>
+      </select>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="font-size:0.8rem;color:#5b6863;">Medical terms to listen for (helps catch English test names spoken mid-Arabic-sentence — edit freely)</label>
+        <button type="button" class="ghost" id="resetKeytermsBtn" style="font-size:0.78rem;padding:6px 12px;white-space:nowrap;">Reset to default list</button>
+      </div>
+      <textarea id="keytermsInput" style="width:100%;min-height:56px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;font-family:inherit;resize:vertical;"></textarea>
+      <div id="keytermsCounter" style="font-size:0.75rem;color:#8a938e;"></div>
+    </div>
+    <div class="status" id="keyStatus" style="margin-top:0;margin-bottom:14px;"></div>
+
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">Google Drive backup (optional — everything already saves on this device without it)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="googleClientIdInput" placeholder="Google OAuth Client ID (ends in .apps.googleusercontent.com)" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google Drive</button>
+      </div>
+      <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <input type="text" id="sharedFolderIdInput" placeholder="Shared clinic Drive folder ID (optional — ask the clinic owner for this)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+    </div>
+
+    <div class="patient-row">
+      <input type="text" id="patientName" placeholder="Patient name / ID">
+      <input type="text" id="sessionDate" placeholder="Session date" readonly>
+    </div>
+
+    <div class="patient-row" style="margin-top:-8px;">
+      <div style="display:flex;gap:8px;flex:1;">
+        <button type="button" class="ghost session-type-btn active" id="typeAssessmentBtn" data-type="assessment" style="flex:1;">Initial assessment</button>
+        <button type="button" class="ghost session-type-btn" id="typeFollowupBtn" data-type="followup" style="flex:1;">Follow-up / progress</button>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:16px;">Attached images (X-rays, imaging, etc.)</div>
+    <div style="margin-bottom:16px;">
+      <input type="file" id="imageUploadInput" accept="image/*" multiple style="font-size:0.85rem;margin-bottom:8px;">
+      <div id="imageGallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+    </div>
+
+    <div style="margin-bottom:14px;">
+      <button class="ghost" id="micTestBtn">🎙️ Test microphone</button>
+      <div id="micTestMeterWrap" style="display:none;margin-top:10px;">
+        <div style="background:#e4e9e6;border-radius:6px;height:14px;overflow:hidden;">
+          <div id="micTestMeterFill" style="background:var(--maroon);height:100%;width:0%;transition:width 0.08s;"></div>
+        </div>
+        <div id="micTestStatus" style="font-size:0.8rem;color:#5b6863;margin-top:6px;">Say something — the bar should move as you speak.</div>
+      </div>
+      <div style="font-size:0.78rem;color:#8a938e;margin-top:8px;">💡 For best accuracy: lay the phone flat on the table roughly equidistant between doctor and patient, away from AC vents or equipment noise, and try not to talk over each other.</div>
+    </div>
+
+    <div class="rec-controls">
+      <button class="primary" id="recordBtn">Start recording</button>
+      <button class="ghost" id="pauseResumeBtn" style="display:none;">Pause</button>
+      <button class="ghost" id="clearBtn">Clear</button>
+      <span class="rec-indicator" id="recIndicator" style="display:none;"><span class="dot"></span> recording</span>
+    </div>
+
+    <div style="margin-bottom:16px;">
+      <label style="font-size:0.8rem;color:#5b6863;display:block;margin-bottom:6px;">Or upload an existing recording (e.g. from your phone's voice memo app):</label>
+      <input type="file" id="externalAudioInput" accept="audio/*">
+    </div>
+
+    <div class="transcript" id="transcript">
+      <div class="empty-hint">Record the whole session in one go — the AI will separate doctor and patient speech automatically afterward.</div>
+    </div>
+
+    <div id="recoveryControls" style="display:none;margin-bottom:16px;">
+      <div class="ai-flag" style="margin-bottom:10px;">Your recording is saved on this device, separate from the transcript above. If transcription ever fails, your audio is safe and you can retry.</div>
+      <div class="actions-row">
+        <button class="primary" id="retryTranscriptionBtn">Retry transcription from saved recording</button>
+        <button class="ghost" id="downloadRecordingBtn">Download recording</button>
+      </div>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <button class="primary" id="generateBtn" disabled>Generate clinical note (English)</button>
+
+    <div id="noteSection" style="display:none;">
+      <div class="section-title">Structured clinical note</div>
+      <div class="note-output">
+        <div class="ai-flag">AI-generated draft — review and edit before saving to the chart. Any diagnosis suggestion below is a prompt for your judgment, not a conclusion.</div>
+        <textarea id="noteText"></textarea>
+        <div class="actions-row">
+          <button class="ghost" id="saveNoteBtn">Save to session</button>
+          <button class="ghost" id="downloadBtn">Download .txt</button>
+          <button class="ghost" id="saveDriveBtn">Save to Google Drive</button>
+        </div>
+        <div class="actions-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+          <button class="ghost" id="voiceNoteBtn">🎤 Add voice note to update this note</button>
+          <span class="rec-indicator" id="voiceNoteIndicator" style="display:none;"><span class="dot"></span> recording</span>
+        </div>
+        <div class="status" id="voiceNoteStatus" style="margin-top:6px;margin-bottom:0;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let mediaStream = null;
+let mediaRecorder = null;
+let isRecording = false;
+let currentChunks = [];
+let recordedBlob = null;
+let transcriptLines = []; // {speaker, text} — speaker is unused now but kept for CSS/storage compatibility
+let sessions = {}; // id -> {patientName, date, transcriptLines, note}
+let activeSessionId = null;
+let deepgramApiKey = '';
+let anthropicApiKey = '';
+let geminiApiKey = '';
+let aiProvider = 'anthropic'; // 'anthropic' | 'gemini' — used for note generation
+let auxAiProvider = 'gemini'; // 'anthropic' | 'gemini' — used only for terminology correction
+let sessionType = 'assessment';
+
+// Built-in library of common PT special tests, imaging, and terminology —
+// used to bias the transcription toward correctly catching these English
+// terms when spoken mid-Arabic-sentence. Freely editable in the UI.
+const DEFAULT_KEYTERMS = [
+  // Special tests only — the terms hardest to catch live and most worth
+  // real-time boosting. Anatomy, joints, and exercise names are still
+  // fully covered by COMPREHENSIVE_TERMS in the post-transcription
+  // correction pass below, which has no token limit.
+  "Spurling's test","cervical compression test","traction test","upper limb tension test",
+  "Neer's test","Hawkins-Kennedy test","empty can test","drop arm test","Speed's test",
+  "Cozen's test","Mill's test","Tinel's sign","Phalen's test","Finkelstein's test",
+  "straight leg raise test","slump test","Gaenslen's test","FABER test","Trendelenburg test",
+  "Thomas test","Ober's test","Lachman test","anterior drawer test","McMurray test","Apley test",
+  "talar tilt test","Thompson test","squeeze test"
+].join(", ");
+
+// Comprehensive PT vocabulary reference — NOT subject to Deepgram's keyterm
+// limit, since this is only used as reference text in a Claude prompt for
+// a post-transcription correction pass. This is the full library; nothing
+// gets dropped here even as DEFAULT_KEYTERMS above stays trimmed for the
+// live transcription API call.
+const COMPREHENSIVE_TERMS = [
+  // Special tests
+  "Spurling's test","cervical compression test","cervical distraction test","traction test",
+  "vertebral artery test","Sharp-Purser test","upper limb tension test","neurodynamic test",
+  "Neer's test","Hawkins-Kennedy test","empty can test","full can test","drop arm test",
+  "Speed's test","Yergason's test","apprehension test","relocation test","sulcus sign",
+  "O'Brien's test","cross body adduction test","painful arc test","Cozen's test","Mill's test",
+  "Tinel's sign","Phalen's test","Finkelstein's test","Watson test","Allen test",
+  "straight leg raise test","slump test","femoral nerve stretch test","prone instability test",
+  "Gaenslen's test","thigh thrust test","FABER test","FADIR test","Trendelenburg test",
+  "Thomas test","Ober's test","scour test","log roll test","Lachman test","anterior drawer test",
+  "posterior drawer test","McMurray test","Apley test","patellar apprehension test",
+  "Clarke's test","Noble compression test","talar tilt test","Thompson test","squeeze test",
+  "MRI","X-ray","CT scan","ultrasound imaging","EMG","nerve conduction study",
+  "cortisone","NSAID","range of motion",
+  // Joints and spine
+  "shoulder joint","glenohumeral joint","elbow joint","wrist joint","hip joint","knee joint",
+  "ankle joint","subtalar joint","cervical spine","thoracic spine","lumbar spine",
+  "sacroiliac joint","acromioclavicular joint","sternoclavicular joint","temporomandibular joint",
+  // Bones
+  "humerus","radius","ulna","femur","tibia","fibula","clavicle","scapula","patella",
+  "calcaneus","talus","sacrum","vertebrae",
+  // Soft tissue / muscles
+  "rotator cuff","supraspinatus","infraspinatus","subscapularis","teres minor","biceps tendon",
+  "ACL","PCL","MCL","LCL","meniscus","labrum","hamstring","quadriceps","IT band",
+  "Achilles tendon","plantar fascia","deltoid","trapezius","latissimus dorsi","gluteus medius",
+  "gluteus maximus","piriformis","erector spinae",
+  // Nerves
+  "median nerve","ulnar nerve","radial nerve","sciatic nerve","femoral nerve","brachial plexus",
+  "dermatome","myotome",
+  // Named exercises
+  "clamshell exercise","lat pull down","scapular retraction","scapular protraction",
+  "shoulder retraction","shoulder flexion","shoulder abduction","shoulder adduction",
+  "shoulder external rotation","shoulder internal rotation","chin tuck","cervical extension",
+  "cervical flexion","hip extension","hip flexion","hip abduction","hip adduction",
+  "hip internal rotation","hip external rotation","knee extension","knee flexion",
+  "terminal knee extension","dynamic knee bulges","resisted dorsiflexion","ankle inversion",
+  "ankle eversion","elbow flexion","elbow extension","wrist flexion","wrist extension",
+  "forearm pronation","forearm supination",
+  // General exercises
+  "quad sets","straight leg raise","bridging","clamshells","wall slides","heel slides",
+  "ankle pumps","calf raises","squats","lunges","plank","bird dog","hip thrust","step-ups",
+  "step downs","mini squats","wall sits","single leg stance","hamstring curls","ankle circles",
+  "toe raises","pelvic tilts","dead bug","side plank","pendulum exercise","McKenzie extension",
+  "McKenzie flexion","Codman's exercise","PNF stretching","Williams flexion exercises",
+  "proprioception training","balance training","gait training","core stabilization",
+  // Modalities and manual therapy
+  "TENS","ultrasound therapy","electrical stimulation","cryotherapy","hot pack",
+  "joint mobilization","soft tissue mobilization","myofascial release","dry needling","cupping",
+  // Equipment
+  "TheraBand","resistance band","stationary bike","treadmill"
+].join(", ");
+
+let recordedMimeType = 'audio/webm';
+
+// Requesting these explicitly (rather than plain {audio:true}) asks the
+// device/browser to apply real-time noise suppression and automatic gain
+// control to the built-in mic before we ever touch the audio — a free,
+// hardware-free improvement to signal quality. Echo cancellation is
+// disabled since there's no speaker output to cancel in this recording
+// scenario, and it can sometimes distort audio unnecessarily.
+const AUDIO_CAPTURE_CONSTRAINTS = {
+  audio: {
+    noiseSuppression: true,
+    autoGainControl: true,
+    echoCancellation: false
+  }
+};
+let wakeLock = null;
+let googleClientId = '';
+let clinicianName = '';
+let sharedFolderId = '';
+let googleAccessToken = '';
+let googleTokenClient = null;
+
+const el = (id) => document.getElementById(id);
+
+// Simple wrapper over the browser's own localStorage, so this app works
+// standalone once hosted on your own domain (Netlify, etc.) — it does not
+// depend on Claude's chat environment at all.
+const localDB = {
+  async get(key){
+    const v = localStorage.getItem(key);
+    if(v === null) throw new Error('key not found');
+    return {key, value: v};
+  },
+  async set(key, value){
+    localStorage.setItem(key, value);
+    return {key, value};
+  },
+  async delete(key){
+    localStorage.removeItem(key);
+    return {key, deleted:true};
+  },
+  async list(prefix){
+    const keys = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(!prefix || (k && k.startsWith(prefix))) keys.push(k);
+    }
+    return {keys};
+  }
+};
+
+// IndexedDB-based store for raw audio recordings (localStorage can't hold
+// binary blobs reliably at this size). This means if transcription fails
+// for any reason, the actual recording is never lost — it stays saved on
+// the device and can be retried or downloaded.
+const audioDB = {
+  _dbPromise: null,
+  _open(){
+    if(this._dbPromise) return this._dbPromise;
+    this._dbPromise = new Promise((resolve, reject)=>{
+      const req = indexedDB.open('ptScribeAudio', 1);
+      req.onupgradeneeded = ()=>{
+        req.result.createObjectStore('recordings', {keyPath: 'sessionId'});
+      };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+    return this._dbPromise;
+  },
+  async save(sessionId, blob, mimeType){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('recordings', 'readwrite');
+      tx.objectStore('recordings').put({sessionId, blob, mimeType, savedAt: Date.now()});
+      tx.oncomplete = ()=> resolve(true);
+      tx.onerror = ()=> reject(tx.error);
+    });
+  },
+  async get(sessionId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('recordings', 'readonly');
+      const req = tx.objectStore('recordings').get(sessionId);
+      req.onsuccess = ()=> resolve(req.result || null);
+      req.onerror = ()=> reject(req.error);
+    });
+  },
+  async delete(sessionId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('recordings', 'readwrite');
+      tx.objectStore('recordings').delete(sessionId);
+      tx.oncomplete = ()=> resolve(true);
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+};
+
+// IndexedDB-based store for image attachments (X-rays, imaging, etc.)
+// linked to a session. Multiple images per session, keyed by auto id.
+const imageDB = {
+  _dbPromise: null,
+  _open(){
+    if(this._dbPromise) return this._dbPromise;
+    this._dbPromise = new Promise((resolve, reject)=>{
+      const req = indexedDB.open('ptScribeImages', 1);
+      req.onupgradeneeded = ()=>{
+        const store = req.result.createObjectStore('images', {keyPath: 'id', autoIncrement: true});
+        store.createIndex('sessionId', 'sessionId', {unique: false});
+      };
+      req.onsuccess = ()=> resolve(req.result);
+      req.onerror = ()=> reject(req.error);
+    });
+    return this._dbPromise;
+  },
+  async add(sessionId, blob, mimeType, caption){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('images', 'readwrite');
+      const req = tx.objectStore('images').add({sessionId, blob, mimeType, caption: caption||'', savedAt: Date.now()});
+      req.onsuccess = ()=> resolve(req.result);
+      tx.onerror = ()=> reject(tx.error);
+    });
+  },
+  async listForSession(sessionId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('images', 'readonly');
+      const idx = tx.objectStore('images').index('sessionId');
+      const req = idx.getAll(sessionId);
+      req.onsuccess = ()=> resolve(req.result || []);
+      req.onerror = ()=> reject(req.error);
+    });
+  },
+  async delete(imageId){
+    const db = await this._open();
+    return new Promise((resolve, reject)=>{
+      const tx = db.transaction('images', 'readwrite');
+      tx.objectStore('images').delete(imageId);
+      tx.oncomplete = ()=> resolve(true);
+      tx.onerror = ()=> reject(tx.error);
+    });
+  }
+};
+
+function todayStr(){
+  return new Date().toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
+}
+
+function newSessionId(){
+  return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+async function loadSessions(){
+  try{
+    const list = await localDB.list('session:');
+    if(list && list.keys){
+      for(const key of list.keys){
+        try{
+          const res = await localDB.get(key);
+          if(res && res.value){
+            const data = JSON.parse(res.value);
+            sessions[data.id] = data;
+          }
+        }catch(e){ /* skip unreadable key */ }
+      }
+    }
+  }catch(e){
+    console.log('No existing sessions found.');
+  }
+  renderSessionList();
+}
+
+function renderSessionList(){
+  const container = el('sessionList');
+  const ids = Object.keys(sessions);
+  if(ids.length === 0){
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No sessions yet.</div>';
+    return;
+  }
+  // Group sessions by patient name so a patient's assessment and all
+  // follow-ups sit together, most recently active patient first.
+  const groups = {};
+  ids.forEach(id=>{
+    const s = sessions[id];
+    const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(id);
+  });
+  Object.keys(groups).forEach(key=>{
+    groups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
+  });
+  const patientNames = Object.keys(groups).sort((a,b)=>{
+    const aLatest = Math.max(...groups[a].map(id=> sessions[id].createdAt||0));
+    const bLatest = Math.max(...groups[b].map(id=> sessions[id].createdAt||0));
+    return bLatest - aLatest;
+  });
+  container.innerHTML = '';
+  patientNames.forEach(patientName=>{
+    const groupHeader = document.createElement('div');
+    groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:14px 0 6px;padding-top:8px;border-top:1px solid var(--line);';
+    const nameSpan = document.createElement('span');
+    nameSpan.style.cssText = 'font-size:0.72rem;font-weight:700;color:#5b6863;text-transform:uppercase;letter-spacing:0.05em;';
+    nameSpan.textContent = patientName;
+    const followupBtn = document.createElement('button');
+    followupBtn.type = 'button';
+    followupBtn.textContent = '+ Follow-up';
+    followupBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
+    followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
+    groupHeader.appendChild(nameSpan);
+    if(patientName !== 'Unnamed patient') groupHeader.appendChild(followupBtn);
+    container.appendChild(groupHeader);
+    groups[patientName].forEach(id=>{
+      const s = sessions[id];
+      const div = document.createElement('div');
+      div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
+      div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
+      div.onclick = () => loadSession(id);
+      container.appendChild(div);
+    });
+  });
+}
+
+function setSessionType(type){
+  sessionType = type;
+  el('typeAssessmentBtn').classList.toggle('active', type === 'assessment');
+  el('typeFollowupBtn').classList.toggle('active', type === 'followup');
+}
+
+function loadSession(id){
+  const s = sessions[id];
+  if(!s) return;
+  activeSessionId = id;
+  el('patientName').value = s.patientName || '';
+  el('sessionDate').value = s.date || todayStr();
+  setSessionType(s.sessionType || 'assessment');
+  transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
+  renderTranscript();
+  if(s.note){
+    el('noteSection').style.display = 'block';
+    el('noteText').value = s.note;
+  } else {
+    el('noteSection').style.display = 'none';
+    el('noteText').value = '';
+  }
+  el('generateBtn').disabled = transcriptLines.length === 0;
+  checkForSavedAudio(id);
+  renderImageGallery(id);
+  renderSessionList();
+}
+
+function startNewSession(){
+  if(micTestActive) stopMicTest();
+  activeSessionId = newSessionId();
+  el('patientName').value = '';
+  el('sessionDate').value = todayStr();
+  setSessionType('assessment');
+  transcriptLines = [];
+  renderTranscript();
+  el('noteSection').style.display = 'none';
+  el('noteText').value = '';
+  el('generateBtn').disabled = true;
+  showRecoveryControls(false);
+  renderImageGallery(activeSessionId);
+  renderSessionList();
+}
+
+function startFollowupForPatient(patientName){
+  if(micTestActive) stopMicTest();
+  activeSessionId = newSessionId();
+  el('patientName').value = patientName;
+  el('sessionDate').value = todayStr();
+  setSessionType('followup');
+  transcriptLines = [];
+  renderTranscript();
+  el('noteSection').style.display = 'none';
+  el('noteText').value = '';
+  el('generateBtn').disabled = true;
+  showRecoveryControls(false);
+  renderImageGallery(activeSessionId);
+  renderSessionList();
+  el('status').textContent = `New follow-up session started for ${patientName}. Record when ready.`;
+}
+
+function renderTranscript(statusText){
+  const container = el('transcript');
+  if(transcriptLines.length === 0){
+    const hint = 'Record the whole session in one go — the AI reads the full transcript to write the note, no speaker tagging needed.';
+    container.innerHTML = `<div class="empty-hint">${statusText || hint}</div>`;
+    return;
+  }
+  container.innerHTML = transcriptLines.map((line, idx) =>
+    `<div class="line doctor" style="direction:rtl;text-align:right;"><span class="editable-text" data-idx="${idx}" contenteditable="true" style="outline:none;">${escapeHtml(line.text)}</span></div>`
+  ).join('');
+  bindEditableLines(container);
+  container.scrollTop = container.scrollHeight;
+}
+
+function bindEditableLines(container){
+  container.querySelectorAll('.editable-text[data-idx]').forEach(span=>{
+    span.addEventListener('blur', ()=>{
+      const idx = parseInt(span.getAttribute('data-idx'), 10);
+      if(!isNaN(idx) && transcriptLines[idx]){
+        const newText = span.textContent.trim();
+        if(newText) transcriptLines[idx].text = newText;
+        else span.textContent = transcriptLines[idx].text; // don't allow emptying a line
+      }
+    });
+    span.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){ e.preventDefault(); span.blur(); }
+    });
+  });
+}
+
+function escapeHtml(str){
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function pickMimeType(){
+  const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/aac'];
+  for(const type of candidates){
+    if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(type)){
+      return type;
+    }
+  }
+  return '';
+}
+
+async function processRecordedAudio(blob){
+  // Save the raw recording first, before attempting transcription —
+  // this way a failed API call never loses the actual audio.
+  try{
+    await audioDB.save(activeSessionId, blob, recordedMimeType || 'audio/webm');
+    showRecoveryControls(true);
+  }catch(err){
+    console.error('Could not save audio backup:', err);
+  }
+  el('status').textContent = 'Transcribing…';
+  renderTranscript('Transcribing…');
+  await transcribeSession(blob);
+}
+
+function guessAudioMimeType(file){
+  // Browsers often report an empty or generic type for files shared from
+  // other apps (e.g. a voice memo exported via WhatsApp/Files). Fall back
+  // to the file extension so Deepgram gets an accurate Content-Type.
+  if(file.type && file.type.startsWith('audio/')) return file.type;
+  const name = (file.name || '').toLowerCase();
+  const extMap = {
+    '.m4a': 'audio/mp4', '.mp4': 'audio/mp4', '.aac': 'audio/aac',
+    '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.wave': 'audio/wav',
+    '.ogg': 'audio/ogg', '.oga': 'audio/ogg', '.opus': 'audio/opus',
+    '.webm': 'audio/webm', '.amr': 'audio/amr', '.3gp': 'audio/3gpp',
+    '.3gpp': 'audio/3gpp', '.flac': 'audio/flac'
+  };
+  for(const ext in extMap){
+    if(name.endsWith(ext)) return extMap[ext];
+  }
+  return 'audio/mp4'; // reasonable default — most phone voice memo exports are m4a/mp4
+}
+
+async function handleExternalAudioUpload(file){
+  if(!file) return;
+  if(!deepgramApiKey){
+    el('status').textContent = 'Enter your Deepgram API key above before processing an uploaded recording.';
+    return;
+  }
+  if(!activeSessionId) startNewSession();
+  recordedMimeType = guessAudioMimeType(file);
+  el('status').textContent = `Processing uploaded recording (detected as ${recordedMimeType})…`;
+  renderTranscript('Processing uploaded recording…');
+  await processRecordedAudio(file);
+}
+
+let micTestStream = null;
+let micTestAudioCtx = null;
+let micTestAnimFrame = null;
+let micTestActive = false;
+let micTestSilentFrames = 0;
+let micTestLoudFrames = 0;
+
+async function toggleMicTest(){
+  if(micTestActive){
+    stopMicTest();
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    el('micTestStatus').textContent = 'This browser cannot access the microphone.';
+    return;
+  }
+  try{
+    micTestStream = await navigator.mediaDevices.getUserMedia(AUDIO_CAPTURE_CONSTRAINTS);
+  }catch(e){
+    el('micTestMeterWrap').style.display = 'block';
+    el('micTestStatus').textContent = 'Microphone permission was denied or unavailable.';
+    return;
+  }
+  micTestActive = true;
+  micTestSilentFrames = 0;
+  micTestLoudFrames = 0;
+  el('micTestBtn').textContent = '⏹ Stop test';
+  el('micTestMeterWrap').style.display = 'block';
+  el('micTestStatus').textContent = 'Say something — the bar should move as you speak.';
+
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  micTestAudioCtx = new AudioContextClass();
+  const source = micTestAudioCtx.createMediaStreamSource(micTestStream);
+  const analyser = micTestAudioCtx.createAnalyser();
+  analyser.fftSize = 512;
+  source.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  function tick(){
+    if(!micTestActive) return;
+    analyser.getByteTimeDomainData(data);
+    let sumSquares = 0;
+    for(let i = 0; i < data.length; i++){
+      const v = (data[i] - 128) / 128;
+      sumSquares += v * v;
+    }
+    const rms = Math.sqrt(sumSquares / data.length);
+    const level = Math.min(100, Math.round(rms * 300));
+    el('micTestMeterFill').style.width = level + '%';
+
+    if(level < 4){
+      micTestSilentFrames++;
+      micTestLoudFrames = 0;
+    } else {
+      micTestLoudFrames++;
+      micTestSilentFrames = 0;
+    }
+    if(micTestSilentFrames > 180){ // ~3s of silence at 60fps
+      el('micTestStatus').textContent = "No sound detected yet — check the mic isn't blocked, or try speaking louder / closer.";
+    } else if(micTestLoudFrames > 10){
+      el('micTestStatus').textContent = 'Picking up sound — looks good.';
+    }
+    micTestAnimFrame = requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+function stopMicTest(){
+  micTestActive = false;
+  if(micTestAnimFrame) cancelAnimationFrame(micTestAnimFrame);
+  if(micTestStream){ micTestStream.getTracks().forEach(t=>t.stop()); micTestStream = null; }
+  if(micTestAudioCtx){ micTestAudioCtx.close().catch(()=>{}); micTestAudioCtx = null; }
+  el('micTestBtn').textContent = '🎙️ Test microphone';
+  el('micTestMeterFill').style.width = '0%';
+  el('micTestMeterWrap').style.display = 'none';
+}
+
+async function acquireWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+  }catch(e){
+    console.log('Wake lock not granted:', e);
+  }
+}
+
+async function releaseWakeLock(){
+  if(wakeLock){
+    try{ await wakeLock.release(); }catch(e){}
+    wakeLock = null;
+  }
+}
+
+// Screen may auto-release the wake lock when the tab is hidden (e.g. app
+// switcher). Re-acquire it automatically when the page becomes visible
+// again while still recording, so a brief switch doesn't permanently lose it.
+document.addEventListener('visibilitychange', async ()=>{
+  if(document.visibilityState === 'visible' && (isRecording || isRecordingVoiceNote) && !wakeLock){
+    await acquireWakeLock();
+  }
+});
+
+function togglePauseResume(){
+  if(!mediaRecorder || mediaRecorder.state === 'inactive') return;
+  if(mediaRecorder.state === 'recording'){
+    mediaRecorder.pause();
+    el('pauseResumeBtn').textContent = 'Resume';
+    el('recIndicator').innerHTML = '<span class="dot" style="background:#a97c2f;"></span> paused';
+    el('status').textContent = 'Paused — tap Resume to continue this same recording.';
+  } else if(mediaRecorder.state === 'paused'){
+    mediaRecorder.resume();
+    el('pauseResumeBtn').textContent = 'Pause';
+    el('recIndicator').innerHTML = '<span class="dot"></span> recording';
+    el('status').textContent = 'Recording resumed.';
+  }
+}
+
+async function toggleRecording(){
+  if(!isRecording){
+    if(!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      el('browserWarning').style.display = 'block';
+      return;
+    }
+    if(!deepgramApiKey){
+      el('keyStatus').textContent = 'Enter your Deepgram API key above before recording.';
+      el('keyStatus').style.color = '#a33d3d';
+      return;
+    }
+    try{
+      mediaStream = await navigator.mediaDevices.getUserMedia(AUDIO_CAPTURE_CONSTRAINTS);
+    }catch(e){
+      el('status').textContent = 'Microphone permission was denied or unavailable.';
+      return;
+    }
+    recordedMimeType = pickMimeType();
+    if(!activeSessionId) startNewSession();
+    currentChunks = [];
+    recordedBlob = null;
+    transcriptLines = [];
+    const options = recordedMimeType ? {mimeType: recordedMimeType} : {};
+    mediaRecorder = new MediaRecorder(mediaStream, options);
+    mediaRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size > 0) currentChunks.push(e.data); };
+    mediaRecorder.onstop = async ()=>{
+      recordedBlob = new Blob(currentChunks, {type: recordedMimeType || 'audio/webm'});
+      currentChunks = [];
+      await processRecordedAudio(recordedBlob);
+    };
+    mediaRecorder.start();
+    isRecording = true;
+    el('recordBtn').textContent = 'Stop recording';
+    el('recordBtn').classList.add('stop');
+    el('recIndicator').style.display = 'inline-flex';
+    el('pauseResumeBtn').style.display = 'inline-block';
+    el('pauseResumeBtn').textContent = 'Pause';
+    el('status').textContent = 'Recording the full session…';
+    renderTranscript('Recording the full session…');
+    await acquireWakeLock();
+  } else {
+    isRecording = false;
+    if(mediaRecorder && mediaRecorder.state !== 'inactive'){
+      mediaRecorder.stop();
+    }
+    if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream = null; }
+    el('recordBtn').textContent = 'Start recording';
+    el('recordBtn').classList.remove('stop');
+    el('recIndicator').style.display = 'none';
+    el('pauseResumeBtn').style.display = 'none';
+    await releaseWakeLock();
+  }
+}
+
+async function transcribePlainAudio(blob){
+  const dialect = el('dialectSelect').value || 'ar';
+  const contentType = recordedMimeType || 'audio/webm';
+  const allKeyterms = (el('keytermsInput').value || '')
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+  const KEYTERM_WORD_BUDGET = 100;
+  let wordsUsed = 0;
+  const keyterms = [];
+  for(const term of allKeyterms){
+    const wc = term.split(/\s+/).filter(Boolean).length;
+    if(wordsUsed + wc > KEYTERM_WORD_BUDGET) continue;
+    keyterms.push(term);
+    wordsUsed += wc;
+  }
+  let url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true`;
+  keyterms.forEach(term=>{ url += `&keyterm=${encodeURIComponent(term)}`; });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${deepgramApiKey}`,
+      'Content-Type': contentType
+    },
+    body: blob
+  });
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
+  }
+  const data = await res.json();
+  return data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+}
+
+async function transcribeFlatUtterances(blob){
+  const dialect = el('dialectSelect').value || 'ar';
+  const contentType = recordedMimeType || 'audio/webm';
+  const allKeyterms = (el('keytermsInput').value || '')
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t.length > 0);
+  const KEYTERM_WORD_BUDGET = 100;
+  let wordsUsed = 0;
+  const keyterms = [];
+  for(const term of allKeyterms){
+    const wc = term.split(/\s+/).filter(Boolean).length;
+    if(wordsUsed + wc > KEYTERM_WORD_BUDGET) continue;
+    keyterms.push(term);
+    wordsUsed += wc;
+  }
+  let url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true&paragraphs=true`;
+  keyterms.forEach(term=>{ url += `&keyterm=${encodeURIComponent(term)}`; });
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${deepgramApiKey}`,
+      'Content-Type': contentType
+    },
+    body: blob
+  });
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
+  }
+  const data = await res.json();
+  const alt = data?.results?.channels?.[0]?.alternatives?.[0];
+  const lines = [];
+  const paragraphs = alt?.paragraphs?.paragraphs;
+  if(paragraphs && paragraphs.length > 0){
+    paragraphs.forEach(p=>{
+      (p.sentences || []).forEach(s=>{
+        const t = (s.text || '').trim();
+        if(t) lines.push(t);
+      });
+    });
+  } else if(alt?.transcript && alt.transcript.trim()){
+    lines.push(alt.transcript.trim());
+  }
+  return lines;
+}
+
+async function transcribeSession(blob){
+  try{
+    const lines = await transcribeFlatUtterances(blob);
+    if(lines.length === 0){
+      el('status').textContent = 'No speech was detected in the recording.';
+      renderTranscript();
+      return;
+    }
+    transcriptLines = lines.map(text => ({speaker: 'doctor', text}));
+    renderTranscript();
+    el('generateBtn').disabled = false;
+    el('status').textContent = 'Transcribed. Review it, then generate the note.';
+    await applyTerminologyCorrection();
+  }catch(e){
+    console.error(e);
+    el('status').textContent = `Transcription failed: ${e.message || 'unknown error'}`;
+    renderTranscript('Transcription failed — try recording again.');
+  }
+}
+
+
+async function callAI(systemPrompt, userContent, maxTokens, provider = aiProvider){
+  if(provider === 'gemini'){
+    if(!geminiApiKey) throw new Error('Gemini API key not set.');
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: userContent}]}],
+        systemInstruction: {parts: [{text: systemPrompt}]},
+        generationConfig: {maxOutputTokens: maxTokens}
+      })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Gemini API error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    const text = (data?.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('');
+    if(!text) throw new Error('Gemini returned an empty response.');
+    return text;
+  } else {
+    if(!anthropicApiKey) throw new Error('Anthropic API key not set.');
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": anthropicApiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-5",
+        max_tokens: maxTokens,
+        system: systemPrompt,
+        messages: [ { role: "user", content: userContent } ]
+      })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
+    if(!text){
+      const blockTypes = (data.content || []).map(b => b.type).join(',') || 'none';
+      throw new Error(`Claude returned an empty response (stop_reason: ${data.stop_reason || 'unknown'}, content blocks: ${blockTypes}).`);
+    }
+    return text;
+  }
+}
+
+async function applyTerminologyCorrection(){
+  const hasKey = auxAiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
+  if(!hasKey || transcriptLines.length === 0) return;
+  el('status').textContent = 'Checking PT terminology against the full reference list…';
+  const systemPrompt = `You review a speaker-tagged physical therapy session transcript (Arabic mixed with English medical terms) for speech-to-text errors in English medical/PT terminology — special tests, anatomy, exercise names.
+
+Reference list of correct English PT terms:
+${COMPREHENSIVE_TERMS}
+
+You receive a JSON array of {"speaker":"...","text":"..."} objects.
+
+CRITICAL — the speech-to-text system frequently mishears an English PT term as a DIFFERENT, real, fluent-sounding English word — not obvious gibberish. This is the main failure mode to catch. For example: "squat" heard as "spot", "Lachman" heard as "lockman", "cupping" heard as "copying", "traction" heard as "tration" or "fraction". A mis-transcribed term will often look like a perfectly normal English word in isolation — do not assume a word is correct just because it's a real word. For every isolated English word or short phrase embedded in the Arabic text, actively check: does this sound phonetically close to any term in the reference list, given the surrounding clinical context (e.g. an exercise being described, a test being performed)? If yes, replace it with the correct reference term even though the original was a fluent, real word.
+
+Do NOT change anything else: keep all Arabic text exactly as given, keep speaker tags exactly as given, do not add, remove, merge, or reorder lines, do not translate anything, do not touch Arabic words, do not invent content. If a line has no English PT terminology at all, leave it completely unchanged. If genuinely nothing needs correcting anywhere, return the array unchanged.
+
+Respond with ONLY the corrected JSON array in the exact same format and order, no other text, no markdown fences.`;
+
+  try{
+    let raw = await callAI(systemPrompt, JSON.stringify(transcriptLines), 8000, auxAiProvider);
+    raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/,'').trim();
+    const corrected = JSON.parse(raw);
+    if(Array.isArray(corrected) && corrected.length === transcriptLines.length){
+      transcriptLines = corrected;
+      renderTranscript();
+      el('status').textContent = 'PT terminology checked and corrected where needed.';
+    } else {
+      el('status').textContent = 'Terminology check returned an unexpected result — kept the original transcript.';
+    }
+  }catch(e){
+    console.error('Terminology correction failed:', e);
+    el('status').textContent = `Terminology check failed (kept original transcript): ${e.message || 'unknown error'}`;
+  }
+}
+
+async function generateNote(){
+  if(transcriptLines.length === 0) return;
+  const hasKey = aiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
+  if(!hasKey){
+    el('status').textContent = `Enter your ${aiProvider === 'gemini' ? 'Gemini' : 'Anthropic'} API key above before generating the note.`;
+    return;
+  }
+  el('generateBtn').disabled = true;
+  el('generateBtn').textContent = 'Generating…';
+  el('status').textContent = 'Structuring and translating the session — this can take a moment.';
+
+  const transcriptText = transcriptLines.map(l => l.text).join('\n');
+
+  const sharedRules = `Translate all Arabic content faithfully into English, preserving already-English medical terms exactly as given (do not alter or "correct" them). Be concise, clinical, and precise. Do not invent details not present in the transcript. If a section has no relevant content, write "Not documented in this session."
+
+CRITICAL — transcript quality self-check: before writing the note, assess how much of the transcript is coherent, intelligible Arabic/English versus fragmented, garbled, or nonsensical text (a known limitation of automatic speech recognition on real clinic audio). If a meaningful portion of the transcript is too garbled to confidently extract clinical meaning from, you MUST start your entire response with a line exactly like:
+"⚠️ TRANSCRIPT QUALITY WARNING: [1-2 sentences on what's unreliable — e.g. 'much of the patient's history section was too fragmented to transcribe reliably; treat Subjective details below with caution']"
+Then proceed with your best-effort note. Do not skip this warning to make the note look more polished — an honest low-confidence note is far more useful and safer than a confident-sounding one built on unreliable input. If the transcript is genuinely clear and coherent throughout, do not add any warning.`;
+
+  const assessmentPrompt = `You are a clinical documentation assistant for a physical therapy clinic. You receive a transcript of an INITIAL ASSESSMENT session, conducted mostly in Arabic (sometimes mixed with English medical terminology). The transcript has no speaker labels — it may be a back-and-forth conversation between doctor and patient, or a clinician's own narrated summary of the visit. Read the content itself to work out what's patient-reported versus clinician-observed (e.g. questions and instructions are the clinician; symptom descriptions and answers are the patient). Produce a structured clinical note IN ENGLISH ONLY.
+
+Format the output as plain text with these sections:
+SUBJECTIVE: (patient-reported complaints, history, onset, symptoms)
+OBJECTIVE: (findings, tests, measurements, observations made or described by the clinician)
+ASSESSMENT: (the clinician's stated assessment or clinical reasoning)
+PLAN: (treatment plan, exercises, follow-up, or next steps stated)
+AI-SUGGESTED DIFFERENTIAL (OPTIONAL, CLEARLY LABELED): only if there is enough information, offer 1-3 possible differential considerations based strictly on stated findings, explicitly labeled as an AI suggestion for the clinician's judgment, never as a diagnosis.
+
+${sharedRules}`;
+
+  const followupPrompt = `You are a clinical documentation assistant for a physical therapy clinic. You receive a transcript of a FOLLOW-UP / PROGRESS session, conducted mostly in Arabic (sometimes mixed with English medical terminology). The transcript has no speaker labels — it may be a back-and-forth conversation between doctor and patient, or a clinician's own narrated summary. Read the content itself to work out what's patient-reported versus clinician-observed. This is NOT an initial assessment — the patient has an established diagnosis and ongoing plan. Produce a short progress note IN ENGLISH ONLY, focused on change since the prior visit.
+
+Format the output as plain text with EXACTLY these two sections, nothing else:
+PROGRESS: (a concise account of patient-reported and clinician-observed change since the last visit — symptom change, pain level change, functional change, home exercise program adherence and any reported difficulty with it, any findings or comparisons to the prior visit, and the clinician's stated assessment of progress toward goals if mentioned — improving, stalled, or worsening)
+PLAN: (any changes to the treatment plan, exercises, or dosage/frequency as stated; if explicitly unchanged, state that)
+
+Do NOT use SOAP headers (no Subjective/Objective/Assessment as separate labeled sections) and do NOT include a differential diagnosis section — the diagnosis is already established for a follow-up visit. If the clinician's reasoning for a plan change is not stated, do not infer or invent it — state it is not documented.
+
+${sharedRules}`;
+
+  const systemPrompt = sessionType === 'followup' ? followupPrompt : assessmentPrompt;
+
+  try{
+    const note = await callAI(systemPrompt, `Session transcript:\n\n${transcriptText}`, 8000);
+    el('noteText').value = note;
+    el('noteSection').style.display = 'block';
+    el('status').textContent = 'Draft ready. Review carefully before saving.';
+  }catch(e){
+    el('status').textContent = `Note generation failed: ${e.message || 'unknown error'}`;
+    console.error(e);
+  }finally{
+    el('generateBtn').disabled = false;
+    el('generateBtn').textContent = 'Generate clinical note (English)';
+  }
+}
+
+let voiceNoteStream = null;
+let voiceNoteRecorder = null;
+let voiceNoteChunks = [];
+let isRecordingVoiceNote = false;
+
+async function toggleVoiceNote(){
+  setVoiceNoteStatus('Button tapped — checking…');
+  try{
+    if(!isRecordingVoiceNote){
+      if(!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+        setVoiceNoteStatus('This browser cannot record audio.');
+        return;
+      }
+      const hasKey = aiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
+      if(!deepgramApiKey || !hasKey){
+        setVoiceNoteStatus('Voice-note updates need both a Deepgram key and an AI provider key set above (scroll up).');
+        return;
+      }
+      setVoiceNoteStatus('Requesting microphone…');
+      try{
+        voiceNoteStream = await navigator.mediaDevices.getUserMedia(AUDIO_CAPTURE_CONSTRAINTS);
+      }catch(e){
+        setVoiceNoteStatus('Microphone permission was denied or unavailable: ' + (e.message || e.name || 'unknown'));
+        return;
+      }
+      const options = recordedMimeType ? {mimeType: recordedMimeType} : {};
+      voiceNoteChunks = [];
+      voiceNoteRecorder = new MediaRecorder(voiceNoteStream, options);
+      voiceNoteRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size > 0) voiceNoteChunks.push(e.data); };
+      voiceNoteRecorder.onstop = async ()=>{
+        const blob = new Blob(voiceNoteChunks, {type: recordedMimeType || 'audio/webm'});
+        voiceNoteChunks = [];
+        await mergeVoiceNoteIntoExistingNote(blob);
+      };
+      voiceNoteRecorder.start();
+      isRecordingVoiceNote = true;
+      el('voiceNoteBtn').textContent = 'Stop and add to note';
+      el('voiceNoteIndicator').style.display = 'inline-flex';
+      setVoiceNoteStatus('Recording your addition — say what you want added or changed.');
+      await acquireWakeLock();
+    } else {
+      isRecordingVoiceNote = false;
+      if(voiceNoteRecorder && voiceNoteRecorder.state !== 'inactive') voiceNoteRecorder.stop();
+      if(voiceNoteStream){ voiceNoteStream.getTracks().forEach(t=>t.stop()); voiceNoteStream = null; }
+      el('voiceNoteBtn').textContent = '🎤 Add voice note to update this note';
+      el('voiceNoteIndicator').style.display = 'none';
+      setVoiceNoteStatus('Stopped — processing…');
+      await releaseWakeLock();
+    }
+  }catch(err){
+    console.error('toggleVoiceNote error:', err);
+    setVoiceNoteStatus('Unexpected error: ' + (err.message || err));
+  }
+}
+
+function setVoiceNoteStatus(text){
+  el('voiceNoteStatus').textContent = text;
+  el('status').textContent = text;
+}
+
+async function mergeVoiceNoteIntoExistingNote(blob){
+  setVoiceNoteStatus('Transcribing your addition…');
+  el('voiceNoteBtn').disabled = true;
+  try{
+    const addition = await transcribePlainAudio(blob);
+    if(!addition.trim()){
+      setVoiceNoteStatus('No speech detected in the voice note.');
+      return;
+    }
+    setVoiceNoteStatus('Updating the note with your addition…');
+    const currentNote = el('noteText').value || '';
+    const systemPrompt = `You are updating an existing physical therapy clinical note in English. The clinician has recorded a short voice note (in Arabic, possibly mixed with English medical terms) with additional information, a correction, or a clarification to add to the note.
+
+Existing note:
+${currentNote}
+
+Task: integrate the new information from the clinician's addition into the note, in the correct section (Subjective/Objective/Assessment/Plan, or Progress/Plan if that's the format used), translating it to English as needed and preserving already-English medical terms exactly. Keep everything else in the existing note unchanged unless the addition explicitly corrects something. Do not remove or shorten existing content. Output the complete updated note in the same format as the original — no preamble, no explanation, just the updated note text.`;
+
+    const updatedNote = await callAI(systemPrompt, `Clinician's addition (transcribed): ${addition.trim()}`, 6000);
+    el('noteText').value = updatedNote.trim();
+    setVoiceNoteStatus('Note updated with your addition. Review before saving.');
+  }catch(e){
+    console.error(e);
+    setVoiceNoteStatus(`Could not update the note: ${e.message || 'unknown error'}`);
+  }finally{
+    el('voiceNoteBtn').disabled = false;
+  }
+}
+
+async function saveSession(){
+  if(!activeSessionId) return;
+  const data = {
+    id: activeSessionId,
+    patientName: el('patientName').value || 'Unnamed patient',
+    date: el('sessionDate').value || todayStr(),
+    sessionType: sessionType,
+    transcriptLines: transcriptLines,
+    note: el('noteText').value || null,
+    createdAt: sessions[activeSessionId] ? sessions[activeSessionId].createdAt : Date.now()
+  };
+  sessions[activeSessionId] = data;
+  try{
+    await localDB.set('session:' + activeSessionId, JSON.stringify(data));
+    el('status').textContent = 'Session saved.';
+  }catch(e){
+    el('status').textContent = 'Could not save session — storage error.';
+    console.error(e);
+  }
+  renderSessionList();
+}
+
+function connectGoogleDrive(){
+  googleClientId = el('googleClientIdInput').value.trim();
+  if(!googleClientId){
+    el('driveStatus').textContent = 'Paste your Google OAuth Client ID above first.';
+    return;
+  }
+  if(!window.google || !google.accounts || !google.accounts.oauth2){
+    el('driveStatus').textContent = 'Google sign-in library did not load — check your internet connection and try again.';
+    return;
+  }
+  try{
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: 'https://www.googleapis.com/auth/drive.file',
+      callback: (response)=>{
+        if(response && response.access_token){
+          googleAccessToken = response.access_token;
+          el('driveStatus').textContent = 'Connected to Google Drive.';
+          el('connectDriveBtn').textContent = 'Reconnect Google Drive';
+        } else {
+          el('driveStatus').textContent = 'Google sign-in did not return access — try again.';
+        }
+      }
+    });
+    el('driveStatus').textContent = 'Opening Google sign-in…';
+    googleTokenClient.requestAccessToken();
+  }catch(e){
+    console.error(e);
+    el('driveStatus').textContent = 'Could not start Google sign-in: ' + (e.message || e);
+  }
+}
+
+async function uploadTextFileToDrive(filename, content){
+  if(!googleAccessToken){
+    return new Promise((resolve)=>{
+      if(!googleTokenClient){
+        el('driveStatus').textContent = 'Connect Google Drive above first.';
+        resolve(false);
+        return;
+      }
+      googleTokenClient.callback = async (response)=>{
+        if(response && response.access_token){
+          googleAccessToken = response.access_token;
+          const ok = await doUploadTextFile(filename, content);
+          resolve(ok);
+        } else {
+          resolve(false);
+        }
+      };
+      googleTokenClient.requestAccessToken();
+    });
+  }
+  return doUploadTextFile(filename, content);
+}
+
+async function doUploadTextFile(filename, content){
+  const boundary = 'qalamboundary' + Date.now();
+  // Setting mimeType to Google's native Doc format tells Drive to convert
+  // the uploaded plain text into a real, editable Google Doc automatically.
+  const metadata = {name: filename, mimeType: 'application/vnd.google-apps.document'};
+  if(sharedFolderId) metadata.parents = [sharedFolderId];
+  const body =
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
+    `--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${content}\r\n` +
+    `--${boundary}--`;
+  try{
+    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${googleAccessToken}`,
+        'Content-Type': `multipart/related; boundary=${boundary}`
+      },
+      body
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Drive API error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    return true;
+  }catch(e){
+    console.error(e);
+    el('driveStatus').textContent = 'Upload failed: ' + (e.message || e);
+    return false;
+  }
+}
+
+async function saveNoteToDrive(){
+  const noteContent = el('noteText').value;
+  if(!noteContent){
+    el('driveStatus').textContent = 'Generate a note first.';
+    return;
+  }
+  const name = (el('patientName').value || 'session').replace(/[^a-z0-9]+/gi,'_');
+  const dateStr = (el('sessionDate').value||'').replace(/[^a-z0-9]+/gi,'_');
+  const clinicianTag = clinicianName ? `${clinicianName.replace(/[^a-z0-9]+/gi,'_')}_` : '';
+  el('driveStatus').textContent = 'Uploading to Google Drive…';
+  el('saveDriveBtn').disabled = true;
+  const noteOk = await uploadTextFileToDrive(`${clinicianTag}${name}_${dateStr}_note`, noteContent);
+  let transcriptOk = true;
+  if(transcriptLines.length > 0){
+    const transcriptContent = transcriptLines.map(l => `[${l.speaker.toUpperCase()}] ${l.text}`).join('\n');
+    transcriptOk = await uploadTextFileToDrive(`${clinicianTag}${name}_${dateStr}_transcript`, transcriptContent);
+  }
+  el('saveDriveBtn').disabled = false;
+  if(noteOk && transcriptOk){
+    el('driveStatus').textContent = 'Saved to Google Drive.';
+  }
+}
+
+function downloadNote(){
+  const text = el('noteText').value;
+  if(!text) return;
+  const name = (el('patientName').value || 'session').replace(/[^a-z0-9]+/gi,'_');
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${name}_${(el('sessionDate').value||'').replace(/[^a-z0-9]+/gi,'_')}_note.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function showRecoveryControls(show){
+  el('recoveryControls').style.display = show ? 'block' : 'none';
+}
+
+async function checkForSavedAudio(sessionId){
+  try{
+    const record = await audioDB.get(sessionId);
+    showRecoveryControls(!!record);
+  }catch(e){
+    showRecoveryControls(false);
+  }
+}
+
+async function renderImageGallery(sessionId){
+  const gallery = el('imageGallery');
+  gallery.innerHTML = '';
+  if(!sessionId) return;
+  try{
+    const images = await imageDB.listForSession(sessionId);
+    images.forEach(img=>{
+      const url = URL.createObjectURL(img.blob);
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'position:relative;width:90px;';
+      wrap.innerHTML = `
+        <img src="${url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;">
+        <button type="button" style="position:absolute;top:2px;right:2px;background:rgba(163,61,61,0.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:1;">×</button>
+      `;
+      wrap.querySelector('img').addEventListener('click', ()=> window.open(url, '_blank'));
+      wrap.querySelector('button').addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        try{ await imageDB.delete(img.id); }catch(err){ console.error(err); }
+        renderImageGallery(sessionId);
+      });
+      gallery.appendChild(wrap);
+    });
+  }catch(e){
+    console.error(e);
+  }
+}
+
+async function handleImageUpload(fileList){
+  if(!activeSessionId || !fileList || fileList.length === 0) return;
+  for(const file of fileList){
+    try{ await imageDB.add(activeSessionId, file, file.type); }catch(e){ console.error(e); }
+  }
+  renderImageGallery(activeSessionId);
+}
+
+async function retryTranscription(){
+  if(!activeSessionId) return;
+  try{
+    const record = await audioDB.get(activeSessionId);
+    if(!record || !record.blob){
+      el('status').textContent = 'No saved recording found for this session.';
+      return;
+    }
+    recordedMimeType = record.mimeType || 'audio/webm';
+    el('status').textContent = 'Retrying transcription…';
+    renderTranscript('Retrying transcription…');
+    await transcribeSession(record.blob);
+  }catch(e){
+    console.error(e);
+    el('status').textContent = 'Could not retrieve the saved recording.';
+  }
+}
+
+async function downloadRecording(){
+  if(!activeSessionId) return;
+  try{
+    const record = await audioDB.get(activeSessionId);
+    if(!record || !record.blob){
+      el('status').textContent = 'No saved recording found for this session.';
+      return;
+    }
+    const ext = (record.mimeType || '').includes('mp4') ? 'm4a' : 'webm';
+    const name = (el('patientName').value || 'session').replace(/[^a-z0-9]+/gi,'_');
+    const url = URL.createObjectURL(record.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}_${(el('sessionDate').value||'').replace(/[^a-z0-9]+/gi,'_')}_recording.${ext}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }catch(e){
+    console.error(e);
+    el('status').textContent = 'Could not retrieve the saved recording.';
+  }
+}
+
+// Event bindings
+el('recordBtn').addEventListener('click', toggleRecording);
+el('pauseResumeBtn').addEventListener('click', togglePauseResume);
+el('clearBtn').addEventListener('click', ()=>{
+  transcriptLines = [];
+  renderTranscript();
+  el('generateBtn').disabled = true;
+  el('noteSection').style.display = 'none';
+});
+el('generateBtn').addEventListener('click', generateNote);
+el('saveNoteBtn').addEventListener('click', saveSession);
+el('downloadBtn').addEventListener('click', downloadNote);
+el('connectDriveBtn').addEventListener('click', connectGoogleDrive);
+el('saveDriveBtn').addEventListener('click', saveNoteToDrive);
+el('googleClientIdInput').addEventListener('change', async (e)=>{
+  googleClientId = e.target.value.trim();
+  try{ await localDB.set('google_client_id', googleClientId); }catch(err){ console.error(err); }
+});
+el('clinicianNameInput').addEventListener('change', async (e)=>{
+  clinicianName = e.target.value.trim();
+  try{ await localDB.set('clinician_name', clinicianName); }catch(err){ console.error(err); }
+});
+el('sharedFolderIdInput').addEventListener('change', async (e)=>{
+  sharedFolderId = e.target.value.trim();
+  try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
+});
+el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
+el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
+el('imageUploadInput').addEventListener('change', (e)=>{
+  handleImageUpload(e.target.files);
+  e.target.value = '';
+});
+el('externalAudioInput').addEventListener('change', (e)=>{
+  const file = e.target.files && e.target.files[0];
+  if(file) handleExternalAudioUpload(file);
+  e.target.value = '';
+});
+el('micTestBtn').addEventListener('click', toggleMicTest);
+el('downloadRecordingBtn').addEventListener('click', downloadRecording);
+el('newSessionBtn').addEventListener('click', startNewSession);
+el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
+el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
+
+el('apiKeyInput').addEventListener('input', (e)=>{
+  deepgramApiKey = e.target.value.trim();
+  el('keyStatus').textContent = '';
+});
+
+el('rememberKey').addEventListener('change', async (e)=>{
+  if(e.target.checked && deepgramApiKey){
+    try{
+      await localDB.set('deepgram_key', deepgramApiKey);
+      el('keyStatus').textContent = 'Key saved on this device.';
+      el('keyStatus').style.color = '#5b6863';
+    }catch(err){ console.error(err); }
+  } else if(!e.target.checked){
+    try{ await localDB.delete('deepgram_key'); }catch(err){}
+    el('keyStatus').textContent = '';
+  }
+});
+
+el('anthropicKeyInput').addEventListener('input', (e)=>{
+  anthropicApiKey = e.target.value.trim();
+});
+
+el('rememberAnthropicKey').addEventListener('change', async (e)=>{
+  if(e.target.checked && anthropicApiKey){
+    try{ await localDB.set('anthropic_key', anthropicApiKey); }catch(err){ console.error(err); }
+  } else if(!e.target.checked){
+    try{ await localDB.delete('anthropic_key'); }catch(err){}
+  }
+});
+
+el('geminiKeyInput').addEventListener('input', (e)=>{
+  geminiApiKey = e.target.value.trim();
+});
+
+el('rememberGeminiKey').addEventListener('change', async (e)=>{
+  if(e.target.checked && geminiApiKey){
+    try{ await localDB.set('gemini_key', geminiApiKey); }catch(err){ console.error(err); }
+  } else if(!e.target.checked){
+    try{ await localDB.delete('gemini_key'); }catch(err){}
+  }
+});
+
+function setAiProvider(provider){
+  aiProvider = provider;
+  el('providerAnthropicBtn').classList.toggle('active', provider === 'anthropic');
+  el('providerGeminiBtn').classList.toggle('active', provider === 'gemini');
+}
+el('providerAnthropicBtn').addEventListener('click', ()=> setAiProvider('anthropic'));
+el('providerGeminiBtn').addEventListener('click', ()=> setAiProvider('gemini'));
+
+function setAuxAiProvider(provider){
+  auxAiProvider = provider;
+  el('auxProviderAnthropicBtn').classList.toggle('active', provider === 'anthropic');
+  el('auxProviderGeminiBtn').classList.toggle('active', provider === 'gemini');
+}
+el('auxProviderAnthropicBtn').addEventListener('click', ()=> setAuxAiProvider('anthropic'));
+el('auxProviderGeminiBtn').addEventListener('click', ()=> setAuxAiProvider('gemini'));
+
+function updateKeytermsCounter(){
+  const val = el('keytermsInput').value || '';
+  const words = val.split(/\s+/).filter(Boolean).length;
+  const counter = el('keytermsCounter');
+  if(!val.trim()){
+    counter.textContent = '';
+    return;
+  }
+  counter.textContent = `${words} words in list (safety cap: 220 words — anything beyond that is automatically skipped, not sent)`;
+  counter.style.color = words > 220 ? '#a33d3d' : '#8a938e';
+}
+
+el('keytermsInput').addEventListener('input', updateKeytermsCounter);
+
+el('keytermsInput').addEventListener('change', async ()=>{
+  try{ await localDB.set('keyterms', el('keytermsInput').value); }catch(err){ console.error(err); }
+});
+
+el('resetKeytermsBtn').addEventListener('click', async ()=>{
+  el('keytermsInput').value = DEFAULT_KEYTERMS;
+  updateKeytermsCounter();
+  try{
+    await localDB.set('keyterms', DEFAULT_KEYTERMS);
+    el('keyStatus').textContent = 'Term list reset to default.';
+    el('keyStatus').style.color = '#5b6863';
+  }catch(err){ console.error(err); }
+});
+
+// Init
+el('sessionDate').value = todayStr();
+loadSessions().then(()=>{
+  if(Object.keys(sessions).length === 0){
+    startNewSession();
+  }
+});
+(async ()=>{
+  try{
+    const saved = await localDB.get('deepgram_key');
+    if(saved && saved.value){
+      deepgramApiKey = saved.value;
+      el('apiKeyInput').value = saved.value;
+      el('rememberKey').checked = true;
+    }
+  }catch(e){ /* no saved key yet */ }
+  try{
+    const savedA = await localDB.get('anthropic_key');
+    if(savedA && savedA.value){
+      anthropicApiKey = savedA.value;
+      el('anthropicKeyInput').value = savedA.value;
+      el('rememberAnthropicKey').checked = true;
+    }
+  }catch(e){ /* no saved key yet */ }
+  try{
+    const savedG = await localDB.get('gemini_key');
+    if(savedG && savedG.value){
+      geminiApiKey = savedG.value;
+      el('geminiKeyInput').value = savedG.value;
+      el('rememberGeminiKey').checked = true;
+    }
+  }catch(e){ /* no saved key yet */ }
+  try{
+    const savedTerms = await localDB.get('keyterms');
+    if(savedTerms && savedTerms.value){
+      el('keytermsInput').value = savedTerms.value;
+    } else {
+      el('keytermsInput').value = DEFAULT_KEYTERMS;
+    }
+  }catch(e){
+    el('keytermsInput').value = DEFAULT_KEYTERMS;
+  }
+  try{
+    const savedClientId = await localDB.get('google_client_id');
+    if(savedClientId && savedClientId.value){
+      googleClientId = savedClientId.value;
+      el('googleClientIdInput').value = savedClientId.value;
+    }
+  }catch(e){ /* no saved client id yet */ }
+  try{
+    const savedName = await localDB.get('clinician_name');
+    if(savedName && savedName.value){
+      clinicianName = savedName.value;
+      el('clinicianNameInput').value = savedName.value;
+    }
+  }catch(e){ /* no saved name yet */ }
+  try{
+    const savedFolder = await localDB.get('shared_folder_id');
+    if(savedFolder && savedFolder.value){
+      sharedFolderId = savedFolder.value;
+      el('sharedFolderIdInput').value = savedFolder.value;
+    }
+  }catch(e){ /* no saved folder id yet */ }
+})();
+if(!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+  el('browserWarning').style.display = 'block';
+}
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('service-worker.js').catch(e=> console.log('SW registration skipped:', e));
+  });
+}
+</script>
+
+</body>
+</html>
