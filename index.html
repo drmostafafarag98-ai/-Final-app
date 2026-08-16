@@ -491,6 +491,13 @@
           <span class="rec-indicator" id="voiceNoteIndicator" style="display:none;"><span class="dot"></span> recording</span>
         </div>
         <div class="status" id="voiceNoteStatus" style="margin-top:6px;margin-bottom:0;"></div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (pick from the list — avoids relying on speech-to-text getting the name right)</div>
+          <input type="text" id="exerciseSearchInput" placeholder="Search exercises…" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+          <div id="exerciseChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
+          <button class="ghost" id="addExercisesBtn" style="margin-top:8px;">Add selected exercises to note</button>
+        </div>
       </div>
     </div>
   </div>
@@ -585,6 +592,20 @@ const COMPREHENSIVE_TERMS = [
   // Equipment
   "TheraBand","resistance band","stationary bike","treadmill"
 ].join(", ");
+
+// Structured exercise list for the Plan checklist picker — organized by
+// region so the clinician can pick exact names by hand instead of relying
+// on speech-to-text to catch them correctly.
+const EXERCISE_LIBRARY = {
+  "Shoulder": ["Shoulder flexion","Shoulder abduction","Shoulder adduction","Shoulder external rotation","Shoulder internal rotation","Scapular retraction","Scapular protraction","Wall push-ups","Shoulder shrugs","Rows","Lat pull down"],
+  "Elbow / Wrist / Hand": ["Elbow flexion","Elbow extension","Wrist flexion","Wrist extension","Forearm pronation","Forearm supination","Grip strengthening"],
+  "Cervical": ["Chin tuck","Cervical extension","Cervical flexion"],
+  "Core / Spine": ["Pelvic tilts","Dead bug","Side plank","Plank","Bird dog","Cat-cow stretch","Abdominal bracing","Core stabilization","McKenzie extension","McKenzie flexion","Codman's exercise","Williams flexion exercises"],
+  "Hip": ["Hip flexion","Hip extension","Hip abduction","Hip adduction","Hip internal rotation","Hip external rotation","Hip thrust","Fire hydrants","Clamshell exercise","Side-lying leg raises","Bridging"],
+  "Knee": ["Quad sets","Straight leg raise","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls"],
+  "Ankle / Foot": ["Ankle pumps","Calf raises","Ankle circles","Toe raises","Ankle inversion","Ankle eversion","Resisted dorsiflexion"],
+  "Balance / Neuro / General": ["Single leg stance","Proprioception training","Balance training","Gait training","PNF stretching","Pendulum exercise","Wall slides","Heel slides"]
+};
 
 let recordedMimeType = 'audio/webm';
 
@@ -1490,16 +1511,18 @@ async function saveSession(){
 }
 
 function connectGoogleDrive(){
-  googleClientId = el('googleClientIdInput').value.trim();
-  if(!googleClientId){
-    el('driveStatus').textContent = 'Paste your Google OAuth Client ID above first.';
-    return;
-  }
-  if(!window.google || !google.accounts || !google.accounts.oauth2){
-    el('driveStatus').textContent = 'Google sign-in library did not load — check your internet connection and try again.';
-    return;
-  }
+  el('driveStatus').textContent = 'Button tapped — checking…';
+  el('status').textContent = 'Checking Google Drive connection…';
   try{
+    googleClientId = el('googleClientIdInput').value.trim();
+    if(!googleClientId){
+      el('driveStatus').textContent = 'Paste your Google OAuth Client ID above first.';
+      return;
+    }
+    if(!window.google || !google.accounts || !google.accounts.oauth2){
+      el('driveStatus').textContent = 'Google sign-in library did not load — check your internet connection and try again.';
+      return;
+    }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: googleClientId,
       scope: 'https://www.googleapis.com/auth/drive.file',
@@ -1508,15 +1531,21 @@ function connectGoogleDrive(){
           googleAccessToken = response.access_token;
           el('driveStatus').textContent = 'Connected to Google Drive.';
           el('connectDriveBtn').textContent = 'Reconnect Google Drive';
+        } else if(response && response.error){
+          el('driveStatus').textContent = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
         } else {
           el('driveStatus').textContent = 'Google sign-in did not return access — try again.';
         }
+      },
+      error_callback: (err)=>{
+        console.error('Google OAuth error:', err);
+        el('driveStatus').textContent = `Google sign-in failed: ${err && err.type ? err.type : 'unknown error'} — check the Client ID and Authorized JavaScript origins.`;
       }
     });
     el('driveStatus').textContent = 'Opening Google sign-in…';
     googleTokenClient.requestAccessToken();
   }catch(e){
-    console.error(e);
+    console.error('connectGoogleDrive error:', e);
     el('driveStatus').textContent = 'Could not start Google sign-in: ' + (e.message || e);
   }
 }
@@ -1596,6 +1625,38 @@ async function saveNoteToDrive(){
   if(noteOk && transcriptOk){
     el('driveStatus').textContent = 'Saved to Google Drive.';
   }
+}
+
+function renderExerciseChecklist(filter){
+  const container = el('exerciseChecklist');
+  const q = (filter || '').trim().toLowerCase();
+  let html = '';
+  Object.keys(EXERCISE_LIBRARY).forEach(category=>{
+    const items = EXERCISE_LIBRARY[category].filter(name => !q || name.toLowerCase().includes(q));
+    if(items.length === 0) return;
+    html += `<div style="font-size:0.72rem;font-weight:700;color:#5c4a35;text-transform:uppercase;letter-spacing:0.04em;margin:10px 0 4px;">${category}</div>`;
+    items.forEach(name=>{
+      const id = 'ex_' + name.replace(/[^a-z0-9]+/gi,'_');
+      html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
+        <input type="checkbox" class="exercise-checkbox" value="${name}" id="${id}">
+        ${name}
+      </label>`;
+    });
+  });
+  container.innerHTML = html || '<div style="font-size:0.8rem;color:#8a938e;">No matches.</div>';
+}
+
+function addSelectedExercisesToNote(){
+  const checked = [...document.querySelectorAll('.exercise-checkbox:checked')].map(cb => cb.value);
+  if(checked.length === 0){
+    el('status').textContent = 'Select at least one exercise first.';
+    return;
+  }
+  const block = '\n\nEXERCISES PRESCRIBED (selected by clinician):\n' + checked.map(name => `- ${name}`).join('\n');
+  const current = el('noteText').value || '';
+  el('noteText').value = current + block;
+  document.querySelectorAll('.exercise-checkbox:checked').forEach(cb => cb.checked = false);
+  el('status').textContent = `Added ${checked.length} exercise(s) to the note.`;
 }
 
 function downloadNote(){
@@ -1726,6 +1787,9 @@ el('sharedFolderIdInput').addEventListener('change', async (e)=>{
   try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
 });
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
+el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
+el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
+renderExerciseChecklist('');
 el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
 el('imageUploadInput').addEventListener('change', (e)=>{
   handleImageUpload(e.target.files);
