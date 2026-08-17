@@ -478,6 +478,7 @@
 
     <div id="noteSection" style="display:none;">
       <div class="section-title">Structured clinical note</div>
+      <div id="qualityWarningBanner" style="display:none;background:#fbeaea;border-left:3px solid var(--danger);padding:10px 14px;font-size:0.85rem;color:#7a2e2e;margin-bottom:12px;border-radius:4px;"></div>
       <div class="note-output">
         <div class="ai-flag">AI-generated draft — review and edit before saving to the chart. Any diagnosis suggestion below is a prompt for your judgment, not a conclusion.</div>
         <textarea id="noteText"></textarea>
@@ -491,6 +492,16 @@
           <span class="rec-indicator" id="voiceNoteIndicator" style="display:none;"><span class="dot"></span> recording</span>
         </div>
         <div class="status" id="voiceNoteStatus" style="margin-top:6px;margin-bottom:0;"></div>
+
+        <div id="specialTestsSection" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none;">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:4px;">🔍 Add positive special tests to Objective (assessment only)</div>
+          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Pick the body region, then check only the tests that came back POSITIVE.</div>
+          <select id="testRegionSelect" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+            <option value="">— Select a region —</option>
+          </select>
+          <div id="specialTestChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
+          <button class="ghost" id="addSpecialTestsBtn" style="margin-top:8px;">Add selected positive tests to note</button>
+        </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
           <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (pick from the list — avoids relying on speech-to-text getting the name right)</div>
@@ -605,6 +616,21 @@ const EXERCISE_LIBRARY = {
   "Knee": ["Quad sets","Straight leg raise","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls"],
   "Ankle / Foot": ["Ankle pumps","Calf raises","Ankle circles","Toe raises","Ankle inversion","Ankle eversion","Resisted dorsiflexion"],
   "Balance / Neuro / General": ["Single leg stance","Proprioception training","Balance training","Gait training","PNF stretching","Pendulum exercise","Wall slides","Heel slides"]
+};
+
+// Structured special-tests list for the Objective/exam picker, organized by
+// region. Shown only for Initial Assessment sessions — lets the clinician
+// pick which tests were performed and positive by hand, sidestepping ASR
+// errors on these exact, high-stakes clinical terms.
+const SPECIAL_TESTS_LIBRARY = {
+  "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test"],
+  "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test"],
+  "Elbow": ["Cozen's test","Mill's test"],
+  "Wrist / Hand": ["Tinel's sign","Phalen's test","Finkelstein's test"],
+  "Lumbar Spine": ["Straight leg raise test","Slump test","Gaenslen's test"],
+  "Hip": ["FABER test","FADIR test","Trendelenburg test","Thomas test","Ober's test"],
+  "Knee": ["Lachman test","Anterior drawer test","McMurray test","Apley test"],
+  "Ankle / Foot": ["Talar tilt test","Thompson test","Squeeze test"]
 };
 
 let recordedMimeType = 'audio/webm';
@@ -834,6 +860,7 @@ function setSessionType(type){
   sessionType = type;
   el('typeAssessmentBtn').classList.toggle('active', type === 'assessment');
   el('typeFollowupBtn').classList.toggle('active', type === 'followup');
+  updateSpecialTestsVisibility();
 }
 
 function loadSession(id){
@@ -850,6 +877,7 @@ function loadSession(id){
     el('noteText').value = s.note;
   } else {
     el('noteSection').style.display = 'none';
+  el('qualityWarningBanner').style.display = 'none';
     el('noteText').value = '';
   }
   el('generateBtn').disabled = transcriptLines.length === 0;
@@ -867,6 +895,7 @@ function startNewSession(){
   transcriptLines = [];
   renderTranscript();
   el('noteSection').style.display = 'none';
+  el('qualityWarningBanner').style.display = 'none';
   el('noteText').value = '';
   el('generateBtn').disabled = true;
   showRecoveryControls(false);
@@ -883,6 +912,7 @@ function startFollowupForPatient(patientName){
   transcriptLines = [];
   renderTranscript();
   el('noteSection').style.display = 'none';
+  el('qualityWarningBanner').style.display = 'none';
   el('noteText').value = '';
   el('generateBtn').disabled = true;
   showRecoveryControls(false);
@@ -1386,7 +1416,16 @@ ${sharedRules}`;
   const systemPrompt = sessionType === 'followup' ? followupPrompt : assessmentPrompt;
 
   try{
-    const note = await callAI(systemPrompt, `Session transcript:\n\n${transcriptText}`, 8000);
+    let note = await callAI(systemPrompt, `Session transcript:\n\n${transcriptText}`, 8000);
+    const warningMatch = note.match(/^⚠️\s*TRANSCRIPT QUALITY WARNING:\s*(.+?)(?:\n\n|\n(?=[A-Z]))/s);
+    if(warningMatch){
+      const warningText = warningMatch[1].trim();
+      note = note.slice(warningMatch[0].length).trim();
+      el('qualityWarningBanner').innerHTML = `⚠️ <strong>Transcript quality notice:</strong> ${escapeHtml(warningText)}`;
+      el('qualityWarningBanner').style.display = 'block';
+    } else {
+      el('qualityWarningBanner').style.display = 'none';
+    }
     el('noteText').value = note;
     el('noteSection').style.display = 'block';
     el('status').textContent = 'Draft ready. Review carefully before saving.';
@@ -1627,6 +1666,65 @@ async function saveNoteToDrive(){
   }
 }
 
+function populateTestRegionSelect(){
+  const select = el('testRegionSelect');
+  Object.keys(SPECIAL_TESTS_LIBRARY).forEach(region=>{
+    const opt = document.createElement('option');
+    opt.value = region;
+    opt.textContent = region;
+    select.appendChild(opt);
+  });
+}
+
+function renderSpecialTestChecklist(region){
+  const container = el('specialTestChecklist');
+  if(!region){
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Select a region above to see its special tests.</div>';
+    return;
+  }
+  const items = SPECIAL_TESTS_LIBRARY[region] || [];
+  container.innerHTML = items.map(name=>{
+    const id = 'test_' + name.replace(/[^a-z0-9]+/gi,'_');
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
+      <input type="checkbox" class="special-test-checkbox" value="${name}" id="${id}">
+      ${name}
+    </label>`;
+  }).join('');
+}
+
+function insertIntoObjectiveSection(noteText, additionLine){
+  const objMatch = noteText.match(/OBJECTIVE:\s*/i);
+  if(!objMatch){
+    // No Objective section found (shouldn't happen for assessments) — fall back to appending clearly labeled.
+    return noteText.trim() + '\n\n' + additionLine;
+  }
+  const objStart = objMatch.index + objMatch[0].length;
+  const rest = noteText.slice(objStart);
+  const nextHeaderMatch = rest.match(/\n\s*(SUBJECTIVE|ASSESSMENT|PLAN|PROGRESS|AI-SUGGESTED DIFFERENTIAL)[A-Z\s-]*:/i);
+  const insertPos = nextHeaderMatch ? objStart + nextHeaderMatch.index : noteText.length;
+  const before = noteText.slice(0, insertPos).replace(/[ \t]+$/, '').replace(/\n+$/, '\n');
+  const after = noteText.slice(insertPos);
+  return before + ' ' + additionLine + '\n\n' + after.replace(/^\n+/, '');
+}
+
+function addSelectedSpecialTestsToNote(){
+  const checked = [...document.querySelectorAll('.special-test-checkbox:checked')].map(cb => cb.value);
+  if(checked.length === 0){
+    el('status').textContent = 'Select at least one positive test first.';
+    return;
+  }
+  const region = el('testRegionSelect').value;
+  const additionLine = `Positive special tests (${region}, clinician-selected): ${checked.join(', ')}.`;
+  const current = el('noteText').value || '';
+  el('noteText').value = insertIntoObjectiveSection(current, additionLine);
+  document.querySelectorAll('.special-test-checkbox:checked').forEach(cb => cb.checked = false);
+  el('status').textContent = `Added ${checked.length} positive test(s) to Objective.`;
+}
+
+function updateSpecialTestsVisibility(){
+  el('specialTestsSection').style.display = sessionType === 'assessment' ? 'block' : 'none';
+}
+
 function renderExerciseChecklist(filter){
   const container = el('exerciseChecklist');
   const q = (filter || '').trim().toLowerCase();
@@ -1768,6 +1866,7 @@ el('clearBtn').addEventListener('click', ()=>{
   renderTranscript();
   el('generateBtn').disabled = true;
   el('noteSection').style.display = 'none';
+  el('qualityWarningBanner').style.display = 'none';
 });
 el('generateBtn').addEventListener('click', generateNote);
 el('saveNoteBtn').addEventListener('click', saveSession);
@@ -1790,6 +1889,11 @@ el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
 el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
 renderExerciseChecklist('');
+populateTestRegionSelect();
+el('testRegionSelect').addEventListener('change', (e)=> renderSpecialTestChecklist(e.target.value));
+el('addSpecialTestsBtn').addEventListener('click', addSelectedSpecialTestsToNote);
+renderSpecialTestChecklist('');
+updateSpecialTestsVisibility();
 el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
 el('imageUploadInput').addEventListener('change', (e)=>{
   handleImageUpload(e.target.files);
