@@ -74,18 +74,27 @@
     letter-spacing:0.02em;
   }
   .layout{
-    display:grid;
-    grid-template-columns:270px 1fr;
+    display:block;
     min-height:calc(100vh - 68px);
-  }
-  @media (max-width:800px){
-    .layout{grid-template-columns:1fr;}
-    .sidebar{order:2; border-top:2px solid var(--line); border-right:none !important; border-left:none !important;}
   }
   .sidebar{
     background:var(--panel);
     border-right:2px solid var(--line);
     padding:18px;
+    position:fixed;
+    top:0;
+    left:0;
+    height:100vh;
+    width:280px;
+    max-width:85vw;
+    z-index:50;
+    overflow-y:auto;
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    box-shadow:4px 0 16px rgba(0,0,0,0.15);
+  }
+  .sidebar.open{
+    transform:translateX(0);
   }
   .sidebar h2{
     font-size:0.78rem;
@@ -326,13 +335,17 @@
 <body>
 
 <header>
+  <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
   <span class="tag">PT session scribe — pilot build</span>
 </header>
 
+<div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:40;"></div>
+
 <div class="layout">
-  <div class="sidebar">
-    <h2>Sessions</h2>
+  <div class="sidebar" id="sidebarPanel">
+    <button id="sidebarCloseBtn" style="position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+    <h2 style="margin-right:30px;">Sessions</h2>
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
     <div id="sessionList"></div>
   </div>
@@ -343,9 +356,13 @@
       iOS/Android device.
     </div>
 
+
     <div class="consent-banner">
       Confirm the patient has agreed to this session being recorded before you start.
     </div>
+
+    <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
+    <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
     <div class="patient-row" style="margin-bottom:8px;">
       <input type="password" id="apiKeyInput" placeholder="Deepgram API key (for Arabic transcription + speaker separation)" style="flex:2;">
@@ -417,6 +434,8 @@
       <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <input type="text" id="sharedFolderIdInput" placeholder="Shared clinic Drive folder ID (optional — ask the clinic owner for this)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+    </div>
+
     </div>
 
     <div class="patient-row">
@@ -806,6 +825,8 @@ async function loadSessions(){
   renderSessionList();
 }
 
+let expandedPatients = new Set();
+
 function renderSessionList(){
   const container = el('sessionList');
   const ids = Object.keys(sessions);
@@ -830,13 +851,18 @@ function renderSessionList(){
     const bLatest = Math.max(...groups[b].map(id=> sessions[id].createdAt||0));
     return bLatest - aLatest;
   });
+  // Auto-expand whichever patient folder contains the currently active session.
+  patientNames.forEach(patientName=>{
+    if(groups[patientName].includes(activeSessionId)) expandedPatients.add(patientName);
+  });
   container.innerHTML = '';
   patientNames.forEach(patientName=>{
+    const isOpen = expandedPatients.has(patientName);
     const groupHeader = document.createElement('div');
-    groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:14px 0 6px;padding-top:8px;border-top:1px solid var(--line);';
+    groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:14px 0 6px;padding-top:8px;border-top:1px solid var(--line);cursor:pointer;';
     const nameSpan = document.createElement('span');
-    nameSpan.style.cssText = 'font-size:0.72rem;font-weight:700;color:#5b6863;text-transform:uppercase;letter-spacing:0.05em;';
-    nameSpan.textContent = patientName;
+    nameSpan.style.cssText = 'font-size:0.78rem;font-weight:700;color:#5b6863;letter-spacing:0.03em;';
+    nameSpan.textContent = (isOpen ? '▾ ' : '▸ ') + patientName;
     const followupBtn = document.createElement('button');
     followupBtn.type = 'button';
     followupBtn.textContent = '+ Follow-up';
@@ -844,15 +870,22 @@ function renderSessionList(){
     followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
     groupHeader.appendChild(nameSpan);
     if(patientName !== 'Unnamed patient') groupHeader.appendChild(followupBtn);
-    container.appendChild(groupHeader);
-    groups[patientName].forEach(id=>{
-      const s = sessions[id];
-      const div = document.createElement('div');
-      div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
-      div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
-      div.onclick = () => loadSession(id);
-      container.appendChild(div);
+    groupHeader.addEventListener('click', ()=>{
+      if(expandedPatients.has(patientName)) expandedPatients.delete(patientName);
+      else expandedPatients.add(patientName);
+      renderSessionList();
     });
+    container.appendChild(groupHeader);
+    if(isOpen){
+      groups[patientName].forEach(id=>{
+        const s = sessions[id];
+        const div = document.createElement('div');
+        div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
+        div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
+        div.onclick = () => loadSession(id);
+        container.appendChild(div);
+      });
+    }
   });
 }
 
@@ -884,6 +917,7 @@ function loadSession(id){
   checkForSavedAudio(id);
   renderImageGallery(id);
   renderSessionList();
+  closeSidebar();
 }
 
 function startNewSession(){
@@ -901,6 +935,7 @@ function startNewSession(){
   showRecoveryControls(false);
   renderImageGallery(activeSessionId);
   renderSessionList();
+  closeSidebar();
 }
 
 function startFollowupForPatient(patientName){
@@ -918,6 +953,7 @@ function startFollowupForPatient(patientName){
   showRecoveryControls(false);
   renderImageGallery(activeSessionId);
   renderSessionList();
+  closeSidebar();
   el('status').textContent = `New follow-up session started for ${patientName}. Record when ready.`;
 }
 
@@ -1417,15 +1453,23 @@ ${sharedRules}`;
 
   try{
     let note = await callAI(systemPrompt, `Session transcript:\n\n${transcriptText}`, 8000);
-    const warningMatch = note.match(/^⚠️\s*TRANSCRIPT QUALITY WARNING:\s*(.+?)(?:\n\n|\n(?=[A-Z]))/s);
+    // Robust match: no strict start-of-string anchor (model sometimes adds
+    // leading whitespace), emoji optional, colon optional, case-insensitive.
+    // Only looks in roughly the first 600 characters so it can't accidentally
+    // eat a real section if similar wording appears deep in the note.
+    const searchZone = note.slice(0, 600);
+    const warningMatch = searchZone.match(/(?:⚠️?\s*)?TRANSCRIPT\s+QUALITY\s+WARNING:?\s*(.+?)(?:\n\s*\n|\n(?=[A-Z][A-Z\s-]{2,}:))/is);
     if(warningMatch){
       const warningText = warningMatch[1].trim();
-      note = note.slice(warningMatch[0].length).trim();
+      note = (note.slice(0, warningMatch.index) + note.slice(warningMatch.index + warningMatch[0].length)).replace(/^\s+/, '');
       el('qualityWarningBanner').innerHTML = `⚠️ <strong>Transcript quality notice:</strong> ${escapeHtml(warningText)}`;
       el('qualityWarningBanner').style.display = 'block';
     } else {
       el('qualityWarningBanner').style.display = 'none';
     }
+    const noteDate = el('sessionDate').value || todayStr();
+    const patientLabel = el('patientName').value ? `Patient: ${el('patientName').value}\n` : '';
+    note = `Date: ${noteDate}\n${patientLabel}\n${note.trim()}`;
     el('noteText').value = note;
     el('noteSection').style.display = 'block';
     el('status').textContent = 'Draft ready. Review carefully before saving.';
@@ -1655,13 +1699,8 @@ async function saveNoteToDrive(){
   el('driveStatus').textContent = 'Uploading to Google Drive…';
   el('saveDriveBtn').disabled = true;
   const noteOk = await uploadTextFileToDrive(`${clinicianTag}${name}_${dateStr}_note`, noteContent);
-  let transcriptOk = true;
-  if(transcriptLines.length > 0){
-    const transcriptContent = transcriptLines.map(l => `[${l.speaker.toUpperCase()}] ${l.text}`).join('\n');
-    transcriptOk = await uploadTextFileToDrive(`${clinicianTag}${name}_${dateStr}_transcript`, transcriptContent);
-  }
   el('saveDriveBtn').disabled = false;
-  if(noteOk && transcriptOk){
+  if(noteOk){
     el('driveStatus').textContent = 'Saved to Google Drive.';
   }
 }
@@ -1692,21 +1731,6 @@ function renderSpecialTestChecklist(region){
   }).join('');
 }
 
-function insertIntoObjectiveSection(noteText, additionLine){
-  const objMatch = noteText.match(/OBJECTIVE:\s*/i);
-  if(!objMatch){
-    // No Objective section found (shouldn't happen for assessments) — fall back to appending clearly labeled.
-    return noteText.trim() + '\n\n' + additionLine;
-  }
-  const objStart = objMatch.index + objMatch[0].length;
-  const rest = noteText.slice(objStart);
-  const nextHeaderMatch = rest.match(/\n\s*(SUBJECTIVE|ASSESSMENT|PLAN|PROGRESS|AI-SUGGESTED DIFFERENTIAL)[A-Z\s-]*:/i);
-  const insertPos = nextHeaderMatch ? objStart + nextHeaderMatch.index : noteText.length;
-  const before = noteText.slice(0, insertPos).replace(/[ \t]+$/, '').replace(/\n+$/, '\n');
-  const after = noteText.slice(insertPos);
-  return before + ' ' + additionLine + '\n\n' + after.replace(/^\n+/, '');
-}
-
 function addSelectedSpecialTestsToNote(){
   const checked = [...document.querySelectorAll('.special-test-checkbox:checked')].map(cb => cb.value);
   if(checked.length === 0){
@@ -1716,7 +1740,7 @@ function addSelectedSpecialTestsToNote(){
   const region = el('testRegionSelect').value;
   const additionLine = `Positive special tests (${region}, clinician-selected): ${checked.join(', ')}.`;
   const current = el('noteText').value || '';
-  el('noteText').value = insertIntoObjectiveSection(current, additionLine);
+  el('noteText').value = insertIntoSection(current, 'OBJECTIVE', additionLine);
   document.querySelectorAll('.special-test-checkbox:checked').forEach(cb => cb.checked = false);
   el('status').textContent = `Added ${checked.length} positive test(s) to Objective.`;
 }
@@ -1744,17 +1768,33 @@ function renderExerciseChecklist(filter){
   container.innerHTML = html || '<div style="font-size:0.8rem;color:#8a938e;">No matches.</div>';
 }
 
+function insertIntoSection(noteText, sectionName, additionLine){
+  const sectionRegex = new RegExp(sectionName + ':\\s*', 'i');
+  const match = noteText.match(sectionRegex);
+  if(!match){
+    // Section not found — fall back to appending clearly labeled.
+    return noteText.trim() + '\n\n' + additionLine;
+  }
+  const sectionStart = match.index + match[0].length;
+  const rest = noteText.slice(sectionStart);
+  const nextHeaderMatch = rest.match(/\n\s*(SUBJECTIVE|OBJECTIVE|ASSESSMENT|PLAN|PROGRESS|AI-SUGGESTED DIFFERENTIAL)[A-Z\s-]*:/i);
+  const insertPos = nextHeaderMatch ? sectionStart + nextHeaderMatch.index : noteText.length;
+  const before = noteText.slice(0, insertPos).replace(/[ \t]+$/, '').replace(/\n+$/, '\n');
+  const after = noteText.slice(insertPos);
+  return before + ' ' + additionLine + '\n\n' + after.replace(/^\n+/, '');
+}
+
 function addSelectedExercisesToNote(){
   const checked = [...document.querySelectorAll('.exercise-checkbox:checked')].map(cb => cb.value);
   if(checked.length === 0){
     el('status').textContent = 'Select at least one exercise first.';
     return;
   }
-  const block = '\n\nEXERCISES PRESCRIBED (selected by clinician):\n' + checked.map(name => `- ${name}`).join('\n');
+  const additionLine = `Exercises prescribed (clinician-selected): ${checked.join(', ')}.`;
   const current = el('noteText').value || '';
-  el('noteText').value = current + block;
+  el('noteText').value = insertIntoSection(current, 'PLAN', additionLine);
   document.querySelectorAll('.exercise-checkbox:checked').forEach(cb => cb.checked = false);
-  el('status').textContent = `Added ${checked.length} exercise(s) to the note.`;
+  el('status').textContent = `Added ${checked.length} exercise(s) to Plan.`;
 }
 
 function downloadNote(){
@@ -1906,6 +1946,27 @@ el('externalAudioInput').addEventListener('change', (e)=>{
 });
 el('micTestBtn').addEventListener('click', toggleMicTest);
 el('downloadRecordingBtn').addEventListener('click', downloadRecording);
+function openSidebar(){
+  el('sidebarPanel').classList.add('open');
+  el('sidebarBackdrop').style.display = 'block';
+}
+function closeSidebar(){
+  el('sidebarPanel').classList.remove('open');
+  el('sidebarBackdrop').style.display = 'none';
+}
+el('sidebarToggleBtn').addEventListener('click', openSidebar);
+el('sidebarCloseBtn').addEventListener('click', closeSidebar);
+el('sidebarBackdrop').addEventListener('click', closeSidebar);
+
+el('settingsToggleBtn').addEventListener('click', ()=>{
+  const panel = el('settingsPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  el('settingsToggleBtn').textContent = isOpen
+    ? '⚙️ Settings (API keys, dialect, Drive backup)'
+    : '⚙️ Hide settings';
+});
+
 el('newSessionBtn').addEventListener('click', startNewSession);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
