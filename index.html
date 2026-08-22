@@ -384,6 +384,24 @@
       Confirm the patient has agreed to this session being recorded before you start.
     </div>
 
+    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Today's Schedule</button>
+    <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:0.85rem;font-weight:600;color:var(--maroon);">Today — <span id="scheduleDateLabel"></span></span>
+        <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
+      </div>
+      <div id="scheduleList" style="margin-bottom:14px;"></div>
+      <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <button type="button" class="ghost" id="quickBookBtn">Book</button>
+        </div>
+      </div>
+    </div>
+
     <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
@@ -449,13 +467,28 @@
     <div class="status" id="keyStatus" style="margin-top:0;margin-bottom:14px;"></div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
-      <label style="font-size:0.78rem;color:#5b6863;">Google Drive backup (optional — everything already saves on this device without it)</label>
+      <label style="font-size:0.78rem;color:#5b6863;">Google connection (Drive backup + shared calendar — optional, everything already saves on this device without it)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="text" id="googleClientIdInput" placeholder="Google OAuth Client ID (ends in .apps.googleusercontent.com)" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google Drive</button>
+        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google (Drive + Calendar)</button>
       </div>
       <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <input type="text" id="sharedFolderIdInput" placeholder="Shared clinic Drive folder ID (optional — ask the clinic owner for this)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <input type="text" id="calendarIdInput" placeholder="Shared clinic calendar ID (ask the clinic owner — from Google Calendar settings)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <select id="doctorColorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <option value="">— Your color on the shared calendar —</option>
+        <option value="1">Lavender</option>
+        <option value="2">Sage</option>
+        <option value="3">Grape</option>
+        <option value="4">Flamingo</option>
+        <option value="5">Banana (yellow)</option>
+        <option value="6">Tangerine</option>
+        <option value="7">Peacock</option>
+        <option value="8">Graphite</option>
+        <option value="9">Blueberry</option>
+        <option value="10">Basil</option>
+        <option value="11">Tomato</option>
+      </select>
       <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
     </div>
 
@@ -551,6 +584,13 @@
           <input type="text" id="exerciseSearchInput" placeholder="Search exercises…" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
           <div id="exerciseChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
           <button class="ghost" id="addExercisesBtn" style="margin-top:8px;">Add selected exercises to note</button>
+        </div>
+
+        <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🖐️ Add manual therapy performed (mobilization / manual release) to the Plan</div>
+          <input type="text" id="manualSearchInput" placeholder="Search manual techniques…" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+          <div id="manualChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
+          <button class="ghost" id="addManualBtn" style="margin-top:8px;">Add selected manual therapy to note</button>
         </div>
       </div>
     </div>
@@ -653,13 +693,13 @@ const COMPREHENSIVE_TERMS = [
 // region so the clinician can pick exact names by hand instead of relying
 // on speech-to-text to catch them correctly.
 const EXERCISE_LIBRARY = {
-  "Shoulder": ["Shoulder flexion","Shoulder abduction","Shoulder adduction","Shoulder external rotation","Shoulder internal rotation","Scapular retraction","Scapular protraction","Wall push-ups","Shoulder shrugs","Rows","Lat pull down"],
-  "Elbow / Wrist / Hand": ["Elbow flexion","Elbow extension","Wrist flexion","Wrist extension","Forearm pronation","Forearm supination","Grip strengthening"],
-  "Cervical": ["Chin tuck","Cervical extension","Cervical flexion"],
-  "Core / Spine": ["Pelvic tilts","Dead bug","Side plank","Plank","Bird dog","Cat-cow stretch","Abdominal bracing","Core stabilization","McKenzie extension","McKenzie flexion","Codman's exercise","Williams flexion exercises"],
-  "Hip": ["Hip flexion","Hip extension","Hip abduction","Hip adduction","Hip internal rotation","Hip external rotation","Hip thrust","Fire hydrants","Clamshell exercise","Side-lying leg raises","Bridging"],
-  "Knee": ["Quad sets","Straight leg raise","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls"],
-  "Ankle / Foot": ["Ankle pumps","Calf raises","Ankle circles","Toe raises","Ankle inversion","Ankle eversion","Resisted dorsiflexion"],
+  "Shoulder": ["Shoulder flexion","Shoulder abduction","Shoulder adduction","Shoulder external rotation","Shoulder external rotation (standing)","Shoulder external rotation (side-lying)","Shoulder internal rotation","Scapular retraction","Scapular protraction","Wall push-ups","Shoulder shrugs","Rows","Lat pull down","Lower trap activation","High plank weight shifting","High plank on Bosu ball","Hand walks (elephant walk)","Shoulder proprioception training","Scap push (supine)","Scap push (quadruped)","Scap push (standing)"],
+  "Elbow / Wrist / Hand": ["Elbow flexion","Elbow flexion (concentric)","Elbow flexion (eccentric)","Elbow flexion (isometric)","Elbow extension","Elbow extension (concentric)","Elbow extension (eccentric)","Elbow extension (isometric)","Wrist flexion","Wrist flexion (concentric)","Wrist flexion (eccentric)","Wrist flexion (isometric)","Wrist extension","Wrist extension (concentric)","Wrist extension (eccentric)","Wrist extension (isometric)","Forearm pronation","Forearm pronation (concentric)","Forearm pronation (eccentric)","Forearm pronation (isometric)","Forearm supination","Forearm supination (concentric)","Forearm supination (eccentric)","Forearm supination (isometric)","Grip strengthening","Grip strengthening (concentric)","Grip strengthening (isometric)"],
+  "Cervical": ["Chin tuck","Cervical extension","Cervical flexion","Upper trapezius stretch","Levator scapulae stretch","Sternocleidomastoid (SCM) stretch","Scalene stretch","Suboccipital stretch","Cervical flexion stretch","Cervical extension stretch","Cervical rotation stretch","Cervical lateral flexion stretch"],
+  "Core / Spine": ["Pelvic tilts","Dead bug","Side plank","Plank","Bird dog","Cat-cow stretch","Abdominal bracing","Core stabilization","McKenzie extension","McKenzie flexion","Codman's exercise","Williams flexion exercises","R1 rotation","R2 rotation","Core stabilization — Grade 1 (static bracing)","Core stabilization — Grade 2 (single-limb movement)","Core stabilization — Grade 3 (bilateral/dynamic limb movement)","Core stabilization — Grade 4 (functional/dynamic loading)"],
+  "Hip": ["Hip flexion","Hip extension","Hip abduction","Hip adduction","Hip internal rotation","Hip external rotation","Hip thrust","Fire hydrants","Clamshell exercise","Single leg clamshell","Side-lying leg raises","Bridging","Deadlift","Single leg deadlift","Straight leg raise (front)","Straight leg raise (back)","Straight leg raise (side)","Isometric adductor squeeze (Hölmich protocol)","Standing resisted hip adduction (Hölmich protocol)","Sliding adductor exercise (Hölmich protocol)","Copenhagen adduction exercise"],
+  "Knee": ["Quad sets","Straight leg raise","Knee extension","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls","Popliteus rotation","Askling Extender exercise","Askling Diver exercise","Askling Glider exercise"],
+  "Ankle / Foot": ["Ankle pumps","Calf raises","Seated heel raises","Ankle circles","Toe raises","Ankle inversion","Ankle eversion","Resisted dorsiflexion"],
   "Balance / Neuro / General": ["Single leg stance","Proprioception training","Balance training","Gait training","PNF stretching","Pendulum exercise","Wall slides","Heel slides"]
 };
 
@@ -668,14 +708,28 @@ const EXERCISE_LIBRARY = {
 // pick which tests were performed and positive by hand, sidestepping ASR
 // errors on these exact, high-stakes clinical terms.
 const SPECIAL_TESTS_LIBRARY = {
-  "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test"],
-  "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test"],
-  "Elbow": ["Cozen's test","Mill's test"],
+  "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test","Sharp-Purser test","Alar ligament stress test","Anterior shear test","Posterior shear test"],
+  "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test","Painful arc test","Scapular Assistance Test (SAT)","Apprehension test","Relocation test","Sulcus sign","Cross-body adduction test","Lift-off test","Belly press test"],
+  "Elbow": ["Cozen's test","Mill's test","Milking test (UCL)","Valgus stress test (elbow)","Varus stress test (elbow)","Tinel's sign (elbow / cubital tunnel)"],
   "Wrist / Hand": ["Tinel's sign","Phalen's test","Finkelstein's test"],
   "Lumbar Spine": ["Straight leg raise test","Slump test","Gaenslen's test"],
   "Hip": ["FABER test","FADIR test","Trendelenburg test","Thomas test","Ober's test"],
-  "Knee": ["Lachman test","Anterior drawer test","McMurray test","Apley test"],
+  "Knee": ["Lachman test","Anterior drawer test","Posterior drawer test","McMurray test","Apley test","Dynamic knee valgus (functional assessment)","Varus stress test (knee)","Valgus stress test (knee)","Thessaly test","Duck walk test","Pivot shift test","Patellar apprehension test","Clarke's test (patellar grind test)","Noble compression test"],
   "Ankle / Foot": ["Talar tilt test","Thompson test","Squeeze test"]
+};
+
+// Manual therapy interventions (mobilization, soft tissue/manual release),
+// organized by region — same rationale as the exercise/special-test
+// pickers: exact technique names selected by hand instead of relying on
+// ASR to catch them, merged into the Plan section.
+const MANUAL_INTERVENTION_LIBRARY = {
+  "Cervical": ["Cervical joint mobilization (Grade I-IV)","Cervical manual traction","Suboccipital release","Upper trapezius manual release","Levator scapulae manual release","SCM manual release"],
+  "Shoulder": ["Glenohumeral joint mobilization","Scapulothoracic mobilization","Subacromial soft tissue release","Rotator cuff manual release","Pec minor release"],
+  "Elbow / Wrist / Hand": ["Elbow joint mobilization","Wrist joint mobilization","Forearm soft tissue release"],
+  "Thoracic / Lumbar Spine": ["Lumbar spine mobilization (Grade I-IV)","Thoracic spine mobilization","Paraspinal manual release","Myofascial release (lumbar)"],
+  "Hip": ["Hip joint mobilization","Adductor manual release","Piriformis release","IT band manual release","Hip flexor (psoas) release"],
+  "Knee": ["Patellar mobilization","Knee joint mobilization","Quadriceps manual release","Hamstring manual release"],
+  "Ankle / Foot": ["Ankle joint mobilization (talocrural)","Subtalar mobilization","Calf / gastrocnemius manual release","Plantar fascia manual release"]
 };
 
 let recordedMimeType = 'audio/webm';
@@ -697,6 +751,8 @@ let wakeLock = null;
 let googleClientId = '';
 let clinicianName = '';
 let sharedFolderId = '';
+let calendarId = '';
+let doctorColorId = '';
 let googleAccessToken = '';
 let googleTokenClient = null;
 
@@ -1634,7 +1690,7 @@ function connectGoogleDrive(){
     }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: googleClientId,
-      scope: 'https://www.googleapis.com/auth/drive.file',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events',
       callback: (response)=>{
         if(response && response.access_token){
           googleAccessToken = response.access_token;
@@ -1656,6 +1712,136 @@ function connectGoogleDrive(){
   }catch(e){
     console.error('connectGoogleDrive error:', e);
     el('driveStatus').textContent = 'Could not start Google sign-in: ' + (e.message || e);
+  }
+}
+
+function ensureGoogleAuth(){
+  if(googleAccessToken) return Promise.resolve(googleAccessToken);
+  return new Promise((resolve)=>{
+    if(!googleTokenClient){
+      resolve(null);
+      return;
+    }
+    googleTokenClient.callback = (response)=>{
+      if(response && response.access_token){
+        googleAccessToken = response.access_token;
+        resolve(googleAccessToken);
+      } else {
+        resolve(null);
+      }
+    };
+    googleTokenClient.requestAccessToken();
+  });
+}
+
+function todayBoundsISO(){
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
+}
+
+const CALENDAR_COLOR_NAMES = {
+  '1':'Lavender','2':'Sage','3':'Grape','4':'Flamingo','5':'Banana','6':'Tangerine',
+  '7':'Peacock','8':'Graphite','9':'Blueberry','10':'Basil','11':'Tomato'
+};
+const CALENDAR_COLOR_HEX = {
+  '1':'#7986cb','2':'#33b679','3':'#8e24aa','4':'#e67c73','5':'#f6bf26','6':'#f4511e',
+  '7':'#039be5','8':'#616161','9':'#3f51b5','10':'#0b8043','11':'#d50000'
+};
+
+async function loadTodaysSchedule(){
+  if(!calendarId){
+    el('scheduleStatus').textContent = 'Enter the shared clinic calendar ID in Settings first.';
+    el('scheduleList').innerHTML = '';
+    return;
+  }
+  el('scheduleStatus').textContent = 'Loading…';
+  const token = await ensureGoogleAuth();
+  if(!token){
+    el('scheduleStatus').textContent = 'Connect Google above (in Settings) first.';
+    return;
+  }
+  try{
+    const { timeMin, timeMax } = todayBoundsISO();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    renderScheduleList(data.items || []);
+    el('scheduleStatus').textContent = (data.items || []).length === 0 ? 'No events today.' : '';
+  }catch(e){
+    console.error(e);
+    el('scheduleStatus').textContent = 'Could not load schedule: ' + (e.message || e);
+  }
+}
+
+function renderScheduleList(events){
+  const container = el('scheduleList');
+  if(events.length === 0){ container.innerHTML = ''; return; }
+  container.innerHTML = events.map(ev=>{
+    const start = ev.start && (ev.start.dateTime || ev.start.date);
+    const timeStr = ev.start && ev.start.dateTime
+      ? new Date(ev.start.dateTime).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
+      : 'All day';
+    const colorHex = CALENDAR_COLOR_HEX[ev.colorId] || '#8a938e';
+    const isMine = doctorColorId && ev.colorId === doctorColorId;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);${isMine ? 'font-weight:600;' : ''}">
+      <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;"></span>
+      <span style="font-size:0.82rem;color:#5b6863;min-width:60px;">${timeStr}</span>
+      <span style="font-size:0.85rem;">${escapeHtml(ev.summary || '(untitled)')}</span>
+    </div>`;
+  }).join('');
+}
+
+async function quickBookAppointment(){
+  if(!calendarId){
+    el('scheduleStatus').textContent = 'Enter the shared clinic calendar ID in Settings first.';
+    return;
+  }
+  const patientName = el('quickBookPatientInput').value.trim();
+  const timeVal = el('quickBookTimeInput').value;
+  if(!patientName || !timeVal){
+    el('scheduleStatus').textContent = 'Enter a patient name and time first.';
+    return;
+  }
+  const token = await ensureGoogleAuth();
+  if(!token){
+    el('scheduleStatus').textContent = 'Connect Google above (in Settings) first.';
+    return;
+  }
+  const now = new Date();
+  const [hh, mm] = timeVal.split(':').map(Number);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+  const end = new Date(start.getTime() + 30*60000);
+  const eventBody = {
+    summary: patientName,
+    start: { dateTime: start.toISOString() },
+    end: { dateTime: end.toISOString() }
+  };
+  if(doctorColorId) eventBody.colorId = doctorColorId;
+  el('scheduleStatus').textContent = 'Booking…';
+  try{
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(eventBody)
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('quickBookPatientInput').value = '';
+    el('quickBookTimeInput').value = '';
+    el('scheduleStatus').textContent = 'Booked.';
+    await loadTodaysSchedule();
+  }catch(e){
+    console.error(e);
+    el('scheduleStatus').textContent = 'Booking failed: ' + (e.message || e);
   }
 }
 
@@ -1823,6 +2009,38 @@ function addSelectedExercisesToNote(){
   el('status').textContent = `Added ${checked.length} exercise(s) to Plan.`;
 }
 
+function renderManualChecklist(filter){
+  const container = el('manualChecklist');
+  const q = (filter || '').trim().toLowerCase();
+  let html = '';
+  Object.keys(MANUAL_INTERVENTION_LIBRARY).forEach(category=>{
+    const items = MANUAL_INTERVENTION_LIBRARY[category].filter(name => !q || name.toLowerCase().includes(q));
+    if(items.length === 0) return;
+    html += `<div style="font-size:0.72rem;font-weight:700;color:#5c4a35;text-transform:uppercase;letter-spacing:0.04em;margin:10px 0 4px;">${category}</div>`;
+    items.forEach(name=>{
+      const id = 'man_' + name.replace(/[^a-z0-9]+/gi,'_');
+      html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
+        <input type="checkbox" class="manual-checkbox" value="${name}" id="${id}">
+        ${name}
+      </label>`;
+    });
+  });
+  container.innerHTML = html || '<div style="font-size:0.8rem;color:#8a938e;">No matches.</div>';
+}
+
+function addSelectedManualToNote(){
+  const checked = [...document.querySelectorAll('.manual-checkbox:checked')].map(cb => cb.value);
+  if(checked.length === 0){
+    el('status').textContent = 'Select at least one manual technique first.';
+    return;
+  }
+  const additionLine = `Manual therapy performed (clinician-selected): ${checked.join(', ')}.`;
+  const current = el('noteText').value || '';
+  el('noteText').value = insertIntoSection(current, 'PLAN', additionLine);
+  document.querySelectorAll('.manual-checkbox:checked').forEach(cb => cb.checked = false);
+  el('status').textContent = `Added ${checked.length} manual technique(s) to Plan.`;
+}
+
 function downloadNote(){
   const text = el('noteText').value;
   if(!text) return;
@@ -1964,10 +2182,32 @@ el('sharedFolderIdInput').addEventListener('change', async (e)=>{
   sharedFolderId = e.target.value.trim();
   try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
 });
+el('calendarIdInput').addEventListener('change', async (e)=>{
+  calendarId = e.target.value.trim();
+  try{ await localDB.set('calendar_id', calendarId); }catch(err){ console.error(err); }
+});
+el('doctorColorSelect').addEventListener('change', async (e)=>{
+  doctorColorId = e.target.value;
+  try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
+});
+el('scheduleToggleBtn').addEventListener('click', ()=>{
+  const panel = el('schedulePanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen){
+    el('scheduleDateLabel').textContent = todayStr();
+    loadTodaysSchedule();
+  }
+});
+el('refreshScheduleBtn').addEventListener('click', loadTodaysSchedule);
+el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
 el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
 renderExerciseChecklist('');
+el('manualSearchInput').addEventListener('input', (e)=> renderManualChecklist(e.target.value));
+el('addManualBtn').addEventListener('click', addSelectedManualToNote);
+renderManualChecklist('');
 populateTestRegionSelect();
 el('testRegionSelect').addEventListener('change', (e)=> renderSpecialTestChecklist(e.target.value));
 el('addSpecialTestsBtn').addEventListener('click', addSelectedSpecialTestsToNote);
@@ -2159,6 +2399,20 @@ loadSessions().then(()=>{
       el('sharedFolderIdInput').value = savedFolder.value;
     }
   }catch(e){ /* no saved folder id yet */ }
+  try{
+    const savedCal = await localDB.get('calendar_id');
+    if(savedCal && savedCal.value){
+      calendarId = savedCal.value;
+      el('calendarIdInput').value = savedCal.value;
+    }
+  }catch(e){ /* no saved calendar id yet */ }
+  try{
+    const savedColor = await localDB.get('doctor_color_id');
+    if(savedColor && savedColor.value){
+      doctorColorId = savedColor.value;
+      el('doctorColorSelect').value = savedColor.value;
+    }
+  }catch(e){ /* no saved color yet */ }
 })();
 if(!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
   el('browserWarning').style.display = 'block';
