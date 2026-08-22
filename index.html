@@ -406,21 +406,9 @@
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
     <div class="patient-row" style="margin-bottom:8px;">
-      <input type="password" id="apiKeyInput" placeholder="Deepgram API key (for Arabic transcription + speaker separation)" style="flex:2;">
+      <input type="password" id="clinicSecretInput" placeholder="Clinic access code (ask the clinic owner for this)" style="flex:2;">
       <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
-        <input type="checkbox" id="rememberKey"> remember on this device
-      </label>
-    </div>
-    <div class="patient-row" style="margin-bottom:8px;">
-      <input type="password" id="anthropicKeyInput" placeholder="Anthropic API key (for note structuring + translation)" style="flex:2;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
-        <input type="checkbox" id="rememberAnthropicKey"> remember on this device
-      </label>
-    </div>
-    <div class="patient-row" style="margin-bottom:8px;" id="geminiKeyRow">
-      <input type="password" id="geminiKeyInput" placeholder="Gemini API key (free, no card needed — aistudio.google.com)" style="flex:2;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
-        <input type="checkbox" id="rememberGeminiKey"> remember on this device
+        <input type="checkbox" id="rememberClinicSecret"> remember on this device
       </label>
     </div>
     <div class="patient-row" style="margin-bottom:4px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -608,9 +596,8 @@ let recordedBlob = null;
 let transcriptLines = []; // {speaker, text} — speaker is unused now but kept for CSS/storage compatibility
 let sessions = {}; // id -> {patientName, date, transcriptLines, note}
 let activeSessionId = null;
-let deepgramApiKey = '';
-let anthropicApiKey = '';
-let geminiApiKey = '';
+const BACKEND_URL = 'https://pt-script-backend.onrender.com';
+let clinicSecret = '';
 let aiProvider = 'anthropic'; // 'anthropic' | 'gemini' — used for note generation
 let auxAiProvider = 'gemini'; // 'anthropic' | 'gemini' — used only for terminology correction
 let sessionType = 'assessment';
@@ -1120,8 +1107,8 @@ function guessAudioMimeType(file){
 
 async function handleExternalAudioUpload(file){
   if(!file) return;
-  if(!deepgramApiKey){
-    el('status').textContent = 'Enter your Deepgram API key above before processing an uploaded recording.';
+  if(!clinicSecret){
+    el('status').textContent = 'Enter the clinic access code above before processing an uploaded recording.';
     return;
   }
   if(!activeSessionId) startNewSession();
@@ -1255,8 +1242,8 @@ async function toggleRecording(){
       el('browserWarning').style.display = 'block';
       return;
     }
-    if(!deepgramApiKey){
-      el('keyStatus').textContent = 'Enter your Deepgram API key above before recording.';
+    if(!clinicSecret){
+      el('keyStatus').textContent = 'Enter the clinic access code above before recording.';
       el('keyStatus').style.color = '#a33d3d';
       return;
     }
@@ -1319,19 +1306,19 @@ async function transcribePlainAudio(blob){
     keyterms.push(term);
     wordsUsed += wc;
   }
-  let url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true`;
+  let url = `${BACKEND_URL}/api/transcribe?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true`;
   keyterms.forEach(term=>{ url += `&keyterm=${encodeURIComponent(term)}`; });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Token ${deepgramApiKey}`,
+      'x-clinic-secret': clinicSecret,
       'Content-Type': contentType
     },
     body: blob
   });
   if(!res.ok){
     const errText = await res.text();
-    throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
+    throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
   }
   const data = await res.json();
   return data?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
@@ -1353,19 +1340,19 @@ async function transcribeFlatUtterances(blob){
     keyterms.push(term);
     wordsUsed += wc;
   }
-  let url = `https://api.deepgram.com/v1/listen?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true&paragraphs=true`;
+  let url = `${BACKEND_URL}/api/transcribe?model=nova-3&language=${encodeURIComponent(dialect)}&punctuate=true&smart_format=true&paragraphs=true`;
   keyterms.forEach(term=>{ url += `&keyterm=${encodeURIComponent(term)}`; });
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'Authorization': `Token ${deepgramApiKey}`,
+      'x-clinic-secret': clinicSecret,
       'Content-Type': contentType
     },
     body: blob
   });
   if(!res.ok){
     const errText = await res.text();
-    throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
+    throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
   }
   const data = await res.json();
   const alt = data?.results?.channels?.[0]?.alternatives?.[0];
@@ -1406,59 +1393,26 @@ async function transcribeSession(blob){
 
 
 async function callAI(systemPrompt, userContent, maxTokens, provider = aiProvider){
-  if(provider === 'gemini'){
-    if(!geminiApiKey) throw new Error('Gemini API key not set.');
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        contents: [{parts: [{text: userContent}]}],
-        systemInstruction: {parts: [{text: systemPrompt}]},
-        generationConfig: {maxOutputTokens: maxTokens}
-      })
-    });
-    if(!res.ok){
-      const errText = await res.text();
-      throw new Error(`Gemini API error ${res.status}: ${errText.slice(0,200)}`);
-    }
-    const data = await res.json();
-    const text = (data?.candidates?.[0]?.content?.parts || []).map(p=>p.text||'').join('');
-    if(!text) throw new Error('Gemini returned an empty response.');
-    return text;
-  } else {
-    if(!anthropicApiKey) throw new Error('Anthropic API key not set.');
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": anthropicApiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true"
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-5",
-        max_tokens: maxTokens,
-        system: systemPrompt,
-        messages: [ { role: "user", content: userContent } ]
-      })
-    });
-    if(!res.ok){
-      const errText = await res.text();
-      throw new Error(`API error ${res.status}: ${errText.slice(0,200)}`);
-    }
-    const data = await res.json();
-    const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
-    if(!text){
-      const blockTypes = (data.content || []).map(b => b.type).join(',') || 'none';
-      throw new Error(`Claude returned an empty response (stop_reason: ${data.stop_reason || 'unknown'}, content blocks: ${blockTypes}).`);
-    }
-    return text;
+  if(!clinicSecret) throw new Error('Enter the clinic access code above first.');
+  const res = await fetch(`${BACKEND_URL}/api/ai`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-clinic-secret': clinicSecret
+    },
+    body: JSON.stringify({ systemPrompt, userContent, maxTokens, provider })
+  });
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
   }
+  const data = await res.json();
+  if(!data.text) throw new Error('The AI returned an empty response.');
+  return data.text;
 }
 
 async function applyTerminologyCorrection(){
-  const hasKey = auxAiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
+  const hasKey = !!clinicSecret;
   if(!hasKey || transcriptLines.length === 0) return;
   el('status').textContent = 'Checking PT terminology against the full reference list…';
   const systemPrompt = `You review a speaker-tagged physical therapy session transcript (Arabic mixed with English medical terms) for speech-to-text errors in English medical/PT terminology — special tests, anatomy, exercise names.
@@ -1493,7 +1447,7 @@ Respond with ONLY the corrected JSON array in the exact same format and order, n
 
 async function generateNote(){
   if(transcriptLines.length === 0) return;
-  const hasKey = aiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
+  const hasKey = !!clinicSecret;
   if(!hasKey){
     el('status').textContent = `Enter your ${aiProvider === 'gemini' ? 'Gemini' : 'Anthropic'} API key above before generating the note.`;
     return;
@@ -1577,9 +1531,8 @@ async function toggleVoiceNote(){
         setVoiceNoteStatus('This browser cannot record audio.');
         return;
       }
-      const hasKey = aiProvider === 'gemini' ? !!geminiApiKey : !!anthropicApiKey;
-      if(!deepgramApiKey || !hasKey){
-        setVoiceNoteStatus('Voice-note updates need both a Deepgram key and an AI provider key set above (scroll up).');
+      if(!clinicSecret){
+        setVoiceNoteStatus('Enter the clinic access code above first (scroll up).');
         return;
       }
       setVoiceNoteStatus('Requesting microphone…');
@@ -2250,45 +2203,21 @@ el('newSessionBtn').addEventListener('click', startNewSession);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
 
-el('apiKeyInput').addEventListener('input', (e)=>{
-  deepgramApiKey = e.target.value.trim();
+el('clinicSecretInput').addEventListener('input', (e)=>{
+  clinicSecret = e.target.value.trim();
   el('keyStatus').textContent = '';
 });
 
-el('rememberKey').addEventListener('change', async (e)=>{
-  if(e.target.checked && deepgramApiKey){
+el('rememberClinicSecret').addEventListener('change', async (e)=>{
+  if(e.target.checked && clinicSecret){
     try{
-      await localDB.set('deepgram_key', deepgramApiKey);
-      el('keyStatus').textContent = 'Key saved on this device.';
+      await localDB.set('clinic_secret', clinicSecret);
+      el('keyStatus').textContent = 'Access code saved on this device.';
       el('keyStatus').style.color = '#5b6863';
     }catch(err){ console.error(err); }
   } else if(!e.target.checked){
-    try{ await localDB.delete('deepgram_key'); }catch(err){}
+    try{ await localDB.delete('clinic_secret'); }catch(err){}
     el('keyStatus').textContent = '';
-  }
-});
-
-el('anthropicKeyInput').addEventListener('input', (e)=>{
-  anthropicApiKey = e.target.value.trim();
-});
-
-el('rememberAnthropicKey').addEventListener('change', async (e)=>{
-  if(e.target.checked && anthropicApiKey){
-    try{ await localDB.set('anthropic_key', anthropicApiKey); }catch(err){ console.error(err); }
-  } else if(!e.target.checked){
-    try{ await localDB.delete('anthropic_key'); }catch(err){}
-  }
-});
-
-el('geminiKeyInput').addEventListener('input', (e)=>{
-  geminiApiKey = e.target.value.trim();
-});
-
-el('rememberGeminiKey').addEventListener('change', async (e)=>{
-  if(e.target.checked && geminiApiKey){
-    try{ await localDB.set('gemini_key', geminiApiKey); }catch(err){ console.error(err); }
-  } else if(!e.target.checked){
-    try{ await localDB.delete('gemini_key'); }catch(err){}
   }
 });
 
@@ -2345,29 +2274,13 @@ loadSessions().then(()=>{
 });
 (async ()=>{
   try{
-    const saved = await localDB.get('deepgram_key');
+    const saved = await localDB.get('clinic_secret');
     if(saved && saved.value){
-      deepgramApiKey = saved.value;
-      el('apiKeyInput').value = saved.value;
-      el('rememberKey').checked = true;
+      clinicSecret = saved.value;
+      el('clinicSecretInput').value = saved.value;
+      el('rememberClinicSecret').checked = true;
     }
-  }catch(e){ /* no saved key yet */ }
-  try{
-    const savedA = await localDB.get('anthropic_key');
-    if(savedA && savedA.value){
-      anthropicApiKey = savedA.value;
-      el('anthropicKeyInput').value = savedA.value;
-      el('rememberAnthropicKey').checked = true;
-    }
-  }catch(e){ /* no saved key yet */ }
-  try{
-    const savedG = await localDB.get('gemini_key');
-    if(savedG && savedG.value){
-      geminiApiKey = savedG.value;
-      el('geminiKeyInput').value = savedG.value;
-      el('rememberGeminiKey').checked = true;
-    }
-  }catch(e){ /* no saved key yet */ }
+  }catch(e){ /* no saved code yet */ }
   try{
     const savedTerms = await localDB.get('keyterms');
     if(savedTerms && savedTerms.value){
