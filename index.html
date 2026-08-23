@@ -68,6 +68,51 @@
     0%{ background-position:200% center; }
     100%{ background-position:-40% center; }
   }
+  #splashScreen{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    background:var(--maroon-deep);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    transition:opacity 0.5s ease, visibility 0.5s ease;
+  }
+  #splashScreen.fade-out{
+    opacity:0;
+    visibility:hidden;
+    pointer-events:none;
+  }
+  #splashLogo{
+    font-family:'Aref Ruqaa','Amiri',serif;
+    font-weight:700;
+    font-size:4rem;
+    background:linear-gradient(90deg, #a97c2f 0%, #f3e6c8 50%, #a97c2f 100%);
+    background-size:220% auto;
+    -webkit-background-clip:text;
+    background-clip:text;
+    -webkit-text-fill-color:transparent;
+    color:transparent;
+    animation:shimmer 3.5s linear infinite, splashPop 0.7s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  #splashTag{
+    color:#f3e6c8;
+    opacity:0.75;
+    font-size:0.9rem;
+    letter-spacing:0.04em;
+    margin-top:10px;
+    animation:splashFadeIn 0.8s ease 0.3s both;
+  }
+  @keyframes splashPop{
+    0%{ transform:scale(0.6); opacity:0; }
+    60%{ transform:scale(1.08); opacity:1; }
+    100%{ transform:scale(1); opacity:1; }
+  }
+  @keyframes splashFadeIn{
+    0%{ opacity:0; transform:translateY(6px); }
+    100%{ opacity:0.75; transform:translateY(0); }
+  }
   header .tag{
     font-size:0.8rem;
     opacity:0.8;
@@ -357,6 +402,11 @@
 </head>
 <body>
 
+<div id="splashScreen">
+  <div id="splashLogo" lang="ar" dir="rtl">مُسَاعِد</div>
+  <div id="splashTag">PT Session Scribe</div>
+</div>
+
 <header>
   <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
@@ -384,16 +434,22 @@
       Confirm the patient has agreed to this session being recorded before you start.
     </div>
 
-    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Today's Schedule</button>
+    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
     <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--maroon);">Today — <span id="scheduleDateLabel"></span></span>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
+        <span style="font-size:0.9rem;font-weight:700;color:var(--maroon);" id="calMonthLabel"></span>
+        <button type="button" class="ghost" id="calNextMonthBtn" style="padding:5px 12px;">›</button>
+      </div>
+      <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:0.85rem;font-weight:600;color:var(--maroon);" id="scheduleDateLabel"></span>
         <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
       </div>
       <div id="scheduleList" style="margin-bottom:14px;"></div>
       <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
       <div style="border-top:1px solid var(--line);padding-top:12px;">
-        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book</div>
+        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book (for the selected day above)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -455,16 +511,20 @@
     <div class="status" id="keyStatus" style="margin-top:0;margin-bottom:14px;"></div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
-      <label style="font-size:0.78rem;color:#5b6863;">Google connection (Drive backup + shared calendar — optional, everything already saves on this device without it)</label>
+      <label style="font-size:0.78rem;color:#5b6863;">Google Drive backup (optional — everything already saves on this device without it)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <input type="text" id="googleClientIdInput" placeholder="Google OAuth Client ID (ends in .apps.googleusercontent.com)" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google (Drive + Calendar)</button>
+        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google Drive</button>
       </div>
       <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <input type="text" id="sharedFolderIdInput" placeholder="Shared clinic Drive folder ID (optional — ask the clinic owner for this)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-      <input type="text" id="calendarIdInput" placeholder="Shared clinic calendar ID (ask the clinic owner — from Google Calendar settings)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+    </div>
+
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">Clinic calendar (built into the app — uses your clinic access code above, no Google needed)</label>
       <select id="doctorColorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-        <option value="">— Your color on the shared calendar —</option>
+        <option value="">— Your color on the clinic calendar —</option>
         <option value="1">Lavender</option>
         <option value="2">Sage</option>
         <option value="3">Grape</option>
@@ -477,7 +537,6 @@
         <option value="10">Basil</option>
         <option value="11">Tomato</option>
       </select>
-      <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
     </div>
 
     </div>
@@ -485,6 +544,15 @@
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
+    </div>
+
+    <div class="patient-row" style="margin-top:-8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <label style="font-size:0.78rem;color:#5b6863;white-space:nowrap;">Surgery date (if applicable):</label>
+        <input type="date" id="surgeryDateInput" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <button type="button" class="ghost" id="clearSurgeryDateBtn" style="font-size:0.75rem;padding:6px 10px;white-space:nowrap;">Clear</button>
+      </div>
+      <div id="postOpDayLabel" style="font-size:0.82rem;font-weight:600;color:var(--maroon);"></div>
     </div>
 
     <div class="patient-row" style="margin-top:-8px;">
@@ -720,6 +788,7 @@ const MANUAL_INTERVENTION_LIBRARY = {
 };
 
 let recordedMimeType = 'audio/webm';
+let surgeryDate = ''; // ISO date string, e.g. '2026-07-01' — persisted per patient name
 
 // Requesting these explicitly (rather than plain {audio:true}) asks the
 // device/browser to apply real-time noise suppression and automatic gain
@@ -738,7 +807,6 @@ let wakeLock = null;
 let googleClientId = '';
 let clinicianName = '';
 let sharedFolderId = '';
-let calendarId = '';
 let doctorColorId = '';
 let googleAccessToken = '';
 let googleTokenClient = null;
@@ -870,6 +938,64 @@ function todayStr(){
   return new Date().toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
 }
 
+function updatePostOpDayLabel(){
+  const label = el('postOpDayLabel');
+  if(!surgeryDate){
+    label.textContent = '';
+    return;
+  }
+  const surgery = new Date(surgeryDate + 'T00:00:00');
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const diffDays = Math.round((today - surgery) / 86400000);
+  if(diffDays < 0){
+    label.textContent = `Surgery scheduled in ${Math.abs(diffDays)} day(s) — pre-op.`;
+  } else {
+    label.textContent = `Post-op Day: ${diffDays}`;
+  }
+}
+
+function patientSurgeryKey(name){
+  return 'surgery_date:' + name.trim().toLowerCase();
+}
+
+async function loadSurgeryDateForPatient(name){
+  if(!name || !name.trim()){
+    surgeryDate = '';
+    el('surgeryDateInput').value = '';
+    updatePostOpDayLabel();
+    return;
+  }
+  try{
+    const saved = await localDB.get(patientSurgeryKey(name));
+    if(saved && saved.value){
+      surgeryDate = saved.value;
+      el('surgeryDateInput').value = saved.value;
+    } else {
+      surgeryDate = '';
+      el('surgeryDateInput').value = '';
+    }
+  }catch(e){
+    surgeryDate = '';
+    el('surgeryDateInput').value = '';
+  }
+  updatePostOpDayLabel();
+}
+
+async function saveSurgeryDateForPatient(){
+  const name = el('patientName').value.trim();
+  surgeryDate = el('surgeryDateInput').value;
+  updatePostOpDayLabel();
+  if(!name) return;
+  try{
+    if(surgeryDate){
+      await localDB.set(patientSurgeryKey(name), surgeryDate);
+    } else {
+      await localDB.delete(patientSurgeryKey(name));
+    }
+  }catch(e){ console.error(e); }
+}
+
 function newSessionId(){
   return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
 }
@@ -972,6 +1098,7 @@ function loadSession(id){
   el('patientName').value = s.patientName || '';
   el('sessionDate').value = s.date || todayStr();
   setSessionType(s.sessionType || 'assessment');
+  loadSurgeryDateForPatient(s.patientName || '');
   transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
   renderTranscript();
   if(s.note){
@@ -995,6 +1122,9 @@ function startNewSession(){
   el('patientName').value = '';
   el('sessionDate').value = todayStr();
   setSessionType('assessment');
+  surgeryDate = '';
+  el('surgeryDateInput').value = '';
+  el('postOpDayLabel').textContent = '';
   transcriptLines = [];
   renderTranscript();
   el('noteSection').style.display = 'none';
@@ -1013,6 +1143,7 @@ function startFollowupForPatient(patientName){
   el('patientName').value = patientName;
   el('sessionDate').value = todayStr();
   setSessionType('followup');
+  loadSurgeryDateForPatient(patientName);
   transcriptLines = [];
   renderTranscript();
   el('noteSection').style.display = 'none';
@@ -1245,6 +1376,7 @@ async function toggleRecording(){
     if(!clinicSecret){
       el('keyStatus').textContent = 'Enter the clinic access code above before recording.';
       el('keyStatus').style.color = '#a33d3d';
+      el('status').textContent = '⚠️ Enter the clinic access code in Settings (⚙️ button above) before recording.';
       return;
     }
     try{
@@ -1487,8 +1619,18 @@ ${sharedRules}`;
 
   const systemPrompt = sessionType === 'followup' ? followupPrompt : assessmentPrompt;
 
+  let postOpContext = '';
+  if(surgeryDate){
+    const surgery = new Date(surgeryDate + 'T00:00:00');
+    const today = new Date(); today.setHours(0,0,0,0);
+    const diffDays = Math.round((today - surgery) / 86400000);
+    if(diffDays >= 0){
+      postOpContext = `IMPORTANT CONTEXT: this patient is POST-SURGICAL, currently POST-OP DAY ${diffDays}. Factor this into your assessment and plan reasoning where relevant (e.g. what's expected/appropriate at this stage of recovery), but do not invent specific protocol details not mentioned in the transcript.\n\n`;
+    }
+  }
+
   try{
-    let note = await callAI(systemPrompt, `Session transcript:\n\n${transcriptText}`, 8000);
+    let note = await callAI(systemPrompt, `${postOpContext}Session transcript:\n\n${transcriptText}`, 8000);
     // Robust match: no strict start-of-string anchor (model sometimes adds
     // leading whitespace), emoji optional, colon optional, case-insensitive.
     // Only looks in roughly the first 600 characters so it can't accidentally
@@ -1505,7 +1647,14 @@ ${sharedRules}`;
     }
     const noteDate = el('sessionDate').value || todayStr();
     const patientLabel = el('patientName').value ? `Patient: ${el('patientName').value}\n` : '';
-    note = `Date: ${noteDate}\n${patientLabel}\n${note.trim()}`;
+    let postOpLabel = '';
+    if(surgeryDate){
+      const surgery = new Date(surgeryDate + 'T00:00:00');
+      const today = new Date(); today.setHours(0,0,0,0);
+      const diffDays = Math.round((today - surgery) / 86400000);
+      postOpLabel = diffDays >= 0 ? `Post-op Day: ${diffDays}\n` : `Pre-op (surgery in ${Math.abs(diffDays)} day(s))\n`;
+    }
+    note = `Date: ${noteDate}\n${patientLabel}${postOpLabel}\n${note.trim()}`;
     el('noteText').value = note;
     el('noteSection').style.display = 'block';
     el('status').textContent = 'Draft ready. Review carefully before saving.';
@@ -1687,13 +1836,6 @@ function ensureGoogleAuth(){
   });
 }
 
-function todayBoundsISO(){
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-  return { timeMin: start.toISOString(), timeMax: end.toISOString() };
-}
-
 const CALENDAR_COLOR_NAMES = {
   '1':'Lavender','2':'Sage','3':'Grape','4':'Flamingo','5':'Banana','6':'Tangerine',
   '7':'Peacock','8':'Graphite','9':'Blueberry','10':'Basil','11':'Tomato'
@@ -1703,56 +1845,124 @@ const CALENDAR_COLOR_HEX = {
   '7':'#039be5','8':'#616161','9':'#3f51b5','10':'#0b8043','11':'#d50000'
 };
 
-async function loadTodaysSchedule(){
-  if(!calendarId){
-    el('scheduleStatus').textContent = 'Enter the shared clinic calendar ID in Settings first.';
+let calViewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+let calSelectedDate = new Date();
+let monthEventsByDay = {}; // 'YYYY-MM-DD' -> array of events
+
+function dayKey(d){
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function sameDay(a, b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
+async function loadMonthAndDay(){
+  if(!clinicSecret){
+    el('scheduleStatus').textContent = 'Enter the clinic access code in Settings first.';
     el('scheduleList').innerHTML = '';
+    el('calGrid').innerHTML = '';
     return;
   }
   el('scheduleStatus').textContent = 'Loading…';
-  const token = await ensureGoogleAuth();
-  if(!token){
-    el('scheduleStatus').textContent = 'Connect Google above (in Settings) first.';
-    return;
-  }
   try{
-    const { timeMin, timeMax } = todayBoundsISO();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
-    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+    const monthStart = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth(), 1, 0,0,0);
+    const monthEnd = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 0, 23,59,59);
+    const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`;
+    const res = await fetch(url, { headers: { 'x-clinic-secret': clinicSecret } });
     if(!res.ok){
       const errText = await res.text();
-      throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    const data = await res.json();
-    renderScheduleList(data.items || []);
-    el('scheduleStatus').textContent = (data.items || []).length === 0 ? 'No events today.' : '';
+    const items = await res.json();
+    monthEventsByDay = {};
+    (items || []).forEach(ev=>{
+      if(!ev.start_time) return;
+      const d = new Date(ev.start_time);
+      const key = dayKey(d);
+      if(!monthEventsByDay[key]) monthEventsByDay[key] = [];
+      monthEventsByDay[key].push(ev);
+    });
+    renderCalendarGrid();
+    renderScheduleList(monthEventsByDay[dayKey(calSelectedDate)] || []);
+    el('scheduleStatus').textContent = '';
   }catch(e){
     console.error(e);
-    el('scheduleStatus').textContent = 'Could not load schedule: ' + (e.message || e);
+    el('scheduleStatus').textContent = 'Could not load calendar: ' + (e.message || e);
+  }
+}
+
+function renderCalendarGrid(){
+  el('calMonthLabel').textContent = calViewMonth.toLocaleDateString(undefined, {month:'long', year:'numeric'});
+  const grid = el('calGrid');
+  grid.innerHTML = '';
+  const dowNames = ['S','M','T','W','T','F','S'];
+  dowNames.forEach(d=>{
+    const cell = document.createElement('div');
+    cell.style.cssText = 'text-align:center;font-size:0.7rem;font-weight:700;color:#8a938e;padding:2px;';
+    cell.textContent = d;
+    grid.appendChild(cell);
+  });
+  const firstOfMonth = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth(), 1);
+  const startOffset = firstOfMonth.getDay();
+  const daysInMonth = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 0).getDate();
+  const today = new Date();
+  for(let i=0;i<startOffset;i++){
+    grid.appendChild(document.createElement('div'));
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth(), day);
+    const key = dayKey(d);
+    const events = monthEventsByDay[key] || [];
+    const isToday = sameDay(d, today);
+    const isSelected = sameDay(d, calSelectedDate);
+    const cell = document.createElement('div');
+    cell.style.cssText = `text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:0.8rem;
+      ${isSelected ? 'background:var(--maroon);color:#fff;' : isToday ? 'background:#f0e6d2;color:var(--maroon);font-weight:700;' : 'color:var(--ink);'}`;
+    const dotsHtml = events.slice(0,3).map(ev=>{
+      const hex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
+      return `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${isSelected ? '#fff' : hex};margin:0 1px;"></span>`;
+    }).join('');
+    cell.innerHTML = `<div>${day}</div><div style="height:8px;">${dotsHtml}</div>`;
+    cell.addEventListener('click', ()=>{
+      calSelectedDate = d;
+      renderCalendarGrid();
+      renderScheduleList(monthEventsByDay[dayKey(d)] || []);
+    });
+    grid.appendChild(cell);
   }
 }
 
 function renderScheduleList(events){
+  el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
   const container = el('scheduleList');
-  if(events.length === 0){ container.innerHTML = ''; return; }
+  if(events.length === 0){ container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No events this day.</div>'; return; }
   container.innerHTML = events.map(ev=>{
-    const start = ev.start && (ev.start.dateTime || ev.start.date);
-    const timeStr = ev.start && ev.start.dateTime
-      ? new Date(ev.start.dateTime).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
+    const timeStr = ev.start_time
+      ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
       : 'All day';
-    const colorHex = CALENDAR_COLOR_HEX[ev.colorId] || '#8a938e';
-    const isMine = doctorColorId && ev.colorId === doctorColorId;
+    const colorHex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
+    const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);${isMine ? 'font-weight:600;' : ''}">
       <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;">${timeStr}</span>
-      <span style="font-size:0.85rem;">${escapeHtml(ev.summary || '(untitled)')}</span>
+      <span style="font-size:0.85rem;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
     </div>`;
   }).join('');
 }
 
+function goToPrevMonth(){
+  calViewMonth = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()-1, 1);
+  loadMonthAndDay();
+}
+function goToNextMonth(){
+  calViewMonth = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 1);
+  loadMonthAndDay();
+}
+
 async function quickBookAppointment(){
-  if(!calendarId){
-    el('scheduleStatus').textContent = 'Enter the shared clinic calendar ID in Settings first.';
+  if(!clinicSecret){
+    el('scheduleStatus').textContent = 'Enter the clinic access code in Settings first.';
     return;
   }
   const patientName = el('quickBookPatientInput').value.trim();
@@ -1761,28 +1971,22 @@ async function quickBookAppointment(){
     el('scheduleStatus').textContent = 'Enter a patient name and time first.';
     return;
   }
-  const token = await ensureGoogleAuth();
-  if(!token){
-    el('scheduleStatus').textContent = 'Connect Google above (in Settings) first.';
-    return;
-  }
-  const now = new Date();
   const [hh, mm] = timeVal.split(':').map(Number);
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hh, mm);
+  const start = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), hh, mm);
   const end = new Date(start.getTime() + 30*60000);
-  const eventBody = {
-    summary: patientName,
-    start: { dateTime: start.toISOString() },
-    end: { dateTime: end.toISOString() }
-  };
-  if(doctorColorId) eventBody.colorId = doctorColorId;
   el('scheduleStatus').textContent = 'Booking…';
   try{
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`;
+    const url = `${BACKEND_URL}/api/appointments`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(eventBody)
+      headers: { 'x-clinic-secret': clinicSecret, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        patientName,
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
+        doctorColor: doctorColorId || null,
+        doctorName: clinicianName || null
+      })
     });
     if(!res.ok){
       const errText = await res.text();
@@ -1791,7 +1995,7 @@ async function quickBookAppointment(){
     el('quickBookPatientInput').value = '';
     el('quickBookTimeInput').value = '';
     el('scheduleStatus').textContent = 'Booked.';
-    await loadTodaysSchedule();
+    await loadMonthAndDay();
   }catch(e){
     console.error(e);
     el('scheduleStatus').textContent = 'Booking failed: ' + (e.message || e);
@@ -2135,10 +2339,6 @@ el('sharedFolderIdInput').addEventListener('change', async (e)=>{
   sharedFolderId = e.target.value.trim();
   try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
 });
-el('calendarIdInput').addEventListener('change', async (e)=>{
-  calendarId = e.target.value.trim();
-  try{ await localDB.set('calendar_id', calendarId); }catch(err){ console.error(err); }
-});
 el('doctorColorSelect').addEventListener('change', async (e)=>{
   doctorColorId = e.target.value;
   try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
@@ -2148,11 +2348,13 @@ el('scheduleToggleBtn').addEventListener('click', ()=>{
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if(!isOpen){
-    el('scheduleDateLabel').textContent = todayStr();
-    loadTodaysSchedule();
+    calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
+    loadMonthAndDay();
   }
 });
-el('refreshScheduleBtn').addEventListener('click', loadTodaysSchedule);
+el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
+el('calNextMonthBtn').addEventListener('click', goToNextMonth);
+el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
@@ -2202,6 +2404,13 @@ el('settingsToggleBtn').addEventListener('click', ()=>{
 el('newSessionBtn').addEventListener('click', startNewSession);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
+
+el('patientName').addEventListener('change', (e)=> loadSurgeryDateForPatient(e.target.value));
+el('surgeryDateInput').addEventListener('change', saveSurgeryDateForPatient);
+el('clearSurgeryDateBtn').addEventListener('click', ()=>{
+  el('surgeryDateInput').value = '';
+  saveSurgeryDateForPatient();
+});
 
 el('clinicSecretInput').addEventListener('input', (e)=>{
   clinicSecret = e.target.value.trim();
@@ -2266,12 +2475,22 @@ el('resetKeytermsBtn').addEventListener('click', async ()=>{
 });
 
 // Init
+const splashStartTime = Date.now();
+function hideSplashScreen(){
+  const minDisplay = 1100;
+  const wait = Math.max(0, minDisplay - (Date.now() - splashStartTime));
+  setTimeout(()=>{
+    const splash = document.getElementById('splashScreen');
+    if(splash) splash.classList.add('fade-out');
+  }, wait);
+}
 el('sessionDate').value = todayStr();
 loadSessions().then(()=>{
   if(Object.keys(sessions).length === 0){
     startNewSession();
   }
-});
+  hideSplashScreen();
+}).catch(()=>{ hideSplashScreen(); });
 (async ()=>{
   try{
     const saved = await localDB.get('clinic_secret');
@@ -2312,13 +2531,6 @@ loadSessions().then(()=>{
       el('sharedFolderIdInput').value = savedFolder.value;
     }
   }catch(e){ /* no saved folder id yet */ }
-  try{
-    const savedCal = await localDB.get('calendar_id');
-    if(savedCal && savedCal.value){
-      calendarId = savedCal.value;
-      el('calendarIdInput').value = savedCal.value;
-    }
-  }catch(e){ /* no saved calendar id yet */ }
   try{
     const savedColor = await localDB.get('doctor_color_id');
     if(savedColor && savedColor.value){
