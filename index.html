@@ -434,6 +434,12 @@
       Confirm the patient has agreed to this session being recorded before you start.
     </div>
 
+    <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;">🔐 Pending Deletions (owner only)</button>
+    <div id="pendingDeletesPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div id="pendingDeletesList"></div>
+      <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
     <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
     <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -465,6 +471,12 @@
       <input type="password" id="clinicSecretInput" placeholder="Clinic access code (ask the clinic owner for this)" style="flex:2;">
       <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
         <input type="checkbox" id="rememberClinicSecret"> remember on this device
+      </label>
+    </div>
+    <div class="patient-row" style="margin-bottom:8px;">
+      <input type="password" id="ownerSecretInput" placeholder="Owner access code (clinic owner only — leave blank if you're not the owner)" style="flex:2;">
+      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
+        <input type="checkbox" id="rememberOwnerSecret"> remember on this device
       </label>
     </div>
     <div class="patient-row" style="margin-bottom:4px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -619,6 +631,11 @@
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
           <button class="ghost" id="saveDriveBtn">Save to Google Drive</button>
         </div>
+        <div class="actions-row" style="margin-top:10px;">
+          <button class="ghost" id="syncToServerBtn">☁️ Save to clinic server</button>
+          <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);">🗑️ Request delete (needs owner approval)</button>
+        </div>
+        <div class="status" id="syncStatus" style="margin-top:6px;margin-bottom:0;"></div>
         <div class="actions-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
           <button class="ghost" id="voiceNoteBtn">🎤 Add voice note to update this note</button>
           <span class="rec-indicator" id="voiceNoteIndicator" style="display:none;"><span class="dot"></span> recording</span>
@@ -666,6 +683,7 @@ let sessions = {}; // id -> {patientName, date, transcriptLines, note}
 let activeSessionId = null;
 const BACKEND_URL = 'https://pt-script-backend.onrender.com';
 let clinicSecret = '';
+let ownerSecret = '';
 let aiProvider = 'anthropic'; // 'anthropic' | 'gemini' — used for note generation
 let auxAiProvider = 'gemini'; // 'anthropic' | 'gemini' — used only for terminology correction
 let sessionType = 'assessment';
@@ -1777,6 +1795,137 @@ async function saveSession(){
   renderSessionList();
 }
 
+async function syncSessionToServer(){
+  if(!activeSessionId){
+    el('syncStatus').textContent = 'No active session to save.';
+    return;
+  }
+  if(!clinicSecret){
+    el('syncStatus').textContent = 'Enter the clinic access code in Settings first.';
+    return;
+  }
+  el('syncStatus').textContent = 'Saving to clinic server…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-clinic-secret': clinicSecret },
+      body: JSON.stringify({
+        id: activeSessionId,
+        patientName: el('patientName').value || 'Unnamed patient',
+        sessionDate: el('sessionDate').value || todayStr(),
+        sessionType: sessionType,
+        transcript: transcriptLines,
+        note: el('noteText').value || null,
+        doctorName: clinicianName || null
+      })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('syncStatus').textContent = 'Saved to clinic server.';
+  }catch(e){
+    console.error(e);
+    el('syncStatus').textContent = 'Could not save to clinic server: ' + (e.message || e);
+  }
+}
+
+async function requestDeleteCurrentSession(){
+  if(!activeSessionId){
+    el('syncStatus').textContent = 'No active session.';
+    return;
+  }
+  if(!clinicSecret){
+    el('syncStatus').textContent = 'Enter the clinic access code in Settings first.';
+    return;
+  }
+  if(!confirm('Request deletion of this session? The clinic owner will need to approve before it is actually removed.')) return;
+  el('syncStatus').textContent = 'Sending delete request…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(activeSessionId)}/request-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-clinic-secret': clinicSecret },
+      body: JSON.stringify({ requestedBy: clinicianName || 'unknown' })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('syncStatus').textContent = 'Delete requested — waiting for owner approval.';
+  }catch(e){
+    console.error(e);
+    el('syncStatus').textContent = 'Could not request delete: ' + (e.message || e);
+  }
+}
+
+async function loadPendingDeletes(){
+  if(!ownerSecret){
+    el('pendingDeletesStatus').textContent = 'Enter the owner access code in Settings first.';
+    el('pendingDeletesList').innerHTML = '';
+    return;
+  }
+  el('pendingDeletesStatus').textContent = 'Loading…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/pending-deletes`, {
+      headers: { 'x-owner-secret': ownerSecret }
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const items = await res.json();
+    renderPendingDeletes(items || []);
+    el('pendingDeletesStatus').textContent = (items || []).length === 0 ? 'No pending delete requests.' : '';
+  }catch(e){
+    console.error(e);
+    el('pendingDeletesStatus').textContent = 'Could not load: ' + (e.message || e);
+  }
+}
+
+function renderPendingDeletes(items){
+  const container = el('pendingDeletesList');
+  container.innerHTML = items.map(item=>{
+    const requestedAt = item.delete_requested_at ? new Date(item.delete_requested_at).toLocaleString() : '';
+    return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;">
+      <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(item.patient_name || 'Unnamed')} — ${escapeHtml(item.session_date || '')}</div>
+      <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Requested by ${escapeHtml(item.doctor_name || item.delete_requested_by || 'unknown')} · ${requestedAt}</div>
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost" style="color:var(--danger);border-color:var(--danger);" onclick="approveDelete('${item.id}')">Approve delete</button>
+        <button type="button" class="ghost" onclick="rejectDelete('${item.id}')">Reject</button>
+      </div>
+    </div>`;
+  }).join('') || '';
+}
+
+async function approveDelete(id){
+  if(!confirm('Permanently delete this session? This cannot be undone.')) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(id)}/approve-delete`, {
+      method: 'POST',
+      headers: { 'x-owner-secret': ownerSecret }
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    await loadPendingDeletes();
+  }catch(e){
+    console.error(e);
+    el('pendingDeletesStatus').textContent = 'Could not delete: ' + (e.message || e);
+  }
+}
+
+async function rejectDelete(id){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(id)}/reject-delete`, {
+      method: 'POST',
+      headers: { 'x-owner-secret': ownerSecret }
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    await loadPendingDeletes();
+  }catch(e){
+    console.error(e);
+    el('pendingDeletesStatus').textContent = 'Could not reject: ' + (e.message || e);
+  }
+}
+
 function connectGoogleDrive(){
   el('driveStatus').textContent = 'Button tapped — checking…';
   el('status').textContent = 'Checking Google Drive connection…';
@@ -2323,6 +2472,8 @@ el('clearBtn').addEventListener('click', ()=>{
 });
 el('generateBtn').addEventListener('click', generateNote);
 el('saveNoteBtn').addEventListener('click', saveSession);
+el('syncToServerBtn').addEventListener('click', syncSessionToServer);
+el('requestDeleteBtn').addEventListener('click', requestDeleteCurrentSession);
 el('downloadBtn').addEventListener('click', downloadNote);
 el('downloadPdfBtn').addEventListener('click', downloadNotePDF);
 el('connectDriveBtn').addEventListener('click', connectGoogleDrive);
@@ -2430,6 +2581,25 @@ el('rememberClinicSecret').addEventListener('change', async (e)=>{
   }
 });
 
+el('ownerSecretInput').addEventListener('input', (e)=>{
+  ownerSecret = e.target.value.trim();
+});
+
+el('rememberOwnerSecret').addEventListener('change', async (e)=>{
+  if(e.target.checked && ownerSecret){
+    try{ await localDB.set('owner_secret', ownerSecret); }catch(err){ console.error(err); }
+  } else if(!e.target.checked){
+    try{ await localDB.delete('owner_secret'); }catch(err){}
+  }
+});
+
+el('pendingDeletesToggleBtn').addEventListener('click', ()=>{
+  const panel = el('pendingDeletesPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen) loadPendingDeletes();
+});
+
 function setAiProvider(provider){
   aiProvider = provider;
   el('providerAnthropicBtn').classList.toggle('active', provider === 'anthropic');
@@ -2500,6 +2670,14 @@ loadSessions().then(()=>{
       el('rememberClinicSecret').checked = true;
     }
   }catch(e){ /* no saved code yet */ }
+  try{
+    const savedOwner = await localDB.get('owner_secret');
+    if(savedOwner && savedOwner.value){
+      ownerSecret = savedOwner.value;
+      el('ownerSecretInput').value = savedOwner.value;
+      el('rememberOwnerSecret').checked = true;
+    }
+  }catch(e){ /* no saved owner code yet */ }
   try{
     const savedTerms = await localDB.get('keyterms');
     if(savedTerms && savedTerms.value){
