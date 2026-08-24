@@ -712,8 +712,10 @@
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (pick from the list — avoids relying on speech-to-text getting the name right)</div>
-          <input type="text" id="exerciseSearchInput" placeholder="Search exercises…" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (pick a region, then pick exercises — avoids relying on speech-to-text getting the name right)</div>
+          <select id="exerciseRegionSelect" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+            <option value="">— Select a region —</option>
+          </select>
           <div id="exerciseChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
           <button class="ghost" id="addExercisesBtn" style="margin-top:8px;">Add selected exercises to note</button>
         </div>
@@ -818,7 +820,7 @@ const COMPREHENSIVE_TERMS = [
   "TENS","ultrasound therapy","electrical stimulation","cryotherapy","hot pack",
   "joint mobilization","soft tissue mobilization","myofascial release","dry needling","cupping",
   // Equipment
-  "TheraBand","resistance band","stationary bike","treadmill"
+  "TheraBand","resistance band","stationary bike","treadmill","ergometer","erg"
 ].join(", ");
 
 // Structured exercise list for the Plan checklist picker — organized by
@@ -830,7 +832,7 @@ const EXERCISE_LIBRARY = {
   "Cervical": ["Chin tuck","Cervical extension","Cervical flexion","Upper trapezius stretch","Levator scapulae stretch","Sternocleidomastoid (SCM) stretch","Scalene stretch","Suboccipital stretch","Cervical flexion stretch","Cervical extension stretch","Cervical rotation stretch","Cervical lateral flexion stretch"],
   "Core / Spine": ["Pelvic tilts","Dead bug","Side plank","Plank","Bird dog","Cat-cow stretch","Abdominal bracing","Core stabilization","McKenzie extension","McKenzie flexion","Codman's exercise","Williams flexion exercises","R1 rotation","R2 rotation","Core stabilization — Grade 1 (static bracing)","Core stabilization — Grade 2 (single-limb movement)","Core stabilization — Grade 3 (bilateral/dynamic limb movement)","Core stabilization — Grade 4 (functional/dynamic loading)"],
   "Hip": ["Hip flexion","Hip extension","Hip abduction","Hip adduction","Hip internal rotation","Hip external rotation","Hip thrust","Fire hydrants","Clamshell exercise","Single leg clamshell","Side-lying leg raises","Bridging","Deadlift","Single leg deadlift","Straight leg raise (front)","Straight leg raise (back)","Straight leg raise (side)","Isometric adductor squeeze (Hölmich protocol)","Standing resisted hip adduction (Hölmich protocol)","Sliding adductor exercise (Hölmich protocol)","Copenhagen adduction exercise"],
-  "Knee": ["Quad sets","Straight leg raise","Knee extension","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls","Popliteus rotation","Askling Extender exercise","Askling Diver exercise","Askling Glider exercise"],
+  "Knee": ["Quad sets","Straight leg raise","Knee extension","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls","Hamstring kicks","Popliteus rotation","Askling Extender exercise","Askling Diver exercise","Askling Glider exercise"],
   "Ankle / Foot": ["Ankle pumps","Calf raises","Seated heel raises","Ankle circles","Toe raises","Ankle inversion","Ankle eversion","Resisted dorsiflexion"],
   "Balance / Neuro / General": ["Single leg stance","Proprioception training","Balance training","Gait training","PNF stretching","Pendulum exercise","Wall slides","Heel slides"]
 };
@@ -2797,23 +2799,30 @@ function updateSpecialTestsVisibility(){
   el('specialTestsSection').style.display = sessionType === 'assessment' ? 'block' : 'none';
 }
 
-function renderExerciseChecklist(filter){
-  const container = el('exerciseChecklist');
-  const q = (filter || '').trim().toLowerCase();
-  let html = '';
-  Object.keys(EXERCISE_LIBRARY).forEach(category=>{
-    const items = EXERCISE_LIBRARY[category].filter(name => !q || name.toLowerCase().includes(q));
-    if(items.length === 0) return;
-    html += `<div style="font-size:0.72rem;font-weight:700;color:#5c4a35;text-transform:uppercase;letter-spacing:0.04em;margin:10px 0 4px;">${category}</div>`;
-    items.forEach(name=>{
-      const id = 'ex_' + name.replace(/[^a-z0-9]+/gi,'_');
-      html += `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
-        <input type="checkbox" class="exercise-checkbox" value="${name}" id="${id}">
-        ${name}
-      </label>`;
-    });
+function populateExerciseRegionSelect(){
+  const select = el('exerciseRegionSelect');
+  Object.keys(EXERCISE_LIBRARY).forEach(region=>{
+    const opt = document.createElement('option');
+    opt.value = region;
+    opt.textContent = region;
+    select.appendChild(opt);
   });
-  container.innerHTML = html || '<div style="font-size:0.8rem;color:#8a938e;">No matches.</div>';
+}
+
+function renderExerciseChecklist(region){
+  const container = el('exerciseChecklist');
+  if(!region){
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Select a region above to see its exercises.</div>';
+    return;
+  }
+  const items = EXERCISE_LIBRARY[region] || [];
+  container.innerHTML = items.map(name=>{
+    const id = 'ex_' + name.replace(/[^a-z0-9]+/gi,'_');
+    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
+      <input type="checkbox" class="exercise-checkbox" value="${name}" id="${id}">
+      ${name}
+    </label>`;
+  }).join('') || '<div style="font-size:0.8rem;color:#8a938e;">No exercises in this region yet.</div>';
 }
 
 function insertIntoSection(noteText, sectionName, additionLine){
@@ -3050,7 +3059,8 @@ el('appointmentNoteInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); sendAppointmentNote(); }
 });
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
-el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
+populateExerciseRegionSelect();
+el('exerciseRegionSelect').addEventListener('change', (e)=> renderExerciseChecklist(e.target.value));
 el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
 renderExerciseChecklist('');
 el('manualSearchInput').addEventListener('input', (e)=> renderManualChecklist(e.target.value));
