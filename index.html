@@ -507,7 +507,7 @@
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
       <label style="font-size:0.78rem;color:#5b6863;">Google Drive backup (optional — everything already saves on this device without it)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="text" id="googleClientIdInput" placeholder="Google OAuth Client ID (ends in .apps.googleusercontent.com)" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <input type="text" id="googleClientIdInput" placeholder="Advanced: only fill this in if told to use a different Google Client ID" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
         <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google Drive</button>
       </div>
       <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -866,7 +866,13 @@ const AUDIO_CAPTURE_CONSTRAINTS = {
   }
 };
 let wakeLock = null;
-let googleClientId = '';
+// The Google OAuth Client ID is not a secret (unlike the API keys behind
+// the backend) — it's meant to be public, the same way it's visible in
+// every browser's network requests for any Google sign-in button on the
+// web. Baking it in means doctors never configure anything: they just
+// sign in with their email.
+const GOOGLE_CLIENT_ID = '334702495452-d9mjneofep5kh3o3fhn371c98ouapiop.apps.googleusercontent.com';
+let googleClientId = GOOGLE_CLIENT_ID;
 let clinicianName = '';
 let sharedFolderId = '';
 let doctorColorId = '';
@@ -1972,7 +1978,8 @@ async function rejectDelete(id){
 
 function initGoogleTokenClient(){
   if(googleTokenClient) return true;
-  googleClientId = el('googleClientIdInput').value.trim();
+  const manualOverride = el('googleClientIdInput').value.trim();
+  googleClientId = manualOverride || GOOGLE_CLIENT_ID;
   if(!googleClientId) return false;
   if(!window.google || !google.accounts || !google.accounts.oauth2) return false;
   googleTokenClient = google.accounts.oauth2.initTokenClient({
@@ -1990,17 +1997,14 @@ function connectGoogleDrive(){
   el('driveStatus').textContent = 'Button tapped — checking…';
   el('status').textContent = 'Checking Google Drive connection…';
   try{
-    googleClientId = el('googleClientIdInput').value.trim();
-    if(!googleClientId){
-      el('driveStatus').textContent = 'Paste your Google OAuth Client ID above first.';
-      return;
-    }
+    const manualOverride = el('googleClientIdInput').value.trim();
+    googleClientId = manualOverride || GOOGLE_CLIENT_ID;
     if(!window.google || !google.accounts || !google.accounts.oauth2){
       el('driveStatus').textContent = 'Google sign-in library did not load — check your internet connection and try again.';
       return;
     }
     if(!initGoogleTokenClient()){
-      el('driveStatus').textContent = 'Could not set up Google sign-in — check the Client ID.';
+      el('driveStatus').textContent = 'Could not set up Google sign-in.';
       return;
     }
     googleTokenClient.callback = (response)=>{
@@ -2057,10 +2061,6 @@ function setCheckinMessage(text, color){
 }
 
 async function doctorCheckIn(){
-  if(!googleClientId){
-    setCheckinMessage('Enter the Google OAuth Client ID in Admin & Settings first.', '#a33d3d');
-    return;
-  }
   setCheckinMessage('Opening Google sign-in…', '#5b6863');
   const token = await ensureGoogleAuth();
   if(!token){
