@@ -3155,20 +3155,22 @@ async function generatePatientSummary(patientName){
 
     el('patientSummaryStatus').textContent = `Found ${patientSessions.length} session(s). Generating summary…`;
 
-    const systemPrompt = `You are a physical therapy clinician preparing a referral/discharge summary to send to the referring physician (the medical doctor who referred this patient), based on this patient's complete set of clinical notes from an initial assessment through their most recent follow-up session.
+    const systemPrompt = `You are a physical therapist writing a short clinical progress letter to the referring physician. The physician does NOT care how many sessions occurred, on what dates, or any administrative detail — they care about exactly one thing: what problems the patient presented with, and how each of those specific problems has progressed since.
 
-Organize the summary into EXACTLY these sections, in this order:
-PATIENT COURSE OVERVIEW: (dates of first and most recent session, number of sessions, brief one-line framing of the diagnosis/reason for referral as originally documented)
-INITIAL PRESENTATION: (summarized from the initial assessment note — chief complaint, key findings, initial assessment/diagnosis considerations as documented)
-COURSE OF TREATMENT: (a chronological, concise account of progression across follow-up sessions — pain trends, functional/ROM changes, interventions used, adherence, any setbacks — synthesized, not just copy-pasted)
-CURRENT STATUS: (condition as of the most recent session on file)
-OUTCOME SUMMARY: (overall improvement or lack thereof compared to initial presentation, based strictly on what is documented)
-RECOMMENDATIONS / NEXT STEPS: (only include what was explicitly stated in the notes — e.g. continue home program, discharge, refer back for imaging; if nothing is documented, write "Not explicitly documented — treating clinician to advise.")
+Based on the patient's full session history (initial assessment through most recent follow-up), write the letter in EXACTLY this format and nothing else:
 
-Rules: Do not invent any clinical detail, measurement, or outcome not present in the source notes. Where the notes are ambiguous or missing information for a section, say so plainly rather than guessing. Write in clear, professional English suitable for a physician colleague, not the patient. Be concise — this is a referral letter, not a full chart dump.`;
+PRESENTING SYMPTOMS / FINDINGS AT INITIAL ASSESSMENT:
+List each distinct symptom, complaint, or key objective finding from the initial assessment as its own numbered line, in the patient/clinician's own documented terms. Example style: "1. Right shoulder pain, worse with overhead activity" / "2. Positive Neer's test" / "3. Shoulder flexion limited to around 90°".
+
+PROGRESS ON EACH:
+For EVERY numbered item above, in the same order and numbering, state its current status versus the initial presentation — improved / resolved / unchanged / worsened — with the specific supporting detail that is actually documented. Example style: "1. Improved — pain now only with heavy lifting, no longer present at rest" / "2. Resolved — test now negative" / "3. Improved — flexion now approximately 150°".
+
+RECOMMENDATIONS: (only if explicitly stated in the notes — otherwise write "Not explicitly documented.")
+
+Hard rules: Do not invent any symptom, finding, or outcome not present in the source notes. Do NOT mention session count, session dates, or any administrative/scheduling detail anywhere in the letter — none of that belongs in a physician-to-physician clinical letter. Keep it tight, numbered, and scannable. Write in professional English suitable for a physician colleague.`;
 
     const summary = await callAI(systemPrompt, `Full session history for ${patientName}:\n\n${combined}`, 4000);
-    const dateHeader = `Patient: ${patientName}\nReport generated: ${todayStr()}\n\n`;
+    const dateHeader = `Patient: ${patientName}\n\n`;
     el('patientSummaryText').value = dateHeader + summary.trim();
     el('patientSummaryStatus').textContent = '';
   }catch(e){
