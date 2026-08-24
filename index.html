@@ -310,6 +310,37 @@
   @keyframes pulse{
     0%,100%{opacity:1;} 50%{opacity:0.3;}
   }
+  .rec-failsafe{
+    display:none;
+    align-items:center;
+    gap:10px;
+    padding:12px 14px;
+    border-radius:var(--radius);
+    font-size:0.9rem;
+    font-weight:600;
+    margin-bottom:12px;
+  }
+  .rec-failsafe.state-recording{
+    display:flex;
+    background:#fbeaea;
+    color:#7a2e2e;
+    border:1px solid var(--danger);
+    animation:pulse 1.6s infinite;
+  }
+  .rec-failsafe.state-warning{
+    display:flex;
+    background:#fdf3e3;
+    color:#8a5a10;
+    border:1px solid var(--gold);
+    animation:none;
+  }
+  .rec-failsafe.state-lost{
+    display:flex;
+    background:#7a2e2e;
+    color:#fff;
+    border:1px solid #5a1f1f;
+    animation:pulse 0.8s infinite;
+  }
   .transcript{
     background:var(--panel);
     border:1px solid var(--line);
@@ -609,6 +640,24 @@
       </div>
     </div>
 
+    <div id="patientSummaryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:640px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);" id="patientSummaryTitle">Referral Summary</span>
+          <button type="button" id="patientSummaryCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+          <div class="ai-flag" style="margin-bottom:10px;">AI-generated summary from all sessions on file — review carefully before sending to the referring physician.</div>
+          <div id="patientSummaryStatus" style="font-size:0.8rem;color:#8a938e;margin-bottom:8px;"></div>
+          <textarea id="patientSummaryText" style="width:100%;min-height:320px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.88rem;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
+          <button type="button" class="ghost" id="downloadSummaryPdfBtn">Download PDF</button>
+          <button type="button" class="ghost" id="downloadSummaryTxtBtn">Download .txt</button>
+        </div>
+      </div>
+    </div>
+
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
@@ -646,6 +695,10 @@
       </div>
       <div style="font-size:0.78rem;color:#8a938e;margin-top:8px;">💡 For best accuracy: lay the phone flat on the table roughly equidistant between doctor and patient, away from AC vents or equipment noise, and try not to talk over each other.</div>
     </div>
+
+    <div id="recFailsafeBanner" class="rec-failsafe"></div>
+
+    <div style="font-size:0.78rem;color:#8a938e;margin-bottom:10px;">💡 <strong>Recording only the clinical discussion:</strong> tap Pause during hands-on treatment, small talk, or breaks — resume when you're back to discussing history, findings, or instructions. A shorter, focused recording transcribes faster and more accurately than one continuous session.</div>
 
     <div class="rec-controls">
       <button class="primary" id="recordBtn">Start recording</button>
@@ -1145,8 +1198,19 @@ function renderSessionList(){
     followupBtn.textContent = '+ Follow-up';
     followupBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
     followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
+    const summaryBtn = document.createElement('button');
+    summaryBtn.type = 'button';
+    summaryBtn.textContent = '📋 Summary';
+    summaryBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
+    summaryBtn.onclick = (e)=>{ e.stopPropagation(); generatePatientSummary(patientName); };
     groupHeader.appendChild(nameSpan);
-    if(patientName !== 'Unnamed patient') groupHeader.appendChild(followupBtn);
+    if(patientName !== 'Unnamed patient'){
+      const btnRow = document.createElement('div');
+      btnRow.style.cssText = 'display:flex;gap:6px;';
+      btnRow.appendChild(followupBtn);
+      btnRow.appendChild(summaryBtn);
+      groupHeader.appendChild(btnRow);
+    }
     groupHeader.addEventListener('click', ()=>{
       if(expandedPatients.has(patientName)) expandedPatients.delete(patientName);
       else expandedPatients.add(patientName);
@@ -1441,12 +1505,101 @@ function togglePauseResume(){
     el('pauseResumeBtn').textContent = 'Resume';
     el('recIndicator').innerHTML = '<span class="dot" style="background:#a97c2f;"></span> paused';
     el('status').textContent = 'Paused — tap Resume to continue this same recording.';
+    setRecFailsafeState('warning', '⏸️ Paused — tap Resume when you\'re back to clinical discussion.');
   } else if(mediaRecorder.state === 'paused'){
     mediaRecorder.resume();
     el('pauseResumeBtn').textContent = 'Pause';
     el('recIndicator').innerHTML = '<span class="dot"></span> recording';
     el('status').textContent = 'Recording resumed.';
+    setRecFailsafeState('recording', '🔴 Recording — tap Pause during hands-on treatment or breaks.');
   }
+}
+
+let recWatchdogTimer = null;
+let recAudioMonitorCtx = null;
+let recAudioMonitorAnalyser = null;
+let recAudioMonitorRAF = null;
+let recQuietStreak = 0; // seconds of sustained low audio while actively recording
+let recBackupTimer = null;
+
+function setRecFailsafeState(state, message){
+  const banner = el('recFailsafeBanner');
+  banner.className = 'rec-failsafe' + (state ? ' state-' + state : '');
+  banner.textContent = message || '';
+}
+
+function startRecAudioMonitor(stream){
+  try{
+    recAudioMonitorCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = recAudioMonitorCtx.createMediaStreamSource(stream);
+    recAudioMonitorAnalyser = recAudioMonitorCtx.createAnalyser();
+    recAudioMonitorAnalyser.fftSize = 512;
+    source.connect(recAudioMonitorAnalyser);
+    const data = new Uint8Array(recAudioMonitorAnalyser.frequencyBinCount);
+    let lastCheck = Date.now();
+    const QUIET_THRESHOLD = 6; // low average amplitude
+    const QUIET_SECONDS_TO_WARN = 15;
+    const tick = ()=>{
+      if(!recAudioMonitorAnalyser) return;
+      recAudioMonitorAnalyser.getByteTimeDomainData(data);
+      let sum = 0;
+      for(let i=0;i<data.length;i++){ sum += Math.abs(data[i]-128); }
+      const avg = sum / data.length;
+      const now = Date.now();
+      if(now - lastCheck >= 1000){
+        lastCheck = now;
+        const isPausedNow = mediaRecorder && mediaRecorder.state === 'paused';
+        if(!isPausedNow){
+          if(avg < QUIET_THRESHOLD){
+            recQuietStreak++;
+          } else {
+            recQuietStreak = 0;
+            if(el('recFailsafeBanner').classList.contains('state-warning')){
+              setRecFailsafeState('recording', '🔴 Recording — tap Pause during hands-on treatment or breaks.');
+            }
+          }
+          if(recQuietStreak >= QUIET_SECONDS_TO_WARN){
+            setRecFailsafeState('warning', '⚠️ Very quiet for a while — check the phone is still close enough to pick up speech.');
+          }
+        }
+      }
+      recAudioMonitorRAF = requestAnimationFrame(tick);
+    };
+    tick();
+  }catch(e){
+    console.error('Could not start recording audio monitor:', e);
+  }
+}
+
+function stopRecAudioMonitor(){
+  if(recAudioMonitorRAF) cancelAnimationFrame(recAudioMonitorRAF);
+  recAudioMonitorRAF = null;
+  if(recAudioMonitorCtx){ recAudioMonitorCtx.close().catch(()=>{}); recAudioMonitorCtx = null; }
+  recAudioMonitorAnalyser = null;
+  recQuietStreak = 0;
+}
+
+function startRecWatchdog(){
+  if(recWatchdogTimer) clearInterval(recWatchdogTimer);
+  recWatchdogTimer = setInterval(()=>{
+    if(!isRecording) return;
+    if(!mediaRecorder || mediaRecorder.state === 'inactive'){
+      // We believe we're recording but the recorder itself has stopped —
+      // the browser or OS killed it without our stop button being pressed.
+      setRecFailsafeState('lost', '⚠️ RECORDING STOPPED UNEXPECTEDLY — tap Start recording again. Anything captured so far was saved.');
+      isRecording = false;
+      el('recordBtn').textContent = 'Start recording';
+      el('recordBtn').classList.remove('stop');
+      el('pauseResumeBtn').style.display = 'none';
+      stopRecAudioMonitor();
+      if(recBackupTimer) clearInterval(recBackupTimer);
+    }
+  }, 3000);
+}
+
+function stopRecWatchdog(){
+  if(recWatchdogTimer) clearInterval(recWatchdogTimer);
+  recWatchdogTimer = null;
 }
 
 async function toggleRecording(){
@@ -1476,11 +1629,19 @@ async function toggleRecording(){
     mediaRecorder = new MediaRecorder(mediaStream, options);
     mediaRecorder.ondataavailable = (e)=>{ if(e.data && e.data.size > 0) currentChunks.push(e.data); };
     mediaRecorder.onstop = async ()=>{
+      stopRecWatchdog();
+      stopRecAudioMonitor();
+      if(recBackupTimer) clearInterval(recBackupTimer);
       recordedBlob = new Blob(currentChunks, {type: recordedMimeType || 'audio/webm'});
       currentChunks = [];
+      setRecFailsafeState(null, '');
       await processRecordedAudio(recordedBlob);
     };
-    mediaRecorder.start();
+    // A timeslice makes the recorder emit chunks incrementally instead of
+    // only at the very end — combined with the periodic backup below, this
+    // means a crash mid-recording loses at most ~20s of audio instead of
+    // everything.
+    mediaRecorder.start(10000);
     isRecording = true;
     el('recordBtn').textContent = 'Stop recording';
     el('recordBtn').classList.add('stop');
@@ -1489,9 +1650,21 @@ async function toggleRecording(){
     el('pauseResumeBtn').textContent = 'Pause';
     el('status').textContent = 'Recording the full session…';
     renderTranscript('Recording the full session…');
+    setRecFailsafeState('recording', '🔴 Recording — tap Pause during hands-on treatment or breaks.');
+    startRecWatchdog();
+    startRecAudioMonitor(mediaStream);
+    if(recBackupTimer) clearInterval(recBackupTimer);
+    recBackupTimer = setInterval(async ()=>{
+      if(!isRecording || currentChunks.length === 0) return;
+      try{
+        const partialBlob = new Blob(currentChunks, {type: recordedMimeType || 'audio/webm'});
+        await audioDB.save(activeSessionId, partialBlob, recordedMimeType || 'audio/webm');
+      }catch(e){ console.error('Periodic recording backup failed:', e); }
+    }, 20000);
     await acquireWakeLock();
   } else {
     isRecording = false;
+    stopRecWatchdog();
     if(mediaRecorder && mediaRecorder.state !== 'inactive'){
       mediaRecorder.stop();
     }
@@ -1586,23 +1759,33 @@ async function transcribeFlatUtterances(blob){
 }
 
 async function transcribeSession(blob){
-  try{
-    const lines = await transcribeFlatUtterances(blob);
-    if(lines.length === 0){
-      el('status').textContent = 'No speech was detected in the recording.';
+  const MAX_AUTO_RETRIES = 2;
+  let lastError = null;
+  for(let attempt = 0; attempt <= MAX_AUTO_RETRIES; attempt++){
+    try{
+      if(attempt > 0){
+        el('status').textContent = `Transcription failed — retrying automatically (${attempt}/${MAX_AUTO_RETRIES})…`;
+        await new Promise(r => setTimeout(r, 2000 * attempt));
+      }
+      const lines = await transcribeFlatUtterances(blob);
+      if(lines.length === 0){
+        el('status').textContent = 'No speech was detected in the recording.';
+        renderTranscript();
+        return;
+      }
+      transcriptLines = lines.map(text => ({speaker: 'doctor', text}));
       renderTranscript();
+      el('generateBtn').disabled = false;
+      el('status').textContent = 'Transcribed. Review it, then generate the note.';
+      await applyTerminologyCorrection();
       return;
+    }catch(e){
+      console.error(`Transcription attempt ${attempt + 1} failed:`, e);
+      lastError = e;
     }
-    transcriptLines = lines.map(text => ({speaker: 'doctor', text}));
-    renderTranscript();
-    el('generateBtn').disabled = false;
-    el('status').textContent = 'Transcribed. Review it, then generate the note.';
-    await applyTerminologyCorrection();
-  }catch(e){
-    console.error(e);
-    el('status').textContent = `Transcription failed: ${e.message || 'unknown error'}`;
-    renderTranscript('Transcription failed — try recording again.');
   }
+  el('status').textContent = `Transcription failed after ${MAX_AUTO_RETRIES + 1} attempts: ${lastError && lastError.message || 'unknown error'}. Your audio is saved — use "Retry transcription from saved recording" below whenever you're ready.`;
+  renderTranscript('Transcription failed — your audio is saved. Use "Retry transcription from saved recording" below.');
 }
 
 
@@ -1857,6 +2040,41 @@ async function saveSession(){
     console.error(e);
   }
   renderSessionList();
+  syncSessionToServerQuietly();
+}
+
+// Best-effort background sync, called automatically after every local save
+// so nobody has to remember a separate step. Stays quiet on success (the
+// local "Session saved." message already covers the common case) and on
+// "not signed in yet" (local-only use is still fully valid) — only speaks
+// up if a signed-in, approved doctor's sync genuinely fails, since that
+// specifically affects whether this session will show up later in a
+// patient's Summary Report.
+async function syncSessionToServerQuietly(){
+  if(!activeSessionId || !isApproved()) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({
+        id: activeSessionId,
+        patientName: el('patientName').value || 'Unnamed patient',
+        sessionDate: el('sessionDate').value || todayStr(),
+        sessionType: sessionType,
+        transcript: transcriptLines,
+        note: el('noteText').value || null,
+        doctorName: clinicianName || null
+      })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('status').textContent = 'Session saved (synced to clinic server).';
+  }catch(e){
+    console.error('Background sync failed:', e);
+    el('status').textContent = 'Session saved locally — could not sync to clinic server yet (will need "☁️ Save to clinic server" or a retry).';
+  }
 }
 
 async function syncSessionToServer(){
@@ -2908,6 +3126,79 @@ function downloadNotePDF(){
   window.print();
 }
 
+async function generatePatientSummary(patientName){
+  el('patientSummaryOverlay').style.display = 'flex';
+  el('patientSummaryTitle').textContent = `Referral Summary — ${patientName}`;
+  el('patientSummaryText').value = '';
+  el('patientSummaryStatus').textContent = 'Gathering all sessions for this patient…';
+  if(!isApproved()){
+    el('patientSummaryStatus').textContent = 'Sign in with Google and get approved first.';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions?patientName=${encodeURIComponent(patientName)}&order=asc`, {
+      headers: authHeader()
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const patientSessions = await res.json();
+    if(!patientSessions || patientSessions.length === 0){
+      el('patientSummaryStatus').textContent = 'No sessions found on the clinic server for this patient. (Sessions must be saved with "☁️ Save to clinic server" to appear here.)';
+      return;
+    }
+    const combined = patientSessions.map(s=>{
+      const label = s.session_type === 'followup' ? 'FOLLOW-UP' : 'INITIAL ASSESSMENT';
+      return `=== ${label} — ${s.session_date || ''} ===\n${s.note || '(no note recorded)'}`;
+    }).join('\n\n');
+
+    el('patientSummaryStatus').textContent = `Found ${patientSessions.length} session(s). Generating summary…`;
+
+    const systemPrompt = `You are a physical therapy clinician preparing a referral/discharge summary to send to the referring physician (the medical doctor who referred this patient), based on this patient's complete set of clinical notes from an initial assessment through their most recent follow-up session.
+
+Organize the summary into EXACTLY these sections, in this order:
+PATIENT COURSE OVERVIEW: (dates of first and most recent session, number of sessions, brief one-line framing of the diagnosis/reason for referral as originally documented)
+INITIAL PRESENTATION: (summarized from the initial assessment note — chief complaint, key findings, initial assessment/diagnosis considerations as documented)
+COURSE OF TREATMENT: (a chronological, concise account of progression across follow-up sessions — pain trends, functional/ROM changes, interventions used, adherence, any setbacks — synthesized, not just copy-pasted)
+CURRENT STATUS: (condition as of the most recent session on file)
+OUTCOME SUMMARY: (overall improvement or lack thereof compared to initial presentation, based strictly on what is documented)
+RECOMMENDATIONS / NEXT STEPS: (only include what was explicitly stated in the notes — e.g. continue home program, discharge, refer back for imaging; if nothing is documented, write "Not explicitly documented — treating clinician to advise.")
+
+Rules: Do not invent any clinical detail, measurement, or outcome not present in the source notes. Where the notes are ambiguous or missing information for a section, say so plainly rather than guessing. Write in clear, professional English suitable for a physician colleague, not the patient. Be concise — this is a referral letter, not a full chart dump.`;
+
+    const summary = await callAI(systemPrompt, `Full session history for ${patientName}:\n\n${combined}`, 4000);
+    const dateHeader = `Patient: ${patientName}\nReport generated: ${todayStr()}\n\n`;
+    el('patientSummaryText').value = dateHeader + summary.trim();
+    el('patientSummaryStatus').textContent = '';
+  }catch(e){
+    console.error(e);
+    el('patientSummaryStatus').textContent = 'Could not generate summary: ' + (e.message || e);
+  }
+}
+
+function downloadSummaryTxt(){
+  const text = el('patientSummaryText').value;
+  if(!text) return;
+  const title = el('patientSummaryTitle').textContent.replace(/[^a-z0-9]+/gi,'_');
+  const blob = new Blob([text], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${title}.txt`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadSummaryPdf(){
+  const text = el('patientSummaryText').value;
+  if(!text) return;
+  const title = el('patientSummaryTitle').textContent;
+  const container = el('printableNote');
+  container.innerHTML = `<h2>مُسَاعِد — ${escapeHtml(title)}</h2><div>${escapeHtml(text)}</div>`;
+  window.print();
+}
+
 function showRecoveryControls(show){
   el('recoveryControls').style.display = show ? 'block' : 'none';
 }
@@ -3055,6 +3346,16 @@ el('appointmentNoteSendBtn').addEventListener('click', sendAppointmentNote);
 el('appointmentNoteInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); sendAppointmentNote(); }
 });
+el('patientSummaryCloseBtn').addEventListener('click', ()=>{
+  el('patientSummaryOverlay').style.display = 'none';
+});
+el('patientSummaryOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'patientSummaryOverlay'){
+    el('patientSummaryOverlay').style.display = 'none';
+  }
+});
+el('downloadSummaryTxtBtn').addEventListener('click', downloadSummaryTxt);
+el('downloadSummaryPdfBtn').addEventListener('click', downloadSummaryPdf);
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 populateExerciseRegionSelect();
 el('exerciseRegionSelect').addEventListener('change', (e)=> renderExerciseChecklist(e.target.value));
