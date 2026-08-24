@@ -1951,6 +1951,22 @@ async function rejectDelete(id){
   }
 }
 
+function initGoogleTokenClient(){
+  if(googleTokenClient) return true;
+  googleClientId = el('googleClientIdInput').value.trim();
+  if(!googleClientId) return false;
+  if(!window.google || !google.accounts || !google.accounts.oauth2) return false;
+  googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleClientId,
+    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
+    callback: ()=>{}, // overwritten per-call by whichever flow triggers requestAccessToken
+    error_callback: (err)=>{
+      console.error('Google OAuth error:', err);
+    }
+  });
+  return true;
+}
+
 function connectGoogleDrive(){
   el('driveStatus').textContent = 'Button tapped — checking…';
   el('status').textContent = 'Checking Google Drive connection…';
@@ -1964,25 +1980,21 @@ function connectGoogleDrive(){
       el('driveStatus').textContent = 'Google sign-in library did not load — check your internet connection and try again.';
       return;
     }
-    googleTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: googleClientId,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
-      callback: (response)=>{
-        if(response && response.access_token){
-          googleAccessToken = response.access_token;
-          el('driveStatus').textContent = 'Connected to Google Drive.';
-          el('connectDriveBtn').textContent = 'Reconnect Google Drive';
-        } else if(response && response.error){
-          el('driveStatus').textContent = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
-        } else {
-          el('driveStatus').textContent = 'Google sign-in did not return access — try again.';
-        }
-      },
-      error_callback: (err)=>{
-        console.error('Google OAuth error:', err);
-        el('driveStatus').textContent = `Google sign-in failed: ${err && err.type ? err.type : 'unknown error'} — check the Client ID and Authorized JavaScript origins.`;
+    if(!initGoogleTokenClient()){
+      el('driveStatus').textContent = 'Could not set up Google sign-in — check the Client ID.';
+      return;
+    }
+    googleTokenClient.callback = (response)=>{
+      if(response && response.access_token){
+        googleAccessToken = response.access_token;
+        el('driveStatus').textContent = 'Connected to Google Drive.';
+        el('connectDriveBtn').textContent = 'Reconnect Google Drive';
+      } else if(response && response.error){
+        el('driveStatus').textContent = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
+      } else {
+        el('driveStatus').textContent = 'Google sign-in did not return access — try again.';
       }
-    });
+    };
     el('driveStatus').textContent = 'Opening Google sign-in…';
     googleTokenClient.requestAccessToken();
   }catch(e){
@@ -1994,7 +2006,7 @@ function connectGoogleDrive(){
 function ensureGoogleAuth(){
   if(googleAccessToken) return Promise.resolve(googleAccessToken);
   return new Promise((resolve)=>{
-    if(!googleTokenClient){
+    if(!initGoogleTokenClient()){
       resolve(null);
       return;
     }
@@ -2364,8 +2376,8 @@ async function quickBookAppointment(){
 async function uploadTextFileToDrive(filename, content){
   if(!googleAccessToken){
     return new Promise((resolve)=>{
-      if(!googleTokenClient){
-        el('driveStatus').textContent = 'Connect Google Drive above first.';
+      if(!initGoogleTokenClient()){
+        el('driveStatus').textContent = 'Enter your Google OAuth Client ID above first.';
         resolve(false);
         return;
       }
