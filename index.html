@@ -597,6 +597,21 @@
       </div>
     </div>
 
+    <div id="appointmentNotesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);" id="appointmentNotesTitle">Notes</span>
+          <button type="button" id="appointmentNotesCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div id="appointmentNotesMessages" style="flex:1;overflow-y:auto;padding:14px 16px;min-height:120px;"></div>
+        <div id="appointmentNotesStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px;"></div>
+        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);">
+          <input type="text" id="appointmentNoteInput" placeholder="Write a note…" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="appointmentNoteSendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
@@ -2415,12 +2430,105 @@ function renderScheduleList(events){
       : 'All day';
     const colorHex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
-    return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);${isMine ? 'font-weight:600;' : ''}">
+    const noteCount = (ev.notes && ev.notes.length) || 0;
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isMine ? 'font-weight:600;' : ''}">
       <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;">${timeStr}</span>
-      <span style="font-size:0.85rem;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      <span style="font-size:0.85rem;flex:1;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
     </div>`;
   }).join('');
+  container.querySelectorAll('.appointment-row').forEach(row=>{
+    row.addEventListener('click', ()=> openAppointmentNotes(row.getAttribute('data-id')));
+  });
+}
+
+let currentNotesAppointmentId = null;
+
+async function openAppointmentNotes(id){
+  currentNotesAppointmentId = id;
+  el('appointmentNotesOverlay').style.display = 'flex';
+  el('appointmentNotesMessages').innerHTML = '';
+  el('appointmentNotesStatus').textContent = 'Loading…';
+  el('appointmentNotesTitle').textContent = 'Notes';
+  if(!isApproved()){
+    el('appointmentNotesStatus').textContent = 'Sign in with Google and get approved first.';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}/notes`, {
+      headers: authHeader()
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    el('appointmentNotesTitle').textContent = data.patientName ? `Notes — ${data.patientName}` : 'Notes';
+    renderAppointmentNotes(data.notes || []);
+    el('appointmentNotesStatus').textContent = '';
+  }catch(e){
+    console.error(e);
+    el('appointmentNotesStatus').textContent = 'Could not load notes: ' + (e.message || e);
+  }
+}
+
+function renderAppointmentNotes(notes){
+  const container = el('appointmentNotesMessages');
+  if(notes.length === 0){
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;text-align:center;padding:20px 0;">No notes yet — write the first one below.</div>';
+    return;
+  }
+  container.innerHTML = notes.map(n=>{
+    const timeStr = n.at ? new Date(n.at).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+    return `<div style="background:var(--paper);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;">
+      <div style="font-size:0.9rem;">${escapeHtml(n.text)}</div>
+      <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;">${escapeHtml(n.author || '')} · ${timeStr}</div>
+    </div>`;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendAppointmentNote(){
+  const input = el('appointmentNoteInput');
+  const text = input.value.trim();
+  if(!text || !currentNotesAppointmentId) return;
+  if(!isApproved()){
+    el('appointmentNotesStatus').textContent = 'Sign in with Google and get approved first.';
+    return;
+  }
+  input.disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentNotesAppointmentId)}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ text })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    renderAppointmentNotes(data.notes || []);
+    input.value = '';
+    el('appointmentNotesStatus').textContent = '';
+    // Update the note-count badge in the background list without a full reload.
+    if(monthEventsByDay){
+      const key = dayKey(calSelectedDate);
+      const list = monthEventsByDay[key];
+      if(list){
+        const ev = list.find(e => String(e.id) === String(currentNotesAppointmentId));
+        if(ev) ev.notes = data.notes;
+        renderScheduleList(list);
+      }
+    }
+  }catch(e){
+    console.error(e);
+    el('appointmentNotesStatus').textContent = 'Could not send note: ' + (e.message || e);
+  }finally{
+    input.disabled = false;
+    input.focus();
+  }
 }
 
 function goToPrevMonth(){
@@ -2827,6 +2935,21 @@ el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
+
+el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
+  el('appointmentNotesOverlay').style.display = 'none';
+  currentNotesAppointmentId = null;
+});
+el('appointmentNotesOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'appointmentNotesOverlay'){
+    el('appointmentNotesOverlay').style.display = 'none';
+    currentNotesAppointmentId = null;
+  }
+});
+el('appointmentNoteSendBtn').addEventListener('click', sendAppointmentNote);
+el('appointmentNoteInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); sendAppointmentNote(); }
+});
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 el('exerciseSearchInput').addEventListener('input', (e)=> renderExerciseChecklist(e.target.value));
 el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
