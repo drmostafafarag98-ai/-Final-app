@@ -42,12 +42,22 @@
   header{
     background:var(--maroon-deep);
     color:#f3e9d6;
-    padding:20px 26px;
+    padding:20px 26px 28px;
     display:flex;
     align-items:baseline;
     gap:14px;
     flex-wrap:wrap;
-    border-bottom:4px double var(--gold);
+    position:relative;
+    border-bottom:none;
+  }
+  header::after{
+    content:'';
+    position:absolute;
+    left:0; right:0; bottom:-1px;
+    height:12px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='12'%3E%3Cpath d='M0 6 Q11 0 22 6 T44 6' stroke='%23a97c2f' stroke-width='2.2' fill='none'/%3E%3C/svg%3E");
+    background-repeat:repeat-x;
+    background-size:44px 12px;
   }
   header h1{
     font-size:1.6rem;
@@ -166,8 +176,12 @@
     color:var(--maroon);
     margin:4px 0 16px;
     font-weight:700;
-    border-bottom:1px solid var(--gold);
-    padding-bottom:8px;
+    border-bottom:none;
+    padding-bottom:12px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='10'%3E%3Cpath d='M0 5 Q9 0 18 5 T36 5' stroke='%23a97c2f' stroke-width='1.8' fill='none'/%3E%3C/svg%3E");
+    background-repeat:repeat-x;
+    background-position:bottom;
+    background-size:36px 10px;
   }
   .sidebar h2{
     font-size:0.78rem;
@@ -175,8 +189,12 @@
     color:var(--maroon);
     margin:4px 0 12px;
     font-weight:700;
-    border-bottom:1px solid var(--gold);
-    padding-bottom:8px;
+    border-bottom:none;
+    padding-bottom:12px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='10'%3E%3Cpath d='M0 5 Q9 0 18 5 T36 5' stroke='%23a97c2f' stroke-width='1.8' fill='none'/%3E%3C/svg%3E");
+    background-repeat:repeat-x;
+    background-position:bottom;
+    background-size:36px 10px;
   }
   .new-session-btn{
     width:100%;
@@ -353,6 +371,11 @@
     letter-spacing:0.06em;
     color:#5b6863;
     margin:26px 0 10px;
+    padding-bottom:8px;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='8'%3E%3Cpath d='M0 4 Q7.5 0 15 4 T30 4' stroke='%23c9b48c' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    background-repeat:repeat-x;
+    background-position:bottom;
+    background-size:30px 8px;
   }
   .note-output{
     background:var(--panel);
@@ -533,6 +556,12 @@
       <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
+    <button type="button" id="doctorColorsToggleBtn" class="ghost" style="margin-bottom:14px;">🎨 Doctor Colors (owner or secretary)</button>
+    <div id="doctorColorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div id="doctorColorsList"></div>
+      <div id="doctorColorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
 </div>
 
 <div class="layout">
@@ -544,6 +573,19 @@
   </div>
 
   <div class="main">
+    <div id="mainSignInCard" style="display:flex;align-items:center;gap:14px;background:var(--panel);border:2px solid var(--gold);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;">
+      <svg width="34" height="34" viewBox="0 0 48 48" style="flex-shrink:0;">
+        <path fill="#FFC107" d="M43.6 20.5H42V20.4H24v7.2h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.1-5.1C33.6 6.2 29 4.4 24 4.4 12.9 4.4 4 13.3 4 24.4s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l5.9 4.3C13.9 15.6 18.6 12.4 24 12.4c3.1 0 5.9 1.2 8 3.1l5.1-5.1C33.6 6.2 29 4.4 24 4.4c-7.6 0-14.2 4.3-17.7 10.3z"/>
+        <path fill="#4CAF50" d="M24 44.4c4.9 0 9.4-1.9 12.8-4.9l-5.9-5c-2 1.5-4.5 2.4-6.9 2.4-5.3 0-9.7-3.4-11.3-8.1l-5.9 4.5C10 40 16.5 44.4 24 44.4z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20.4H24v7.2h11.3c-.8 2.2-2.2 4.1-4.1 5.4l5.9 5C40.5 35 44 30.1 44 24.4c0-1.3-.1-2.6-.4-3.9z"/>
+      </svg>
+      <div style="flex:1;">
+        <button type="button" class="ghost" id="mainSignInBtn" style="font-weight:600;">Sign in with Google</button>
+        <div id="mainSignInStatus" style="font-size:0.8rem;color:#5b6863;margin-top:6px;">You must sign in and be approved by the clinic owner before recording or generating notes.</div>
+      </div>
+    </div>
+
     <div id="browserWarning" class="warn-box" style="display:none;">
       This browser doesn't support audio recording (getUserMedia). Try Safari or Chrome on a recent
       iOS/Android device.
@@ -2064,23 +2106,39 @@ async function doctorCheckIn(){
 }
 
 function updateSignInStatusUI(){
+  const mainCard = el('mainSignInCard');
+  const mainStatus = el('mainSignInStatus');
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
+    mainStatus.textContent = 'You must sign in and be approved by the clinic owner before recording or generating notes.';
+    mainStatus.style.color = '#5b6863';
+    mainCard.style.display = 'flex';
     return;
   }
   if(signedInDoctor.status === 'approved'){
     const roleLabel = signedInDoctor.role === 'owner' ? ' — clinic owner'
       : signedInDoctor.role === 'secretary' ? ' — secretary (calendar access only; recording and notes are not available on this account)'
       : '';
-    el('checkinStatus').textContent = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${roleLabel}.`;
+    const msg = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${roleLabel}.`;
+    el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#0b8043';
+    // Collapse the big card once approved — no need to take up space every visit.
+    mainCard.style.padding = '8px 14px';
+    mainStatus.textContent = msg;
+    mainStatus.style.color = '#0b8043';
   } else if(signedInDoctor.status === 'removed'){
-    el('checkinStatus').textContent = `Access for ${signedInDoctor.email} has been removed by the clinic owner.`;
+    const msg = `Access for ${signedInDoctor.email} has been removed by the clinic owner.`;
+    el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#a33d3d';
+    mainStatus.textContent = msg;
+    mainStatus.style.color = '#a33d3d';
   } else {
-    el('checkinStatus').textContent = `⏳ Signed in as ${signedInDoctor.email} — waiting for the clinic owner to approve you. Recording and notes are locked until then.`;
+    const msg = `⏳ Signed in as ${signedInDoctor.email} — waiting for the clinic owner to approve you. Recording and notes are locked until then.`;
+    el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#b8894f';
+    mainStatus.textContent = msg;
+    mainStatus.style.color = '#b8894f';
   }
 }
 
@@ -2214,6 +2272,65 @@ function renderDoctorColorSwatches(){
       renderDoctorColorSwatches();
     });
   });
+}
+
+async function loadDoctorColorsRoster(){
+  const canManage = isApproved() && (signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary');
+  if(!canManage){
+    el('doctorColorsStatus').textContent = 'Sign in as the clinic owner or secretary first.';
+    el('doctorColorsList').innerHTML = '';
+    return;
+  }
+  el('doctorColorsStatus').textContent = 'Loading…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/colors`, { headers: authHeader() });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const items = await res.json();
+    renderDoctorColorsRoster(items || []);
+    el('doctorColorsStatus').textContent = (items || []).length === 0 ? 'No approved doctors yet.' : '';
+  }catch(e){
+    console.error(e);
+    el('doctorColorsStatus').textContent = 'Could not load: ' + (e.message || e);
+  }
+}
+
+function renderDoctorColorsRoster(items){
+  const container = el('doctorColorsList');
+  container.innerHTML = items.map(d=>{
+    const swatches = Object.keys(CALENDAR_COLOR_HEX).map(id=>{
+      const isSelected = d.color === id;
+      return `<button type="button" class="doctor-color-btn" data-email="${escapeHtml(d.email)}" data-color="${id}" title="${CALENDAR_COLOR_NAMES[id]}" style="
+        width:26px;height:26px;border-radius:50%;background:${CALENDAR_COLOR_HEX[id]};cursor:pointer;
+        border:${isSelected ? '3px solid var(--maroon)' : '2px solid transparent'};
+        box-shadow:${isSelected ? '0 0 0 2px #fff, 0 0 0 3px var(--maroon)' : 'none'};
+        padding:0;margin:2px;"></button>`;
+    }).join('');
+    return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;">
+      <div style="font-size:0.85rem;font-weight:600;margin-bottom:6px;">${escapeHtml(d.name || d.email)}</div>
+      <div style="display:flex;flex-wrap:wrap;">${swatches}</div>
+    </div>`;
+  }).join('');
+  container.querySelectorAll('.doctor-color-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> setDoctorColor(btn.getAttribute('data-email'), btn.getAttribute('data-color')));
+  });
+}
+
+async function setDoctorColor(email, color){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/color`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ color })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    await loadDoctorColorsRoster();
+  }catch(e){
+    console.error(e);
+    el('doctorColorsStatus').textContent = 'Could not update color: ' + (e.message || e);
+  }
 }
 
 let calViewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
@@ -2795,6 +2912,7 @@ el('clearSurgeryDateBtn').addEventListener('click', ()=>{
 });
 
 el('doctorCheckinBtn').addEventListener('click', doctorCheckIn);
+el('mainSignInBtn').addEventListener('click', doctorCheckIn);
 el('showBootstrapBtn').addEventListener('click', ()=>{
   const row = el('bootstrapOwnerRow');
   row.style.display = row.style.display === 'none' ? 'flex' : 'none';
@@ -2813,6 +2931,13 @@ el('doctorsToggleBtn').addEventListener('click', ()=>{
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if(!isOpen) loadDoctorsRoster();
+});
+
+el('doctorColorsToggleBtn').addEventListener('click', ()=>{
+  const panel = el('doctorColorsPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen) loadDoctorColorsRoster();
 });
 
 function setAiProvider(provider){
