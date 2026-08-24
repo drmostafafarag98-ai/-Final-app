@@ -440,6 +440,12 @@
       <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
+    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;">👥 Manage Doctors (owner only)</button>
+    <div id="doctorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div id="doctorsList"></div>
+      <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
     <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
     <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -467,17 +473,15 @@
     <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
-    <div class="patient-row" style="margin-bottom:8px;">
-      <input type="password" id="clinicSecretInput" placeholder="Clinic access code (ask the clinic owner for this)" style="flex:2;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
-        <input type="checkbox" id="rememberClinicSecret"> remember on this device
-      </label>
-    </div>
-    <div class="patient-row" style="margin-bottom:8px;">
-      <input type="password" id="ownerSecretInput" placeholder="Owner access code (clinic owner only — leave blank if you're not the owner)" style="flex:2;">
-      <label style="display:flex;align-items:center;gap:6px;font-size:0.82rem;color:#5b6863;white-space:nowrap;">
-        <input type="checkbox" id="rememberOwnerSecret"> remember on this device
-      </label>
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">Sign in (this is the only login — no shared password. The clinic owner approves each doctor by their real Google account.)</label>
+      <button type="button" class="ghost" id="doctorCheckinBtn">Sign in with Google</button>
+      <div id="checkinStatus" style="font-size:0.8rem;color:#5b6863;"></div>
+      <button type="button" class="ghost" id="showBootstrapBtn" style="font-size:0.75rem;padding:5px 10px;align-self:flex-start;">First time setting this clinic up? (owner one-time setup)</button>
+      <div id="bootstrapOwnerRow" style="display:none;gap:8px;">
+        <input type="password" id="bootstrapOwnerInput" placeholder="One-time owner bootstrap code" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <button type="button" class="ghost" id="bootstrapOwnerBtn">Become owner</button>
+      </div>
     </div>
     <div class="patient-row" style="margin-bottom:4px;flex-direction:column;align-items:stretch;gap:6px;">
       <label style="font-size:0.78rem;color:#5b6863;">For generating the note itself:</label>
@@ -682,8 +686,8 @@ let transcriptLines = []; // {speaker, text} — speaker is unused now but kept 
 let sessions = {}; // id -> {patientName, date, transcriptLines, note}
 let activeSessionId = null;
 const BACKEND_URL = 'https://pt-script-backend.onrender.com';
-let clinicSecret = '';
-let ownerSecret = '';
+let signedInDoctor = null; // { email, name, role, color, status } once checked in
+let bootstrapOwnerCode = ''; // one-time-use only, never stored
 let aiProvider = 'anthropic'; // 'anthropic' | 'gemini' — used for note generation
 let auxAiProvider = 'gemini'; // 'anthropic' | 'gemini' — used only for terminology correction
 let sessionType = 'assessment';
@@ -1256,8 +1260,8 @@ function guessAudioMimeType(file){
 
 async function handleExternalAudioUpload(file){
   if(!file) return;
-  if(!clinicSecret){
-    el('status').textContent = 'Enter the clinic access code above before processing an uploaded recording.';
+  if(!isApproved()){
+    el('status').textContent = 'Sign in with Google above and get approved before processing an uploaded recording.';
     return;
   }
   if(!activeSessionId) startNewSession();
@@ -1391,10 +1395,10 @@ async function toggleRecording(){
       el('browserWarning').style.display = 'block';
       return;
     }
-    if(!clinicSecret){
-      el('keyStatus').textContent = 'Enter the clinic access code above before recording.';
+    if(!isApproved()){
+      el('keyStatus').textContent = 'Sign in with Google and get approved by the clinic owner before recording.';
       el('keyStatus').style.color = '#a33d3d';
-      el('status').textContent = '⚠️ Enter the clinic access code in Settings (⚙️ button above) before recording.';
+      el('status').textContent = '⚠️ Sign in with Google in Settings (⚙️ button above) and get approved before recording.';
       return;
     }
     try{
@@ -1461,7 +1465,7 @@ async function transcribePlainAudio(blob){
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'x-clinic-secret': clinicSecret,
+      ...authHeader(),
       'Content-Type': contentType
     },
     body: blob
@@ -1495,7 +1499,7 @@ async function transcribeFlatUtterances(blob){
   const res = await fetch(url, {
     method: 'POST',
     headers: {
-      'x-clinic-secret': clinicSecret,
+      ...authHeader(),
       'Content-Type': contentType
     },
     body: blob
@@ -1543,12 +1547,12 @@ async function transcribeSession(blob){
 
 
 async function callAI(systemPrompt, userContent, maxTokens, provider = aiProvider){
-  if(!clinicSecret) throw new Error('Enter the clinic access code above first.');
+  if(!isApproved()) throw new Error('Sign in with Google and get approved by the clinic owner first.');
   const res = await fetch(`${BACKEND_URL}/api/ai`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-clinic-secret': clinicSecret
+      ...authHeader()
     },
     body: JSON.stringify({ systemPrompt, userContent, maxTokens, provider })
   });
@@ -1562,7 +1566,7 @@ async function callAI(systemPrompt, userContent, maxTokens, provider = aiProvide
 }
 
 async function applyTerminologyCorrection(){
-  const hasKey = !!clinicSecret;
+  const hasKey = isApproved();
   if(!hasKey || transcriptLines.length === 0) return;
   el('status').textContent = 'Checking PT terminology against the full reference list…';
   const systemPrompt = `You review a speaker-tagged physical therapy session transcript (Arabic mixed with English medical terms) for speech-to-text errors in English medical/PT terminology — special tests, anatomy, exercise names.
@@ -1597,7 +1601,7 @@ Respond with ONLY the corrected JSON array in the exact same format and order, n
 
 async function generateNote(){
   if(transcriptLines.length === 0) return;
-  const hasKey = !!clinicSecret;
+  const hasKey = isApproved();
   if(!hasKey){
     el('status').textContent = `Enter your ${aiProvider === 'gemini' ? 'Gemini' : 'Anthropic'} API key above before generating the note.`;
     return;
@@ -1698,8 +1702,8 @@ async function toggleVoiceNote(){
         setVoiceNoteStatus('This browser cannot record audio.');
         return;
       }
-      if(!clinicSecret){
-        setVoiceNoteStatus('Enter the clinic access code above first (scroll up).');
+      if(!isApproved()){
+        setVoiceNoteStatus('Sign in with Google and get approved first (scroll up).');
         return;
       }
       setVoiceNoteStatus('Requesting microphone…');
@@ -1800,15 +1804,15 @@ async function syncSessionToServer(){
     el('syncStatus').textContent = 'No active session to save.';
     return;
   }
-  if(!clinicSecret){
-    el('syncStatus').textContent = 'Enter the clinic access code in Settings first.';
+  if(!isApproved()){
+    el('syncStatus').textContent = 'Sign in with Google and get approved first.';
     return;
   }
   el('syncStatus').textContent = 'Saving to clinic server…';
   try{
     const res = await fetch(`${BACKEND_URL}/api/sessions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-clinic-secret': clinicSecret },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({
         id: activeSessionId,
         patientName: el('patientName').value || 'Unnamed patient',
@@ -1835,8 +1839,8 @@ async function requestDeleteCurrentSession(){
     el('syncStatus').textContent = 'No active session.';
     return;
   }
-  if(!clinicSecret){
-    el('syncStatus').textContent = 'Enter the clinic access code in Settings first.';
+  if(!isApproved()){
+    el('syncStatus').textContent = 'Sign in with Google and get approved first.';
     return;
   }
   if(!confirm('Request deletion of this session? The clinic owner will need to approve before it is actually removed.')) return;
@@ -1844,7 +1848,7 @@ async function requestDeleteCurrentSession(){
   try{
     const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(activeSessionId)}/request-delete`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-clinic-secret': clinicSecret },
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ requestedBy: clinicianName || 'unknown' })
     });
     if(!res.ok){
@@ -1859,15 +1863,15 @@ async function requestDeleteCurrentSession(){
 }
 
 async function loadPendingDeletes(){
-  if(!ownerSecret){
-    el('pendingDeletesStatus').textContent = 'Enter the owner access code in Settings first.';
+  if(!isApproved() || signedInDoctor.role !== 'owner'){
+    el('pendingDeletesStatus').textContent = 'Sign in as the clinic owner first.';
     el('pendingDeletesList').innerHTML = '';
     return;
   }
   el('pendingDeletesStatus').textContent = 'Loading…';
   try{
     const res = await fetch(`${BACKEND_URL}/api/sessions/pending-deletes`, {
-      headers: { 'x-owner-secret': ownerSecret }
+      headers: authHeader()
     });
     if(!res.ok){
       const errText = await res.text();
@@ -1902,7 +1906,7 @@ async function approveDelete(id){
   try{
     const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(id)}/approve-delete`, {
       method: 'POST',
-      headers: { 'x-owner-secret': ownerSecret }
+      headers: authHeader()
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     await loadPendingDeletes();
@@ -1916,7 +1920,7 @@ async function rejectDelete(id){
   try{
     const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(id)}/reject-delete`, {
       method: 'POST',
-      headers: { 'x-owner-secret': ownerSecret }
+      headers: authHeader()
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     await loadPendingDeletes();
@@ -1941,7 +1945,7 @@ function connectGoogleDrive(){
     }
     googleTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: googleClientId,
-      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
       callback: (response)=>{
         if(response && response.access_token){
           googleAccessToken = response.access_token;
@@ -1985,6 +1989,162 @@ function ensureGoogleAuth(){
   });
 }
 
+function authHeader(){
+  return googleAccessToken ? { 'Authorization': 'Bearer ' + googleAccessToken } : {};
+}
+
+function isApproved(){
+  return !!(signedInDoctor && signedInDoctor.status === 'approved');
+}
+
+async function doctorCheckIn(){
+  if(!googleClientId){
+    el('checkinStatus').textContent = 'Enter the Google OAuth Client ID above first.';
+    return;
+  }
+  el('checkinStatus').textContent = 'Opening Google sign-in…';
+  const token = await ensureGoogleAuth();
+  if(!token){
+    el('checkinStatus').textContent = 'Google sign-in failed or was cancelled.';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/checkin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ name: clinicianName || undefined })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const doctor = await res.json();
+    signedInDoctor = doctor;
+    updateSignInStatusUI();
+  }catch(e){
+    console.error(e);
+    el('checkinStatus').textContent = 'Sign-in failed: ' + (e.message || e);
+  }
+}
+
+function updateSignInStatusUI(){
+  if(!signedInDoctor){
+    el('checkinStatus').textContent = 'Not signed in.';
+    el('checkinStatus').style.color = '#5b6863';
+    return;
+  }
+  if(signedInDoctor.status === 'approved'){
+    el('checkinStatus').textContent = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${signedInDoctor.role === 'owner' ? ' — clinic owner' : ''}.`;
+    el('checkinStatus').style.color = '#0b8043';
+  } else if(signedInDoctor.status === 'removed'){
+    el('checkinStatus').textContent = `Access for ${signedInDoctor.email} has been removed by the clinic owner.`;
+    el('checkinStatus').style.color = '#a33d3d';
+  } else {
+    el('checkinStatus').textContent = `⏳ Signed in as ${signedInDoctor.email} — waiting for the clinic owner to approve you. Recording and notes are locked until then.`;
+    el('checkinStatus').style.color = '#b8894f';
+  }
+}
+
+async function bootstrapOwner(){
+  const code = el('bootstrapOwnerInput').value.trim();
+  if(!code){
+    el('checkinStatus').textContent = 'Enter the one-time owner bootstrap code first.';
+    return;
+  }
+  const token = await ensureGoogleAuth();
+  if(!token){
+    el('checkinStatus').textContent = 'Sign in with Google first.';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/bootstrap-owner`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-owner-secret': code, ...authHeader() },
+      body: JSON.stringify({ name: clinicianName || undefined })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    signedInDoctor = await res.json();
+    updateSignInStatusUI();
+    el('bootstrapOwnerInput').value = '';
+    el('bootstrapOwnerRow').style.display = 'none';
+  }catch(e){
+    console.error(e);
+    el('checkinStatus').textContent = 'Bootstrap failed: ' + (e.message || e);
+  }
+}
+
+async function loadDoctorsRoster(){
+  if(!isApproved() || signedInDoctor.role !== 'owner'){
+    el('doctorsStatus').textContent = 'Sign in as the clinic owner first.';
+    el('doctorsList').innerHTML = '';
+    return;
+  }
+  el('doctorsStatus').textContent = 'Loading…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors`, { headers: authHeader() });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const items = await res.json();
+    renderDoctorsRoster(items || []);
+    el('doctorsStatus').textContent = (items || []).length === 0 ? 'No doctors have signed in yet.' : '';
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not load: ' + (e.message || e);
+  }
+}
+
+function renderDoctorsRoster(items){
+  const container = el('doctorsList');
+  container.innerHTML = items.map(d=>{
+    const statusColor = d.status === 'approved' ? '#0b8043' : d.status === 'pending' ? '#b8894f' : '#a33d3d';
+    let actions = '';
+    if(d.status === 'pending'){
+      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}')">Approve</button>
+                 <button type="button" class="ghost" onclick="rejectDoctorRequest('${d.email}')">Reject</button>`;
+    } else if(d.status === 'approved'){
+      actions = `<button type="button" class="ghost" style="color:var(--danger);border-color:var(--danger);" onclick="rejectDoctorRequest('${d.email}')">Remove access</button>`;
+    } else {
+      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}')">Re-approve</button>`;
+    }
+    return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;">
+      <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(d.name || d.email)}</div>
+      <div style="font-size:0.78rem;color:#5b6863;">${escapeHtml(d.email)} · <span style="color:${statusColor};font-weight:600;">${d.status}</span></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">${actions}</div>
+    </div>`;
+  }).join('');
+}
+
+async function approveDoctorRequest(email){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/approve`, {
+      method: 'POST', headers: authHeader()
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    await loadDoctorsRoster();
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not approve: ' + (e.message || e);
+  }
+}
+
+async function rejectDoctorRequest(email){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/reject`, {
+      method: 'POST', headers: authHeader()
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    await loadDoctorsRoster();
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not update: ' + (e.message || e);
+  }
+}
+
 const CALENDAR_COLOR_NAMES = {
   '1':'Lavender','2':'Sage','3':'Grape','4':'Flamingo','5':'Banana','6':'Tangerine',
   '7':'Peacock','8':'Graphite','9':'Blueberry','10':'Basil','11':'Tomato'
@@ -2007,8 +2167,8 @@ function sameDay(a, b){
 }
 
 async function loadMonthAndDay(){
-  if(!clinicSecret){
-    el('scheduleStatus').textContent = 'Enter the clinic access code in Settings first.';
+  if(!isApproved()){
+    el('scheduleStatus').textContent = 'Sign in with Google and get approved first (in Settings).';
     el('scheduleList').innerHTML = '';
     el('calGrid').innerHTML = '';
     return;
@@ -2018,7 +2178,7 @@ async function loadMonthAndDay(){
     const monthStart = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth(), 1, 0,0,0);
     const monthEnd = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 0, 23,59,59);
     const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`;
-    const res = await fetch(url, { headers: { 'x-clinic-secret': clinicSecret } });
+    const res = await fetch(url, { headers: authHeader() });
     if(!res.ok){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
@@ -2110,8 +2270,8 @@ function goToNextMonth(){
 }
 
 async function quickBookAppointment(){
-  if(!clinicSecret){
-    el('scheduleStatus').textContent = 'Enter the clinic access code in Settings first.';
+  if(!isApproved()){
+    el('scheduleStatus').textContent = 'Sign in with Google and get approved first (in Settings).';
     return;
   }
   const patientName = el('quickBookPatientInput').value.trim();
@@ -2128,7 +2288,7 @@ async function quickBookAppointment(){
     const url = `${BACKEND_URL}/api/appointments`;
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'x-clinic-secret': clinicSecret, 'Content-Type': 'application/json' },
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         patientName,
         startTime: start.toISOString(),
@@ -2563,41 +2723,25 @@ el('clearSurgeryDateBtn').addEventListener('click', ()=>{
   saveSurgeryDateForPatient();
 });
 
-el('clinicSecretInput').addEventListener('input', (e)=>{
-  clinicSecret = e.target.value.trim();
-  el('keyStatus').textContent = '';
+el('doctorCheckinBtn').addEventListener('click', doctorCheckIn);
+el('showBootstrapBtn').addEventListener('click', ()=>{
+  const row = el('bootstrapOwnerRow');
+  row.style.display = row.style.display === 'none' ? 'flex' : 'none';
 });
-
-el('rememberClinicSecret').addEventListener('change', async (e)=>{
-  if(e.target.checked && clinicSecret){
-    try{
-      await localDB.set('clinic_secret', clinicSecret);
-      el('keyStatus').textContent = 'Access code saved on this device.';
-      el('keyStatus').style.color = '#5b6863';
-    }catch(err){ console.error(err); }
-  } else if(!e.target.checked){
-    try{ await localDB.delete('clinic_secret'); }catch(err){}
-    el('keyStatus').textContent = '';
-  }
-});
-
-el('ownerSecretInput').addEventListener('input', (e)=>{
-  ownerSecret = e.target.value.trim();
-});
-
-el('rememberOwnerSecret').addEventListener('change', async (e)=>{
-  if(e.target.checked && ownerSecret){
-    try{ await localDB.set('owner_secret', ownerSecret); }catch(err){ console.error(err); }
-  } else if(!e.target.checked){
-    try{ await localDB.delete('owner_secret'); }catch(err){}
-  }
-});
+el('bootstrapOwnerBtn').addEventListener('click', bootstrapOwner);
 
 el('pendingDeletesToggleBtn').addEventListener('click', ()=>{
   const panel = el('pendingDeletesPanel');
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   if(!isOpen) loadPendingDeletes();
+});
+
+el('doctorsToggleBtn').addEventListener('click', ()=>{
+  const panel = el('doctorsPanel');
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  if(!isOpen) loadDoctorsRoster();
 });
 
 function setAiProvider(provider){
@@ -2662,22 +2806,6 @@ loadSessions().then(()=>{
   hideSplashScreen();
 }).catch(()=>{ hideSplashScreen(); });
 (async ()=>{
-  try{
-    const saved = await localDB.get('clinic_secret');
-    if(saved && saved.value){
-      clinicSecret = saved.value;
-      el('clinicSecretInput').value = saved.value;
-      el('rememberClinicSecret').checked = true;
-    }
-  }catch(e){ /* no saved code yet */ }
-  try{
-    const savedOwner = await localDB.get('owner_secret');
-    if(savedOwner && savedOwner.value){
-      ownerSecret = savedOwner.value;
-      el('ownerSecretInput').value = savedOwner.value;
-      el('rememberOwnerSecret').checked = true;
-    }
-  }catch(e){ /* no saved owner code yet */ }
   try{
     const savedTerms = await localDB.get('keyterms');
     if(savedTerms && savedTerms.value){
