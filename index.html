@@ -577,6 +577,7 @@
     <button id="sidebarCloseBtn" style="position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
     <h2 style="margin-right:30px;">Sessions</h2>
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
+    <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;">🔄 Sync from clinic server</button>
     <div id="sessionList"></div>
   </div>
 
@@ -2315,6 +2316,45 @@ function setCheckinMessage(text, color){
   if(color) el('mainSignInStatus').style.color = color;
 }
 
+async function loadSessionsFromServer(){
+  if(!isApproved()){
+    el('status').textContent = 'Sign in with Google and get approved first.';
+    return;
+  }
+  el('status').textContent = 'Loading sessions from clinic server…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions`, { headers: authHeader() });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const serverSessions = await res.json();
+    let addedOrUpdated = 0;
+    for(const s of (serverSessions || [])){
+      // Never clobber a session that's currently open and possibly being
+      // edited right now on this device.
+      if(s.id === activeSessionId) continue;
+      const mapped = {
+        id: s.id,
+        patientName: s.patient_name || 'Unnamed patient',
+        date: s.session_date || '',
+        sessionType: s.session_type || 'assessment',
+        transcriptLines: s.transcript || [],
+        note: s.note || null,
+        createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now()
+      };
+      sessions[s.id] = mapped;
+      try{ await localDB.set('session:' + s.id, JSON.stringify(mapped)); }catch(e){ /* non-fatal */ }
+      addedOrUpdated++;
+    }
+    renderSessionList();
+    el('status').textContent = `Synced ${addedOrUpdated} session(s) from the clinic server.`;
+  }catch(e){
+    console.error('Failed to load sessions from server:', e);
+    el('status').textContent = 'Could not load sessions from clinic server: ' + (e.message || e);
+  }
+}
+
 async function callDoctorCheckinEndpoint(){
   const res = await fetch(`${BACKEND_URL}/api/doctors/checkin`, {
     method: 'POST',
@@ -2331,6 +2371,9 @@ async function callDoctorCheckinEndpoint(){
   }
   signedInDoctor = doctor;
   updateSignInStatusUI();
+  if(signedInDoctor.status === 'approved'){
+    loadSessionsFromServer();
+  }
 }
 
 async function doctorCheckIn(){
@@ -3430,6 +3473,7 @@ el('settingsToggleBtn').addEventListener('click', ()=>{
 });
 
 el('newSessionBtn').addEventListener('click', startNewSession);
+el('syncSessionsBtn').addEventListener('click', loadSessionsFromServer);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
 
