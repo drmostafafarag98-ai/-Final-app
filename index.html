@@ -141,6 +141,34 @@
   .sidebar.open{
     transform:translateX(0);
   }
+  .admin-drawer{
+    background:var(--panel);
+    border-left:2px solid var(--line);
+    padding:18px;
+    position:fixed;
+    top:0;
+    right:0;
+    height:100vh;
+    width:340px;
+    max-width:90vw;
+    z-index:50;
+    overflow-y:auto;
+    transform:translateX(100%);
+    transition:transform 0.25s ease;
+    box-shadow:-4px 0 16px rgba(0,0,0,0.15);
+  }
+  .admin-drawer.open{
+    transform:translateX(0);
+  }
+  .admin-drawer h2{
+    font-size:0.78rem;
+    letter-spacing:0.03em;
+    color:var(--maroon);
+    margin:4px 0 16px;
+    font-weight:700;
+    border-bottom:1px solid var(--gold);
+    padding-bottom:8px;
+  }
   .sidebar h2{
     font-size:0.78rem;
     letter-spacing:0.03em;
@@ -411,65 +439,15 @@
   <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
   <span class="tag">PT session scribe — pilot build</span>
+  <button id="adminDrawerToggleBtn" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">⚙️ Admin & Settings</button>
 </header>
 
 <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:40;"></div>
+<div id="adminDrawerBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:40;"></div>
 
-<div class="layout">
-  <div class="sidebar" id="sidebarPanel">
-    <button id="sidebarCloseBtn" style="position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
-    <h2 style="margin-right:30px;">Sessions</h2>
-    <button class="new-session-btn" id="newSessionBtn">+ New session</button>
-    <div id="sessionList"></div>
-  </div>
-
-  <div class="main">
-    <div id="browserWarning" class="warn-box" style="display:none;">
-      This browser doesn't support audio recording (getUserMedia). Try Safari or Chrome on a recent
-      iOS/Android device.
-    </div>
-
-
-    <div class="consent-banner">
-      Confirm the patient has agreed to this session being recorded before you start.
-    </div>
-
-    <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;">🔐 Pending Deletions (owner only)</button>
-    <div id="pendingDeletesPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
-      <div id="pendingDeletesList"></div>
-      <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
-    </div>
-
-    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;">👥 Manage Doctors (owner only)</button>
-    <div id="doctorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
-      <div id="doctorsList"></div>
-      <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
-    </div>
-
-    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
-    <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
-        <span style="font-size:0.9rem;font-weight:700;color:var(--maroon);" id="calMonthLabel"></span>
-        <button type="button" class="ghost" id="calNextMonthBtn" style="padding:5px 12px;">›</button>
-      </div>
-      <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px;"></div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:0.85rem;font-weight:600;color:var(--maroon);" id="scheduleDateLabel"></span>
-        <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
-      </div>
-      <div id="scheduleList" style="margin-bottom:14px;"></div>
-      <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
-      <div style="border-top:1px solid var(--line);padding-top:12px;">
-        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book (for the selected day above)</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-          <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-          <button type="button" class="ghost" id="quickBookBtn">Book</button>
-        </div>
-      </div>
-    </div>
-
+<div class="admin-drawer" id="adminDrawerPanel">
+  <button id="adminDrawerCloseBtn" style="position:absolute;top:10px;left:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+  <h2 style="margin-left:30px;">Admin & Settings</h2>
     <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
@@ -538,23 +516,66 @@
     </div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
-      <label style="font-size:0.78rem;color:#5b6863;">Clinic calendar (built into the app — uses your clinic access code above, no Google needed)</label>
-      <select id="doctorColorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-        <option value="">— Your color on the clinic calendar —</option>
-        <option value="1">Lavender</option>
-        <option value="2">Sage</option>
-        <option value="3">Grape</option>
-        <option value="4">Flamingo</option>
-        <option value="5">Banana (yellow)</option>
-        <option value="6">Tangerine</option>
-        <option value="7">Peacock</option>
-        <option value="8">Graphite</option>
-        <option value="9">Blueberry</option>
-        <option value="10">Basil</option>
-        <option value="11">Tomato</option>
-      </select>
+      <label style="font-size:0.78rem;color:#5b6863;">Your color on the clinic calendar</label>
+      <div id="doctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
     </div>
 
+    </div>
+    <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;">🔐 Pending Deletions (owner only)</button>
+    <div id="pendingDeletesPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div id="pendingDeletesList"></div>
+      <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
+    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;">👥 Manage Doctors (owner only)</button>
+    <div id="doctorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div id="doctorsList"></div>
+      <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebarPanel">
+    <button id="sidebarCloseBtn" style="position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+    <h2 style="margin-right:30px;">Sessions</h2>
+    <button class="new-session-btn" id="newSessionBtn">+ New session</button>
+    <div id="sessionList"></div>
+  </div>
+
+  <div class="main">
+    <div id="browserWarning" class="warn-box" style="display:none;">
+      This browser doesn't support audio recording (getUserMedia). Try Safari or Chrome on a recent
+      iOS/Android device.
+    </div>
+
+
+    <div class="consent-banner">
+      Confirm the patient has agreed to this session being recorded before you start.
+    </div>
+
+    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
+    <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
+        <span style="font-size:0.9rem;font-weight:700;color:var(--maroon);" id="calMonthLabel"></span>
+        <button type="button" class="ghost" id="calNextMonthBtn" style="padding:5px 12px;">›</button>
+      </div>
+      <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:0.85rem;font-weight:600;color:var(--maroon);" id="scheduleDateLabel"></span>
+        <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
+      </div>
+      <div id="scheduleList" style="margin-bottom:14px;"></div>
+      <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
+      <div style="border-top:1px solid var(--line);padding-top:12px;">
+        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book (for the selected day above)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <button type="button" class="ghost" id="quickBookBtn">Book</button>
+        </div>
+      </div>
     </div>
 
     <div class="patient-row">
@@ -2037,7 +2058,10 @@ function updateSignInStatusUI(){
     return;
   }
   if(signedInDoctor.status === 'approved'){
-    el('checkinStatus').textContent = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${signedInDoctor.role === 'owner' ? ' — clinic owner' : ''}.`;
+    const roleLabel = signedInDoctor.role === 'owner' ? ' — clinic owner'
+      : signedInDoctor.role === 'secretary' ? ' — secretary (calendar access only; recording and notes are not available on this account)'
+      : '';
+    el('checkinStatus').textContent = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${roleLabel}.`;
     el('checkinStatus').style.color = '#0b8043';
   } else if(signedInDoctor.status === 'removed'){
     el('checkinStatus').textContent = `Access for ${signedInDoctor.email} has been removed by the clinic owner.`;
@@ -2107,25 +2131,29 @@ function renderDoctorsRoster(items){
     const statusColor = d.status === 'approved' ? '#0b8043' : d.status === 'pending' ? '#b8894f' : '#a33d3d';
     let actions = '';
     if(d.status === 'pending'){
-      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}')">Approve</button>
+      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','doctor')">Approve as Doctor</button>
+                 <button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','secretary')">Approve as Secretary (calendar only)</button>
                  <button type="button" class="ghost" onclick="rejectDoctorRequest('${d.email}')">Reject</button>`;
     } else if(d.status === 'approved'){
       actions = `<button type="button" class="ghost" style="color:var(--danger);border-color:var(--danger);" onclick="rejectDoctorRequest('${d.email}')">Remove access</button>`;
     } else {
-      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}')">Re-approve</button>`;
+      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','doctor')">Re-approve as Doctor</button>
+                 <button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','secretary')">Re-approve as Secretary</button>`;
     }
     return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;">
       <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(d.name || d.email)}</div>
-      <div style="font-size:0.78rem;color:#5b6863;">${escapeHtml(d.email)} · <span style="color:${statusColor};font-weight:600;">${d.status}</span></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">${actions}</div>
+      <div style="font-size:0.78rem;color:#5b6863;">${escapeHtml(d.email)} · <span style="color:${statusColor};font-weight:600;">${d.status}</span>${d.status === 'approved' ? ' · ' + escapeHtml(d.role || 'doctor') : ''}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">${actions}</div>
     </div>`;
   }).join('');
 }
 
-async function approveDoctorRequest(email){
+async function approveDoctorRequest(email, role){
   try{
     const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/approve`, {
-      method: 'POST', headers: authHeader()
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ role: role || 'doctor' })
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     await loadDoctorsRoster();
@@ -2156,6 +2184,25 @@ const CALENDAR_COLOR_HEX = {
   '1':'#7986cb','2':'#33b679','3':'#8e24aa','4':'#e67c73','5':'#f6bf26','6':'#f4511e',
   '7':'#039be5','8':'#616161','9':'#3f51b5','10':'#0b8043','11':'#d50000'
 };
+
+function renderDoctorColorSwatches(){
+  const container = el('doctorColorSwatches');
+  container.innerHTML = Object.keys(CALENDAR_COLOR_HEX).map(id=>{
+    const isSelected = doctorColorId === id;
+    return `<button type="button" class="color-swatch-btn" data-color="${id}" title="${CALENDAR_COLOR_NAMES[id]}" style="
+      width:32px;height:32px;border-radius:50%;background:${CALENDAR_COLOR_HEX[id]};cursor:pointer;
+      border:${isSelected ? '3px solid var(--maroon)' : '2px solid transparent'};
+      box-shadow:${isSelected ? '0 0 0 2px #fff, 0 0 0 3px var(--maroon)' : 'none'};
+      padding:0;"></button>`;
+  }).join('');
+  container.querySelectorAll('.color-swatch-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      doctorColorId = btn.getAttribute('data-color');
+      try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
+      renderDoctorColorSwatches();
+    });
+  });
+}
 
 let calViewMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 let calSelectedDate = new Date();
@@ -2653,10 +2700,7 @@ el('sharedFolderIdInput').addEventListener('change', async (e)=>{
   sharedFolderId = e.target.value.trim();
   try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
 });
-el('doctorColorSelect').addEventListener('change', async (e)=>{
-  doctorColorId = e.target.value;
-  try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
-});
+renderDoctorColorSwatches();
 el('scheduleToggleBtn').addEventListener('click', ()=>{
   const panel = el('schedulePanel');
   const isOpen = panel.style.display !== 'none';
@@ -2705,6 +2749,18 @@ function closeSidebar(){
 el('sidebarToggleBtn').addEventListener('click', openSidebar);
 el('sidebarCloseBtn').addEventListener('click', closeSidebar);
 el('sidebarBackdrop').addEventListener('click', closeSidebar);
+
+function openAdminDrawer(){
+  el('adminDrawerPanel').classList.add('open');
+  el('adminDrawerBackdrop').style.display = 'block';
+}
+function closeAdminDrawer(){
+  el('adminDrawerPanel').classList.remove('open');
+  el('adminDrawerBackdrop').style.display = 'none';
+}
+el('adminDrawerToggleBtn').addEventListener('click', openAdminDrawer);
+el('adminDrawerCloseBtn').addEventListener('click', closeAdminDrawer);
+el('adminDrawerBackdrop').addEventListener('click', closeAdminDrawer);
 
 el('settingsToggleBtn').addEventListener('click', ()=>{
   const panel = el('settingsPanel');
@@ -2844,7 +2900,7 @@ loadSessions().then(()=>{
     const savedColor = await localDB.get('doctor_color_id');
     if(savedColor && savedColor.value){
       doctorColorId = savedColor.value;
-      el('doctorColorSelect').value = savedColor.value;
+      renderDoctorColorSwatches();
     }
   }catch(e){ /* no saved color yet */ }
 })();
