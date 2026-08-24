@@ -3241,10 +3241,20 @@ async function renderImageGallery(sessionId){
 
 async function handleImageUpload(fileList){
   if(!activeSessionId || !fileList || fileList.length === 0) return;
+  el('status').textContent = `Received ${fileList.length} file(s) from the picker — uploading…`;
+  let successCount = 0;
   for(const file of fileList){
-    try{ await imageDB.add(activeSessionId, file, file.type); }catch(e){ console.error(e); }
+    try{
+      await imageDB.add(activeSessionId, file, file.type);
+      successCount++;
+    }catch(e){
+      console.error('Image upload failed for', file.name, e);
+    }
   }
   renderImageGallery(activeSessionId);
+  el('status').textContent = successCount === fileList.length
+    ? `Added ${successCount} image(s).`
+    : `Added ${successCount} of ${fileList.length} image(s) — some failed, check console for details.`;
 }
 
 async function retryTranscription(){
@@ -3370,8 +3380,9 @@ el('addSpecialTestsBtn').addEventListener('click', addSelectedSpecialTestsToNote
 renderSpecialTestChecklist('');
 updateSpecialTestsVisibility();
 el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
-el('imageUploadInput').addEventListener('change', (e)=>{
-  handleImageUpload(e.target.files);
+el('imageUploadInput').addEventListener('change', async (e)=>{
+  const files = Array.from(e.target.files || []);
+  await handleImageUpload(files);
   e.target.value = '';
 });
 el('externalAudioInput').addEventListener('change', (e)=>{
