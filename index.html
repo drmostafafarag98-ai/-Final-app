@@ -2049,15 +2049,22 @@ function isApproved(){
   return !!(signedInDoctor && signedInDoctor.status === 'approved');
 }
 
+function setCheckinMessage(text, color){
+  el('checkinStatus').textContent = text;
+  if(color) el('checkinStatus').style.color = color;
+  el('mainSignInStatus').textContent = text;
+  if(color) el('mainSignInStatus').style.color = color;
+}
+
 async function doctorCheckIn(){
   if(!googleClientId){
-    el('checkinStatus').textContent = 'Enter the Google OAuth Client ID above first.';
+    setCheckinMessage('Enter the Google OAuth Client ID in Admin & Settings first.', '#a33d3d');
     return;
   }
-  el('checkinStatus').textContent = 'Opening Google sign-in…';
+  setCheckinMessage('Opening Google sign-in…', '#5b6863');
   const token = await ensureGoogleAuth();
   if(!token){
-    el('checkinStatus').textContent = 'Google sign-in failed or was cancelled.';
+    setCheckinMessage('Google sign-in failed or was cancelled.', '#a33d3d');
     return;
   }
   try{
@@ -2078,7 +2085,7 @@ async function doctorCheckIn(){
     updateSignInStatusUI();
   }catch(e){
     console.error(e);
-    el('checkinStatus').textContent = 'Sign-in failed: ' + (e.message || e);
+    setCheckinMessage('Sign-in failed: ' + (e.message || e), '#a33d3d');
   }
 }
 
