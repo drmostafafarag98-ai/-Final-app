@@ -2019,6 +2019,9 @@ async function doctorCheckIn(){
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
     const doctor = await res.json();
+    if(!doctor || !doctor.email){
+      throw new Error('Server response was missing expected doctor data — check Render logs for the real cause.');
+    }
     signedInDoctor = doctor;
     updateSignInStatusUI();
   }catch(e){
