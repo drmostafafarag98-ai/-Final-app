@@ -3233,7 +3233,8 @@ function downloadNotePDF(){
   }
   const patientName = el('patientName').value || 'Unnamed patient';
   const container = el('printableNote');
-  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">PT Clinical Note</div><p><strong>Patient:</strong> ${escapeHtml(patientName)}</p><div>${escapeHtml(text)}</div>`;
+  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">PT Clinical Note</div><p><strong>Patient:</strong> ${escapeHtml(patientName)}</p><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Doctor:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   window.print();
 }
 
@@ -3309,8 +3310,9 @@ function downloadSummaryPdf(){
   const text = el('patientSummaryText').value;
   if(!text) return;
   const title = el('patientSummaryTitle').textContent;
+  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   const container = el('printableNote');
-  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)}</div><div>${escapeHtml(text)}</div>`;
+  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   window.print();
 }
 
