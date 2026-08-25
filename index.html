@@ -746,7 +746,18 @@
       <div id="qualityWarningBanner" style="display:none;background:#fbeaea;border-left:3px solid var(--danger);padding:10px 14px;font-size:0.85rem;color:#7a2e2e;margin-bottom:12px;border-radius:4px;"></div>
       <div class="note-output">
         <div class="ai-flag">AI-generated draft — review and edit before saving to the chart. Any diagnosis suggestion below is a prompt for your judgment, not a conclusion.</div>
+        <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:0.75rem;">
+          <button type="button" class="ghost" id="notePreviewToggleBtn" style="padding:5px 10px;font-size:0.78rem;">👁️ Preview with source highlighting</button>
+          <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#fff;border:1px solid #999;display:inline-block;"></span> Heard/documented</span>
+          <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#e3f2fd;border:1px solid #90caf9;display:inline-block;"></span> Manually selected</span>
+          <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#f3e5f5;border:1px solid #ce93d8;display:inline-block;"></span> AI-inferred</span>
+        </div>
+        <div id="notePreview" style="display:none;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px;margin-bottom:10px;white-space:pre-wrap;font-size:0.88rem;line-height:1.6;max-height:400px;overflow-y:auto;"></div>
         <textarea id="noteText"></textarea>
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-top:10px;padding:10px 12px;background:#fdf3e3;border:1px solid var(--gold);border-radius:var(--radius);">
+          <input type="checkbox" id="noteApprovedCheckbox" style="margin-top:3px;">
+          <label for="noteApprovedCheckbox" style="font-size:0.83rem;color:#6b5842;cursor:pointer;">I have reviewed this note (including checking the highlighted AI-inferred content above) and approve it for the patient record. Required before exporting a PDF.</label>
+        </div>
         <div class="actions-row">
           <button class="ghost" id="saveNoteBtn">Save to session</button>
           <button class="ghost" id="downloadBtn">Download .txt</button>
@@ -775,12 +786,27 @@
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (pick a region, then pick exercises — avoids relying on speech-to-text getting the name right)</div>
-          <select id="exerciseRegionSelect" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
-            <option value="">— Select a region —</option>
-          </select>
-          <div id="exerciseChecklist" style="max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">🏋️ Suggest exercises for the Plan (avoids relying on speech-to-text getting the name right)</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <select id="exerciseRegionSelect" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+              <option value="">— Select a region —</option>
+              <option value="__favorites__">⭐ Favorites</option>
+            </select>
+          </div>
+          <input type="text" id="exerciseSearchInput" placeholder="Or search across all regions…" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
+          <div id="exerciseChecklist" style="max-height:280px;overflow-y:auto;border:1px solid var(--line);border-radius:var(--radius);padding:10px;background:var(--panel);"></div>
           <button class="ghost" id="addExercisesBtn" style="margin-top:8px;">Add selected exercises to note</button>
+
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line);">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">📁 Clinic templates (reusable bundles)</div>
+            <div style="display:flex;gap:8px;">
+              <select id="exerciseTemplateSelect" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.82rem;">
+                <option value="">— Apply a saved template —</option>
+              </select>
+              <button class="ghost" id="applyTemplateBtn" style="font-size:0.8rem;">Apply</button>
+            </div>
+            <button class="ghost" id="saveTemplateBtn" style="margin-top:6px;font-size:0.8rem;width:100%;">💾 Save current selection as a template</button>
+          </div>
         </div>
 
         <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
@@ -1402,6 +1428,21 @@ function escapeHtml(str){
   return d.innerHTML;
 }
 
+function buildHighlightedNotePreview(text){
+  let escaped = escapeHtml(text);
+  // AI-inferred: the differential section, header through the end of the note.
+  escaped = escaped.replace(/(AI-SUGGESTED DIFFERENTIAL[^\n]*:)([\s\S]*)$/i, (match, header, body)=>{
+    return `<div style="background:#f3e5f5;border-right:3px solid #ce93d8;padding:8px 10px;border-radius:4px;margin-top:8px;"><strong>${header}</strong>${body}</div>`;
+  });
+  // Manually selected: any sentence carrying our "(clinician-selected)" marker
+  // (exercises, positive special tests, manual therapy — all inserted by the
+  // structured pickers, never typed freely by the AI).
+  escaped = escaped.replace(/([^.\n]*\(clinician-selected\)[^.\n]*\.)/gi, (match)=>{
+    return `<span style="background:#e3f2fd;border-radius:3px;padding:1px 4px;">${match}</span>`;
+  });
+  return escaped;
+}
+
 function pickMimeType(){
   const candidates = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/aac'];
   for(const type of candidates){
@@ -1953,6 +1994,8 @@ async function generateNote(){
 
   const sharedRules = `Translate all Arabic content faithfully into English, preserving already-English medical terms exactly as given (do not alter or "correct" them). Be concise, clinical, and precise. Do not invent details not present in the transcript. If a section has no relevant content, write "Not documented in this session."
 
+CRITICAL — never invent specific clinical data points that were not actually stated in the transcript, even ones that would sound plausible and expected for this kind of visit. This specifically includes: range of motion (ROM) values or degrees, manual muscle testing (MMT) grades, any specific diagnosis or differential beyond what the clinician actually stated, medication or exercise dosage, sets/repetitions/hold times, and the result (positive/negative) of any test not explicitly mentioned as performed. If the transcript doesn't give you a number, a grade, or a result, do not supply one — write "not documented" or "not specified" instead. A precise-sounding but fabricated number is far more dangerous in a medical record than an honest gap.
+
 CRITICAL — transcript quality self-check: before writing the note, assess how much of the transcript is coherent, intelligible Arabic/English versus fragmented, garbled, or nonsensical text (a known limitation of automatic speech recognition on real clinic audio). If a meaningful portion of the transcript is too garbled to confidently extract clinical meaning from, you MUST start your entire response with a line exactly like:
 "⚠️ TRANSCRIPT QUALITY WARNING: [1-2 sentences on what's unreliable — e.g. 'much of the patient's history section was too fragmented to transcribe reliably; treat Subjective details below with caution']"
 Then proceed with your best-effort note. Do not skip this warning to make the note look more polished — an honest low-confidence note is far more useful and safer than a confident-sounding one built on unreliable input. If the transcript is genuinely clear and coherent throughout, do not add any warning.`;
@@ -2017,6 +2060,10 @@ ${sharedRules}`;
     }
     note = `Date: ${noteDate}\n${patientLabel}${postOpLabel}\n${note.trim()}`;
     el('noteText').value = note;
+    el('noteApprovedCheckbox').checked = false;
+    el('notePreview').style.display = 'none';
+    el('noteText').style.display = 'block';
+    el('notePreviewToggleBtn').textContent = '👁️ Preview with source highlighting';
     el('noteSection').style.display = 'block';
     el('status').textContent = 'Draft ready. Review carefully before saving.';
   }catch(e){
@@ -3254,6 +3301,29 @@ function updateSpecialTestsVisibility(){
   el('specialTestsSection').style.display = sessionType === 'assessment' ? 'block' : 'none';
 }
 
+let selectedExercisesState = {}; // name -> {side, sets, reps, hold}
+
+function getFavoriteExercises(){
+  try{ return new Set(JSON.parse(localStorage.getItem('favorite_exercises') || '[]')); }
+  catch(e){ return new Set(); }
+}
+function saveFavoriteExercises(set){
+  try{ localStorage.setItem('favorite_exercises', JSON.stringify([...set])); }catch(e){}
+}
+function toggleFavoriteExercise(name){
+  const favs = getFavoriteExercises();
+  if(favs.has(name)) favs.delete(name); else favs.add(name);
+  saveFavoriteExercises(favs);
+}
+
+function getExerciseTemplates(){
+  try{ return JSON.parse(localStorage.getItem('exercise_templates') || '[]'); }
+  catch(e){ return []; }
+}
+function saveExerciseTemplates(list){
+  try{ localStorage.setItem('exercise_templates', JSON.stringify(list)); }catch(e){}
+}
+
 function populateExerciseRegionSelect(){
   const select = el('exerciseRegionSelect');
   Object.keys(EXERCISE_LIBRARY).forEach(region=>{
@@ -3262,22 +3332,128 @@ function populateExerciseRegionSelect(){
     opt.textContent = region;
     select.appendChild(opt);
   });
+  populateExerciseTemplateSelect();
 }
 
-function renderExerciseChecklist(region){
+function populateExerciseTemplateSelect(){
+  const select = el('exerciseTemplateSelect');
+  select.innerHTML = '<option value="">— Apply a saved template —</option>';
+  getExerciseTemplates().forEach((t, i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = t.name;
+    select.appendChild(opt);
+  });
+}
+
+function renderExerciseChecklist(){
   const container = el('exerciseChecklist');
-  if(!region){
-    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Select a region above to see its exercises.</div>';
+  const searchTerm = (el('exerciseSearchInput').value || '').trim().toLowerCase();
+  const region = el('exerciseRegionSelect').value;
+  const favs = getFavoriteExercises();
+
+  let items = []; // [{name, region}]
+  if(searchTerm){
+    Object.keys(EXERCISE_LIBRARY).forEach(r=>{
+      EXERCISE_LIBRARY[r].forEach(name=>{
+        if(name.toLowerCase().includes(searchTerm)) items.push({name, region: r});
+      });
+    });
+  } else if(region === '__favorites__'){
+    Object.keys(EXERCISE_LIBRARY).forEach(r=>{
+      EXERCISE_LIBRARY[r].forEach(name=>{
+        if(favs.has(name)) items.push({name, region: r});
+      });
+    });
+  } else if(region){
+    EXERCISE_LIBRARY[region].forEach(name=> items.push({name, region}));
+  } else {
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Select a region, pick ⭐ Favorites, or search above.</div>';
     return;
   }
-  const items = EXERCISE_LIBRARY[region] || [];
-  container.innerHTML = items.map(name=>{
+
+  if(items.length === 0){
+    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No matches.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(({name})=>{
     const id = 'ex_' + name.replace(/[^a-z0-9]+/gi,'_');
-    return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.85rem;cursor:pointer;">
-      <input type="checkbox" class="exercise-checkbox" value="${name}" id="${id}">
-      ${name}
-    </label>`;
-  }).join('') || '<div style="font-size:0.8rem;color:#8a938e;">No exercises in this region yet.</div>';
+    const isChecked = name in selectedExercisesState;
+    const isFav = favs.has(name);
+    const dosage = selectedExercisesState[name] || {};
+    return `
+      <div style="padding:5px 0;border-bottom:1px solid var(--line);">
+        <label style="display:flex;align-items:center;gap:8px;font-size:0.85rem;cursor:pointer;">
+          <input type="checkbox" class="exercise-checkbox" value="${escapeHtml(name)}" id="${id}" ${isChecked ? 'checked' : ''}>
+          <span style="flex:1;">${escapeHtml(name)}</span>
+          <span class="fav-star" data-name="${escapeHtml(name)}" style="cursor:pointer;font-size:1rem;color:${isFav ? '#a97c2f' : '#c9b48c'};">${isFav ? '⭐' : '☆'}</span>
+        </label>
+        <div class="exercise-dosage-row" data-for="${escapeHtml(name)}" style="display:${isChecked ? 'flex' : 'none'};gap:6px;margin:6px 0 2px 26px;flex-wrap:wrap;">
+          <select class="dosage-side" style="font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+            <option value="" ${!dosage.side ? 'selected' : ''}>Side —</option>
+            <option value="Left" ${dosage.side==='Left'?'selected':''}>Left</option>
+            <option value="Right" ${dosage.side==='Right'?'selected':''}>Right</option>
+            <option value="Bilateral" ${dosage.side==='Bilateral'?'selected':''}>Bilateral</option>
+          </select>
+          <input type="text" class="dosage-sets" placeholder="Sets" value="${dosage.sets||''}" style="width:50px;font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+          <input type="text" class="dosage-reps" placeholder="Reps" value="${dosage.reps||''}" style="width:50px;font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+          <input type="text" class="dosage-hold" placeholder="Hold (s)" value="${dosage.hold||''}" style="width:60px;font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+          <input type="text" class="dosage-progression" placeholder="Progression notes" value="${dosage.progression||''}" style="flex:1;min-width:100px;font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+        </div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.exercise-checkbox').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const name = cb.value;
+      const row = container.querySelector(`.exercise-dosage-row[data-for="${CSS.escape(name)}"]`);
+      if(cb.checked){
+        selectedExercisesState[name] = selectedExercisesState[name] || {};
+        if(row) row.style.display = 'flex';
+      } else {
+        delete selectedExercisesState[name];
+        if(row) row.style.display = 'none';
+      }
+    });
+  });
+  container.querySelectorAll('.fav-star').forEach(star=>{
+    star.addEventListener('click', ()=>{
+      toggleFavoriteExercise(star.getAttribute('data-name'));
+      renderExerciseChecklist();
+    });
+  });
+  ['sets','reps','hold','progression'].forEach(field=>{
+    container.querySelectorAll(`.dosage-${field}`).forEach(input=>{
+      input.addEventListener('input', ()=>{
+        const row = input.closest('.exercise-dosage-row');
+        const name = row.getAttribute('data-for');
+        if(!selectedExercisesState[name]) selectedExercisesState[name] = {};
+        selectedExercisesState[name][field] = input.value;
+      });
+    });
+  });
+  container.querySelectorAll('.dosage-side').forEach(select=>{
+    select.addEventListener('change', ()=>{
+      const row = select.closest('.exercise-dosage-row');
+      const name = row.getAttribute('data-for');
+      if(!selectedExercisesState[name]) selectedExercisesState[name] = {};
+      selectedExercisesState[name].side = select.value;
+    });
+  });
+}
+
+function formatExerciseWithDosage(name, dosage){
+  const parts = [];
+  if(dosage.side) parts.push(dosage.side);
+  if(dosage.sets && dosage.reps) parts.push(`${dosage.sets}x${dosage.reps}`);
+  else if(dosage.sets) parts.push(`${dosage.sets} sets`);
+  else if(dosage.reps) parts.push(`${dosage.reps} reps`);
+  if(dosage.hold) parts.push(`hold ${dosage.hold}s`);
+  let str = name;
+  if(parts.length > 0) str += ` (${parts.join(', ')})`;
+  if(dosage.progression) str += ` — ${dosage.progression}`;
+  return str;
 }
 
 function insertIntoSection(noteText, sectionName, additionLine){
@@ -3297,16 +3473,50 @@ function insertIntoSection(noteText, sectionName, additionLine){
 }
 
 function addSelectedExercisesToNote(){
-  const checked = [...document.querySelectorAll('.exercise-checkbox:checked')].map(cb => cb.value);
-  if(checked.length === 0){
+  const names = Object.keys(selectedExercisesState);
+  if(names.length === 0){
     el('status').textContent = 'Select at least one exercise first.';
     return;
   }
-  const additionLine = `Exercises prescribed (clinician-selected): ${checked.join(', ')}.`;
+  const formatted = names.map(name => formatExerciseWithDosage(name, selectedExercisesState[name]));
+  const additionLine = `Exercises prescribed (clinician-selected): ${formatted.join(', ')}.`;
   const current = el('noteText').value || '';
   el('noteText').value = insertIntoSection(current, 'PLAN', additionLine);
-  document.querySelectorAll('.exercise-checkbox:checked').forEach(cb => cb.checked = false);
-  el('status').textContent = `Added ${checked.length} exercise(s) to Plan.`;
+  selectedExercisesState = {};
+  renderExerciseChecklist();
+  el('status').textContent = `Added ${names.length} exercise(s) to Plan.`;
+}
+
+function saveExerciseTemplate(){
+  const names = Object.keys(selectedExercisesState);
+  if(names.length === 0){
+    el('status').textContent = 'Select at least one exercise first, then save as a template.';
+    return;
+  }
+  const templateName = prompt('Name this template (e.g. "Post-op ACL — Week 1"):');
+  if(!templateName || !templateName.trim()) return;
+  const templates = getExerciseTemplates();
+  templates.push({
+    name: templateName.trim(),
+    items: names.map(name => ({ exercise: name, ...selectedExercisesState[name] }))
+  });
+  saveExerciseTemplates(templates);
+  populateExerciseTemplateSelect();
+  el('status').textContent = `Template "${templateName.trim()}" saved.`;
+}
+
+function applyExerciseTemplate(){
+  const idx = el('exerciseTemplateSelect').value;
+  if(idx === '') return;
+  const templates = getExerciseTemplates();
+  const template = templates[parseInt(idx, 10)];
+  if(!template) return;
+  const formatted = template.items.map(item => formatExerciseWithDosage(item.exercise, item));
+  const additionLine = `Exercises prescribed (clinician-selected, from template "${template.name}"): ${formatted.join(', ')}.`;
+  const current = el('noteText').value || '';
+  el('noteText').value = insertIntoSection(current, 'PLAN', additionLine);
+  el('exerciseTemplateSelect').value = '';
+  el('status').textContent = `Applied template "${template.name}" (${template.items.length} exercise(s)) to Plan.`;
 }
 
 function renderManualChecklist(filter){
@@ -3358,6 +3568,10 @@ function downloadNotePDF(){
   const text = el('noteText').value;
   if(!text){
     el('status').textContent = 'Generate a note first.';
+    return;
+  }
+  if(!el('noteApprovedCheckbox').checked){
+    el('status').textContent = '⚠️ Please review the note (check the highlighted preview) and tick the approval box before exporting a PDF.';
     return;
   }
   const patientName = el('patientName').value || 'Unnamed patient';
@@ -3619,9 +3833,12 @@ el('downloadSummaryTxtBtn').addEventListener('click', downloadSummaryTxt);
 el('downloadSummaryPdfBtn').addEventListener('click', downloadSummaryPdf);
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 populateExerciseRegionSelect();
-el('exerciseRegionSelect').addEventListener('change', (e)=> renderExerciseChecklist(e.target.value));
+el('exerciseRegionSelect').addEventListener('change', ()=>{ el('exerciseSearchInput').value = ''; renderExerciseChecklist(); });
+el('exerciseSearchInput').addEventListener('input', renderExerciseChecklist);
 el('addExercisesBtn').addEventListener('click', addSelectedExercisesToNote);
-renderExerciseChecklist('');
+el('saveTemplateBtn').addEventListener('click', saveExerciseTemplate);
+el('applyTemplateBtn').addEventListener('click', applyExerciseTemplate);
+renderExerciseChecklist();
 el('manualSearchInput').addEventListener('input', (e)=> renderManualChecklist(e.target.value));
 el('addManualBtn').addEventListener('click', addSelectedManualToNote);
 renderManualChecklist('');
@@ -3634,6 +3851,27 @@ el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
 el('correctionLogToggleBtn').addEventListener('click', ()=>{
   const panel = el('correctionLogPanel');
   panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+el('notePreviewToggleBtn').addEventListener('click', ()=>{
+  const preview = el('notePreview');
+  const textarea = el('noteText');
+  const isShowing = preview.style.display !== 'none';
+  if(isShowing){
+    preview.style.display = 'none';
+    textarea.style.display = 'block';
+    el('notePreviewToggleBtn').textContent = '👁️ Preview with source highlighting';
+  } else {
+    preview.innerHTML = buildHighlightedNotePreview(textarea.value);
+    preview.style.display = 'block';
+    textarea.style.display = 'none';
+    el('notePreviewToggleBtn').textContent = '✏️ Back to editing';
+  }
+});
+el('noteText').addEventListener('input', ()=>{
+  if(el('noteApprovedCheckbox').checked){
+    el('noteApprovedCheckbox').checked = false;
+    el('status').textContent = 'Note edited — approval reset. Please review and re-approve before exporting.';
+  }
 });
 el('imageUploadInput').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
