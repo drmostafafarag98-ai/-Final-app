@@ -486,6 +486,10 @@
       <label style="font-size:0.78rem;color:#5b6863;">Sign in (this is the only login — no shared password. The clinic owner approves each doctor by their real Google account.)</label>
       <button type="button" class="ghost" id="doctorCheckinBtn">Sign in with Google</button>
       <div id="checkinStatus" style="font-size:0.8rem;color:#5b6863;"></div>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="displayNameInput" placeholder="Your display name (e.g. Dr. Ahmed Farag) — shown instead of your email" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <button type="button" class="ghost" id="setDisplayNameBtn" style="white-space:nowrap;">Save name</button>
+      </div>
       <button type="button" class="ghost" id="showBootstrapBtn" style="font-size:0.75rem;padding:5px 10px;align-self:flex-start;">First time setting this clinic up? (owner one-time setup)</button>
       <div id="bootstrapOwnerRow" style="display:none;gap:8px;">
         <input type="password" id="bootstrapOwnerInput" placeholder="One-time owner bootstrap code" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -2585,6 +2589,9 @@ function updateSignInStatusUI(){
     mainCard.style.display = 'flex';
     return;
   }
+  if(signedInDoctor.name && signedInDoctor.name !== signedInDoctor.email && !el('displayNameInput').value){
+    el('displayNameInput').value = signedInDoctor.name;
+  }
   if(signedInDoctor.status === 'approved'){
     const roleLabel = signedInDoctor.role === 'owner' ? ' — clinic owner'
       : signedInDoctor.role === 'secretary' ? ' — secretary (calendar access only; recording and notes are not available on this account)'
@@ -2639,6 +2646,35 @@ async function bootstrapOwner(){
   }catch(e){
     console.error(e);
     el('checkinStatus').textContent = 'Bootstrap failed: ' + (e.message || e);
+  }
+}
+
+async function updateDisplayName(){
+  const name = el('displayNameInput').value.trim();
+  if(!name){
+    setCheckinMessage('Type a display name first.', '#a33d3d');
+    return;
+  }
+  const token = await ensureGoogleAuth();
+  if(!token){
+    setCheckinMessage('Sign in with Google first.', '#a33d3d');
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/me/name`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ name })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    signedInDoctor = await res.json();
+    updateSignInStatusUI();
+  }catch(e){
+    console.error(e);
+    setCheckinMessage('Could not save name: ' + (e.message || e), '#a33d3d');
   }
 }
 
@@ -3610,6 +3646,7 @@ el('showBootstrapBtn').addEventListener('click', ()=>{
   row.style.display = row.style.display === 'none' ? 'flex' : 'none';
 });
 el('bootstrapOwnerBtn').addEventListener('click', bootstrapOwner);
+el('setDisplayNameBtn').addEventListener('click', updateDisplayName);
 
 el('pendingDeletesToggleBtn').addEventListener('click', ()=>{
   const panel = el('pendingDeletesPanel');
