@@ -1159,6 +1159,7 @@ async function loadSessions(){
 }
 
 let expandedPatients = new Set();
+let expandedDoctors = new Set();
 
 function renderSessionList(){
   const container = el('sessionList');
@@ -1167,69 +1168,110 @@ function renderSessionList(){
     container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No sessions yet.</div>';
     return;
   }
-  // Group sessions by patient name so a patient's assessment and all
-  // follow-ups sit together, most recently active patient first.
-  const groups = {};
+  // Top tier: group by doctor. Second tier (inside each doctor, when
+  // expanded): group by patient, exactly as before.
+  const doctorGroups = {};
   ids.forEach(id=>{
     const s = sessions[id];
-    const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
-    if(!groups[key]) groups[key] = [];
-    groups[key].push(id);
+    const key = (s.doctorName || 'Unassigned').trim() || 'Unassigned';
+    if(!doctorGroups[key]) doctorGroups[key] = [];
+    doctorGroups[key].push(id);
   });
-  Object.keys(groups).forEach(key=>{
-    groups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
-  });
-  const patientNames = Object.keys(groups).sort((a,b)=>{
-    const aLatest = Math.max(...groups[a].map(id=> sessions[id].createdAt||0));
-    const bLatest = Math.max(...groups[b].map(id=> sessions[id].createdAt||0));
+  const doctorNames = Object.keys(doctorGroups).sort((a,b)=>{
+    const aLatest = Math.max(...doctorGroups[a].map(id=> sessions[id].createdAt||0));
+    const bLatest = Math.max(...doctorGroups[b].map(id=> sessions[id].createdAt||0));
     return bLatest - aLatest;
   });
-  // Auto-expand whichever patient folder contains the currently active session.
-  patientNames.forEach(patientName=>{
-    if(groups[patientName].includes(activeSessionId)) expandedPatients.add(patientName);
+  // Auto-expand whichever doctor (and within it, patient) contains the
+  // currently active session.
+  doctorNames.forEach(doctorName=>{
+    if(doctorGroups[doctorName].includes(activeSessionId)) expandedDoctors.add(doctorName);
   });
+
   container.innerHTML = '';
-  patientNames.forEach(patientName=>{
-    const isOpen = expandedPatients.has(patientName);
-    const groupHeader = document.createElement('div');
-    groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:14px 0 6px;padding-top:8px;border-top:1px solid var(--line);cursor:pointer;';
-    const nameSpan = document.createElement('span');
-    nameSpan.style.cssText = 'font-size:0.78rem;font-weight:700;color:#5b6863;letter-spacing:0.03em;';
-    nameSpan.textContent = (isOpen ? '▾ ' : '▸ ') + patientName;
-    const followupBtn = document.createElement('button');
-    followupBtn.type = 'button';
-    followupBtn.textContent = '+ Follow-up';
-    followupBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
-    followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
-    const summaryBtn = document.createElement('button');
-    summaryBtn.type = 'button';
-    summaryBtn.textContent = '📋 Summary';
-    summaryBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
-    summaryBtn.onclick = (e)=>{ e.stopPropagation(); generatePatientSummary(patientName); };
-    groupHeader.appendChild(nameSpan);
-    if(patientName !== 'Unnamed patient'){
-      const btnRow = document.createElement('div');
-      btnRow.style.cssText = 'display:flex;gap:6px;';
-      btnRow.appendChild(followupBtn);
-      btnRow.appendChild(summaryBtn);
-      groupHeader.appendChild(btnRow);
-    }
-    groupHeader.addEventListener('click', ()=>{
-      if(expandedPatients.has(patientName)) expandedPatients.delete(patientName);
-      else expandedPatients.add(patientName);
+  doctorNames.forEach(doctorName=>{
+    const doctorIsOpen = expandedDoctors.has(doctorName);
+    const doctorHeader = document.createElement('div');
+    doctorHeader.style.cssText = 'display:flex;align-items:center;gap:6px;margin:16px 0 8px;padding:8px 10px;border-radius:6px;background:#f0e6d2;cursor:pointer;';
+    const doctorNameSpan = document.createElement('span');
+    doctorNameSpan.style.cssText = 'font-size:0.82rem;font-weight:700;color:var(--maroon);letter-spacing:0.02em;';
+    doctorNameSpan.textContent = (doctorIsOpen ? '▾ ' : '▸ ') + '👤 ' + doctorName;
+    doctorHeader.appendChild(doctorNameSpan);
+    doctorHeader.addEventListener('click', ()=>{
+      if(expandedDoctors.has(doctorName)) expandedDoctors.delete(doctorName);
+      else expandedDoctors.add(doctorName);
       renderSessionList();
     });
-    container.appendChild(groupHeader);
-    if(isOpen){
-      groups[patientName].forEach(id=>{
-        const s = sessions[id];
-        const div = document.createElement('div');
-        div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
-        div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
-        div.onclick = () => loadSession(id);
-        container.appendChild(div);
+    container.appendChild(doctorHeader);
+    if(!doctorIsOpen) return;
+
+    const doctorContainer = document.createElement('div');
+    doctorContainer.style.cssText = 'margin-right:6px;padding-right:6px;border-right:2px solid var(--line);';
+
+    // Group this doctor's sessions by patient name so a patient's
+    // assessment and all follow-ups sit together, most recent first.
+    const patientGroups = {};
+    doctorGroups[doctorName].forEach(id=>{
+      const s = sessions[id];
+      const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
+      if(!patientGroups[key]) patientGroups[key] = [];
+      patientGroups[key].push(id);
+    });
+    Object.keys(patientGroups).forEach(key=>{
+      patientGroups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
+    });
+    const patientNames = Object.keys(patientGroups).sort((a,b)=>{
+      const aLatest = Math.max(...patientGroups[a].map(id=> sessions[id].createdAt||0));
+      const bLatest = Math.max(...patientGroups[b].map(id=> sessions[id].createdAt||0));
+      return bLatest - aLatest;
+    });
+    patientNames.forEach(patientName=>{
+      if(patientGroups[patientName].includes(activeSessionId)) expandedPatients.add(patientName);
+    });
+
+    patientNames.forEach(patientName=>{
+      const isOpen = expandedPatients.has(patientName);
+      const groupHeader = document.createElement('div');
+      groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--line);cursor:pointer;';
+      const nameSpan = document.createElement('span');
+      nameSpan.style.cssText = 'font-size:0.78rem;font-weight:700;color:#5b6863;letter-spacing:0.03em;';
+      nameSpan.textContent = (isOpen ? '▾ ' : '▸ ') + patientName;
+      const followupBtn = document.createElement('button');
+      followupBtn.type = 'button';
+      followupBtn.textContent = '+ Follow-up';
+      followupBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
+      followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
+      const summaryBtn = document.createElement('button');
+      summaryBtn.type = 'button';
+      summaryBtn.textContent = '📋 Summary';
+      summaryBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
+      summaryBtn.onclick = (e)=>{ e.stopPropagation(); generatePatientSummary(patientName); };
+      groupHeader.appendChild(nameSpan);
+      if(patientName !== 'Unnamed patient'){
+        const btnRow = document.createElement('div');
+        btnRow.style.cssText = 'display:flex;gap:6px;';
+        btnRow.appendChild(followupBtn);
+        btnRow.appendChild(summaryBtn);
+        groupHeader.appendChild(btnRow);
+      }
+      groupHeader.addEventListener('click', ()=>{
+        if(expandedPatients.has(patientName)) expandedPatients.delete(patientName);
+        else expandedPatients.add(patientName);
+        renderSessionList();
       });
-    }
+      doctorContainer.appendChild(groupHeader);
+      if(isOpen){
+        patientGroups[patientName].forEach(id=>{
+          const s = sessions[id];
+          const div = document.createElement('div');
+          div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
+          div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
+          div.onclick = () => loadSession(id);
+          doctorContainer.appendChild(div);
+        });
+      }
+    });
+    container.appendChild(doctorContainer);
   });
 }
 
@@ -2025,6 +2067,8 @@ Task: integrate the new information from the clinician's addition into the note,
 
 async function saveSession(){
   if(!activeSessionId) return;
+  const existing = sessions[activeSessionId];
+  const doctorName = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || (existing && existing.doctorName) || 'Unassigned';
   const data = {
     id: activeSessionId,
     patientName: el('patientName').value || 'Unnamed patient',
@@ -2032,7 +2076,8 @@ async function saveSession(){
     sessionType: sessionType,
     transcriptLines: transcriptLines,
     note: el('noteText').value || null,
-    createdAt: sessions[activeSessionId] ? sessions[activeSessionId].createdAt : Date.now()
+    doctorName: doctorName,
+    createdAt: existing ? existing.createdAt : Date.now()
   };
   sessions[activeSessionId] = data;
   try{
@@ -2397,6 +2442,7 @@ async function loadSessionsFromServer(){
         sessionType: s.session_type || 'assessment',
         transcriptLines: s.transcript || [],
         note: s.note || null,
+        doctorName: s.doctor_name || 'Unassigned',
         createdAt: s.created_at ? new Date(s.created_at).getTime() : Date.now()
       };
       sessions[s.id] = mapped;
