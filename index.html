@@ -512,6 +512,7 @@
     </div>
     <div class="patient-row" style="margin-bottom:8px;">
       <select id="dialectSelect" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.9rem;">
+        <option value="ar-EG" selected>Egyptian Arabic</option>
         <option value="ar">Arabic (general)</option>
         <option value="ar-SA">Saudi Arabian Arabic</option>
         <option value="ar-AE">UAE Arabic</option>
@@ -521,7 +522,6 @@
         <option value="ar-LB">Lebanese Arabic</option>
         <option value="ar-PS">Palestinian Arabic</option>
         <option value="ar-JO">Jordanian Arabic</option>
-        <option value="ar-EG">Egyptian Arabic</option>
         <option value="ar-SD">Sudanese Arabic</option>
         <option value="ar-MA">Moroccan Arabic</option>
         <option value="ar-DZ">Algerian Arabic</option>
@@ -1727,7 +1727,7 @@ async function toggleRecording(){
 }
 
 async function transcribePlainAudio(blob){
-  const dialect = el('dialectSelect').value || 'ar';
+  const dialect = el('dialectSelect').value || 'ar-EG';
   const contentType = recordedMimeType || 'audio/webm';
   const allKeyterms = (el('keytermsInput').value || '')
     .split(',')
@@ -1761,7 +1761,7 @@ async function transcribePlainAudio(blob){
 }
 
 async function transcribeFlatUtterances(blob){
-  const dialect = el('dialectSelect').value || 'ar';
+  const dialect = el('dialectSelect').value || 'ar-EG';
   const contentType = recordedMimeType || 'audio/webm';
   const allKeyterms = (el('keytermsInput').value || '')
     .split(',')
