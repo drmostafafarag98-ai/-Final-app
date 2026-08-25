@@ -721,6 +721,14 @@
       <div class="empty-hint">Record the whole session in one go — the AI will separate doctor and patient speech automatically afterward.</div>
     </div>
 
+    <div id="correctionLogSection" style="display:none;margin-top:10px;margin-bottom:16px;">
+      <button type="button" class="ghost" id="correctionLogToggleBtn" style="width:100%;font-size:0.82rem;">🔍 Terminology corrections made</button>
+      <div id="correctionLogPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-top:8px;">
+        <div style="font-size:0.75rem;color:#8a938e;margin-bottom:6px;">Struck-through = what was heard. Green = what it was changed to. Worth a quick glance before trusting the note.</div>
+        <div id="correctionLogList"></div>
+      </div>
+    </div>
+
     <div id="recoveryControls" style="display:none;margin-bottom:16px;">
       <div class="ai-flag" style="margin-bottom:10px;">Your recording is saved on this device, separate from the transcript above. If transcription ever fails, your audio is safe and you can retry.</div>
       <div class="actions-row">
@@ -1295,6 +1303,8 @@ function loadSession(id){
   setSessionType(s.sessionType || 'assessment');
   loadSurgeryDateForPatient(s.patientName || '');
   transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
+  lastCorrectionLog = [];
+  renderCorrectionLog();
   renderTranscript();
   if(s.note){
     el('noteSection').style.display = 'block';
@@ -1321,6 +1331,8 @@ function startNewSession(){
   el('surgeryDateInput').value = '';
   el('postOpDayLabel').textContent = '';
   transcriptLines = [];
+  lastCorrectionLog = [];
+  renderCorrectionLog();
   renderTranscript();
   el('noteSection').style.display = 'none';
   el('qualityWarningBanner').style.display = 'none';
@@ -1340,6 +1352,8 @@ function startFollowupForPatient(patientName){
   setSessionType('followup');
   loadSurgeryDateForPatient(patientName);
   transcriptLines = [];
+  lastCorrectionLog = [];
+  renderCorrectionLog();
   renderTranscript();
   el('noteSection').style.display = 'none';
   el('qualityWarningBanner').style.display = 'none';
@@ -1857,10 +1871,13 @@ async function callAI(systemPrompt, userContent, maxTokens, provider = aiProvide
   return data.text;
 }
 
+let lastCorrectionLog = []; // [{before, after}] — every change the last correction pass made
+
 async function applyTerminologyCorrection(){
   const hasKey = isApproved();
   if(!hasKey || transcriptLines.length === 0) return;
   el('status').textContent = 'Checking PT terminology against the full reference list…';
+  const originalLines = transcriptLines.map(l => ({...l})); // snapshot before correction, for the change log
   const systemPrompt = `You review a speaker-tagged physical therapy session transcript (Arabic mixed with English medical terms) for speech-to-text errors in English medical/PT terminology — special tests, anatomy, exercise names.
 
 Reference list of correct English PT terms:
@@ -1868,7 +1885,9 @@ ${COMPREHENSIVE_TERMS}
 
 You receive a JSON array of {"speaker":"...","text":"..."} objects.
 
-CRITICAL — the speech-to-text system frequently mishears an English PT term as a DIFFERENT, real, fluent-sounding English word — not obvious gibberish. This is the main failure mode to catch. For example: "squat" heard as "spot", "Lachman" heard as "lockman", "cupping" heard as "copying", "traction" heard as "tration" or "fraction". A mis-transcribed term will often look like a perfectly normal English word in isolation — do not assume a word is correct just because it's a real word. For every isolated English word or short phrase embedded in the Arabic text, actively check: does this sound phonetically close to any term in the reference list, given the surrounding clinical context (e.g. an exercise being described, a test being performed)? If yes, replace it with the correct reference term even though the original was a fluent, real word.
+CRITICAL — the speech-to-text system frequently mishears an English PT term as a DIFFERENT, real, fluent-sounding English word — not obvious gibberish. This is the main failure mode to catch. For example: "squat" heard as "spot", "Lachman" heard as "lockman", "cupping" heard as "copying", "traction" heard as "tration" or "fraction". A mis-transcribed term will often look like a perfectly normal English word in isolation — do not assume a word is correct just because it's a real word. For every isolated English word or short phrase embedded in the Arabic text, actively check: does this sound phonetically close to any term in the reference list, given the surrounding clinical context (e.g. an exercise being described, a test being performed)?
+
+CRITICAL — BE CONSERVATIVE. Only correct a word when you are reasonably confident it is a mis-transcription of a specific term on the reference list, given real phonetic similarity AND supporting clinical context. If you are not reasonably confident, or the word is plausible as-is even if unusual, LEAVE IT UNCHANGED — do not guess, and do not "improve" wording that isn't actually a transcription error. A missed correction is far safer than a wrong one, since every change you make gets logged and shown to the clinician, and unnecessary changes erode their trust in this feature.
 
 Do NOT change anything else: keep all Arabic text exactly as given, keep speaker tags exactly as given, do not add, remove, merge, or reorder lines, do not translate anything, do not touch Arabic words, do not invent content. If a line has no English PT terminology at all, leave it completely unchanged. If genuinely nothing needs correcting anywhere, return the array unchanged.
 
@@ -1879,9 +1898,19 @@ Respond with ONLY the corrected JSON array in the exact same format and order, n
     raw = raw.replace(/^```json\s*/i, '').replace(/```\s*$/,'').trim();
     const corrected = JSON.parse(raw);
     if(Array.isArray(corrected) && corrected.length === transcriptLines.length){
+      lastCorrectionLog = [];
+      corrected.forEach((line, i)=>{
+        const before = originalLines[i] ? originalLines[i].text : '';
+        if(line.text !== before){
+          lastCorrectionLog.push({ before, after: line.text });
+        }
+      });
       transcriptLines = corrected;
       renderTranscript();
-      el('status').textContent = 'PT terminology checked and corrected where needed.';
+      renderCorrectionLog();
+      el('status').textContent = lastCorrectionLog.length > 0
+        ? `PT terminology checked — ${lastCorrectionLog.length} line(s) corrected (see "🔍 Terminology corrections" below).`
+        : 'PT terminology checked — no corrections needed.';
     } else {
       el('status').textContent = 'Terminology check returned an unexpected result — kept the original transcript.';
     }
@@ -1889,6 +1918,24 @@ Respond with ONLY the corrected JSON array in the exact same format and order, n
     console.error('Terminology correction failed:', e);
     el('status').textContent = `Terminology check failed (kept original transcript): ${e.message || 'unknown error'}`;
   }
+}
+
+function renderCorrectionLog(){
+  const section = el('correctionLogSection');
+  const list = el('correctionLogList');
+  const toggleBtn = el('correctionLogToggleBtn');
+  if(!lastCorrectionLog || lastCorrectionLog.length === 0){
+    section.style.display = 'none';
+    return;
+  }
+  toggleBtn.textContent = `🔍 Terminology corrections made (${lastCorrectionLog.length})`;
+  list.innerHTML = lastCorrectionLog.map(c=>`
+    <div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:0.83rem;">
+      <div style="color:#a33d3d;text-decoration:line-through;opacity:0.75;">${escapeHtml(c.before)}</div>
+      <div style="color:#0b8043;margin-top:2px;">${escapeHtml(c.after)}</div>
+    </div>
+  `).join('');
+  section.style.display = 'block';
 }
 
 async function generateNote(){
@@ -3504,6 +3551,8 @@ el('recordBtn').addEventListener('click', toggleRecording);
 el('pauseResumeBtn').addEventListener('click', togglePauseResume);
 el('clearBtn').addEventListener('click', ()=>{
   transcriptLines = [];
+  lastCorrectionLog = [];
+  renderCorrectionLog();
   renderTranscript();
   el('generateBtn').disabled = true;
   el('noteSection').style.display = 'none';
@@ -3582,6 +3631,10 @@ el('addSpecialTestsBtn').addEventListener('click', addSelectedSpecialTestsToNote
 renderSpecialTestChecklist('');
 updateSpecialTestsVisibility();
 el('retryTranscriptionBtn').addEventListener('click', retryTranscription);
+el('correctionLogToggleBtn').addEventListener('click', ()=>{
+  const panel = el('correctionLogPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
 el('imageUploadInput').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
   await handleImageUpload(files);
