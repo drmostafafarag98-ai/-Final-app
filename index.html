@@ -3279,9 +3279,12 @@ List each distinct symptom, complaint, or key objective finding from the initial
 PROGRESS ON EACH:
 For EVERY numbered item above, in the same order and numbering, give one to two sentences on its current status versus the initial presentation — improved / resolved / unchanged / worsened — with the specific supporting detail actually documented (functional detail, what the patient reports, what changed and by how much where stated). Do not compress this to a single fragment — give the physician enough to actually picture the change. Example style: "1. Improved — pain has dropped from significant at rest to only with heavy overhead lifting; patient reports much better sleep as a result." / "2. Resolved — test now negative, no reproduction of symptoms on provocation."
 
+EXERCISES / INTERVENTIONS USED:
+A synthesized list (not a session-by-session log) of the exercises, manual therapy, and other interventions used across the treatment course, as actually documented — group similar/repeated items together rather than repeating them per visit. If specific exercises or interventions are not documented anywhere, write "Not explicitly documented."
+
 OVERALL IMPRESSION: One to two sentences synthesizing the trajectory of the case as a whole — genuinely useful judgment for the referring physician, not a repeat of the line-by-line detail above.
 
-Hard rules: Do not invent any symptom, finding, or outcome not present in the source notes. Do NOT mention session count, session dates, or any administrative/scheduling detail anywhere in the letter. Stay numbered and scannable, but each progress item should be a real sentence or two, not a bare label. Write in professional English suitable for a physician colleague.`;
+Hard rules: Do not invent any symptom, finding, outcome, exercise, or intervention not present in the source notes. Do NOT mention session count, session dates, or any administrative/scheduling detail anywhere in the letter. Stay numbered and scannable, but each progress item should be a real sentence or two, not a bare label. Write in professional English suitable for a physician colleague.`;
 
     const summary = await callAI(systemPrompt, `Full session history for ${patientName}:\n\n${combined}`, 4000);
     const dateHeader = `Patient: ${patientName}\n\n`;
