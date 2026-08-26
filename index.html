@@ -624,9 +624,19 @@
         <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book (for the selected day above)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
           <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <input type="tel" id="quickBookPhoneInput" placeholder="Phone (e.g. 010...)" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <button type="button" class="ghost" id="quickBookBtn">Book</button>
         </div>
+      </div>
+
+      <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Tomorrow's appointments — send reminders</div>
+          <button type="button" class="ghost" id="loadTomorrowRemindersBtn" style="font-size:0.75rem;padding:5px 10px;">Load</button>
+        </div>
+        <div id="tomorrowRemindersList"></div>
+        <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
     </div>
 
@@ -3146,6 +3156,7 @@ async function quickBookAppointment(){
     return;
   }
   const patientName = el('quickBookPatientInput').value.trim();
+  const patientPhone = el('quickBookPhoneInput').value.trim();
   const timeVal = el('quickBookTimeInput').value;
   if(!patientName || !timeVal){
     el('scheduleStatus').textContent = 'Enter a patient name and time first.';
@@ -3162,6 +3173,7 @@ async function quickBookAppointment(){
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
         patientName,
+        patientPhone: patientPhone || null,
         startTime: start.toISOString(),
         endTime: end.toISOString(),
         doctorColor: doctorColorId || null,
@@ -3173,12 +3185,63 @@ async function quickBookAppointment(){
       throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
     }
     el('quickBookPatientInput').value = '';
+    el('quickBookPhoneInput').value = '';
     el('quickBookTimeInput').value = '';
     el('scheduleStatus').textContent = 'Booked.';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
     el('scheduleStatus').textContent = 'Booking failed: ' + (e.message || e);
+  }
+}
+
+function normalizeEgyptPhoneForWhatsApp(raw){
+  let digits = String(raw || '').replace(/[^\d]/g, '');
+  if(digits.startsWith('0')) digits = digits.slice(1);
+  if(!digits.startsWith('20')) digits = '20' + digits;
+  return digits;
+}
+
+async function loadTomorrowReminders(){
+  if(!isApproved()){
+    el('tomorrowRemindersStatus').textContent = 'Sign in with Google and get approved first.';
+    return;
+  }
+  el('tomorrowRemindersStatus').textContent = 'Loading…';
+  el('tomorrowRemindersList').innerHTML = '';
+  try{
+    const now = new Date();
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const start = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0,0,0);
+    const end = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23,59,59);
+    const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
+    const res = await fetch(url, { headers: authHeader() });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const items = await res.json();
+    if(!items || items.length === 0){
+      el('tomorrowRemindersStatus').textContent = 'No appointments tomorrow.';
+      return;
+    }
+    el('tomorrowRemindersList').innerHTML = items.map(ev=>{
+      const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+      const hasPhone = !!ev.patient_phone;
+      const message = `تذكير بميعادك في عيادة Empower بكرة الساعة ${timeStr}. لو محتاج تأجيل أو تأكيد كلمنا 🙏`;
+      const waLink = hasPhone ? `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}` : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">
+        <span style="font-size:0.82rem;color:#5b6863;min-width:55px;">${timeStr}</span>
+        <span style="font-size:0.85rem;flex:1;">${escapeHtml(ev.patient_name || '')}</span>
+        ${hasPhone
+          ? `<a href="${waLink}" target="_blank" rel="noopener" class="ghost" style="font-size:0.75rem;padding:5px 10px;text-decoration:none;display:inline-block;">📱 Send reminder</a>`
+          : `<span style="font-size:0.72rem;color:#c9b48c;">no phone on file</span>`}
+      </div>`;
+    }).join('');
+    el('tomorrowRemindersStatus').textContent = '';
+  }catch(e){
+    console.error(e);
+    el('tomorrowRemindersStatus').textContent = 'Could not load: ' + (e.message || e);
   }
 }
 
@@ -3806,6 +3869,7 @@ el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
+el('loadTomorrowRemindersBtn').addEventListener('click', loadTomorrowReminders);
 
 el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
   el('appointmentNotesOverlay').style.display = 'none';
