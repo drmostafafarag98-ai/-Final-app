@@ -1723,10 +1723,13 @@ async function toggleRecording(){
       return;
     }
     if(!isApproved()){
-      el('keyStatus').textContent = 'Sign in with Google and get approved by the clinic owner before recording.';
-      el('keyStatus').style.color = '#a33d3d';
-      el('status').textContent = '⚠️ Sign in with Google in Settings (⚙️ button above) and get approved before recording.';
-      return;
+      // Don't block recording entirely — losing a session's audio because
+      // sign-in is having trouble is worse than recording without it.
+      // Transcription/notes still need sign-in, but "Retry transcription
+      // from saved recording" can pick this up later once that's sorted.
+      el('keyStatus').textContent = 'Not signed in — recording anyway so you don\'t lose this session. Sign in before the note can be generated.';
+      el('keyStatus').style.color = '#b8894f';
+      el('status').textContent = '⚠️ Recording without sign-in — audio will be saved, but sign in with Google before transcription/notes will work.';
     }
     try{
       mediaStream = await navigator.mediaDevices.getUserMedia(AUDIO_CAPTURE_CONSTRAINTS);
@@ -1890,8 +1893,10 @@ async function transcribeSession(blob){
       transcriptLines = lines.map(text => ({speaker: 'doctor', text}));
       renderTranscript();
       el('generateBtn').disabled = false;
-      el('status').textContent = 'Transcribed. Review it, then generate the note.';
+      el('status').textContent = 'Transcribed. Checking terminology…';
       await applyTerminologyCorrection();
+      el('status').textContent = 'Generating clinical note…';
+      await generateNote();
       return;
     }catch(e){
       console.error(`Transcription attempt ${attempt + 1} failed:`, e);
@@ -2470,7 +2475,7 @@ let authRequestInFlight = false;
 
 function ensureGoogleAuth(){
   if(googleAccessToken) return Promise.resolve(googleAccessToken);
-  return new Promise(async (resolve)=>{
+  const attempt = new Promise(async (resolve)=>{
     if(!(await initGoogleTokenClient())){
       resolve(null);
       return;
@@ -2508,6 +2513,19 @@ function ensureGoogleAuth(){
     };
     tryRequest();
   });
+  // Hard safety net: some mobile/in-app browsers silently swallow the
+  // popup request (no callback ever fires) if it isn't fired perfectly
+  // synchronously within the click — which can leave the UI stuck on
+  // "Opening Google sign-in…" forever. Never let that happen again.
+  const timeout = new Promise((resolve)=>{
+    setTimeout(()=>{
+      if(!lastGoogleAuthFailureReason){
+        lastGoogleAuthFailureReason = 'Google sign-in timed out with no response. This usually means the sign-in popup was silently blocked — try again, or open this page directly in Chrome/Safari rather than from another app.';
+      }
+      resolve(null);
+    }, 15000);
+  });
+  return Promise.race([attempt, timeout]);
 }
 
 function authHeader(){
@@ -3738,10 +3756,66 @@ async function checkForSavedAudio(sessionId){
   }
 }
 
+async function fileToBase64(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function uploadImageToServer(sessionId, file){
+  const base64Data = await fileToBase64(file);
+  const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/images`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify({ base64Data, mimeType: file.type, filename: file.name })
+  });
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+  }
+  return res.json();
+}
+
 async function renderImageGallery(sessionId){
   const gallery = el('imageGallery');
   gallery.innerHTML = '';
   if(!sessionId) return;
+  if(isApproved()){
+    try{
+      const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/images`, { headers: authHeader() });
+      if(res.ok){
+        const images = await res.json();
+        images.forEach(img=>{
+          const wrap = document.createElement('div');
+          wrap.style.cssText = 'position:relative;width:90px;';
+          wrap.innerHTML = `
+            <img src="${img.url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;">
+            <button type="button" style="position:absolute;top:2px;right:2px;background:rgba(163,61,61,0.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:1;">×</button>
+          `;
+          wrap.querySelector('img').addEventListener('click', ()=> window.open(img.url, '_blank'));
+          wrap.querySelector('button').addEventListener('click', async (e)=>{
+            e.stopPropagation();
+            try{
+              await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/images`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json', ...authHeader() },
+                body: JSON.stringify({ path: img.path })
+              });
+            }catch(err){ console.error(err); }
+            renderImageGallery(sessionId);
+          });
+          gallery.appendChild(wrap);
+        });
+        return; // rendered from the cross-device server copy — done.
+      }
+    }catch(e){
+      console.error('Could not load images from server, falling back to local:', e);
+    }
+  }
+  // Fallback: this device's local copy (not signed in, or server unreachable).
   try{
     const images = await imageDB.listForSession(sessionId);
     images.forEach(img=>{
@@ -3751,6 +3825,7 @@ async function renderImageGallery(sessionId){
       wrap.innerHTML = `
         <img src="${url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;">
         <button type="button" style="position:absolute;top:2px;right:2px;background:rgba(163,61,61,0.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:1;">×</button>
+        <span style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.65);color:#fff;font-size:0.6rem;padding:1px 4px;border-radius:3px;">this device only</span>
       `;
       wrap.querySelector('img').addEventListener('click', ()=> window.open(url, '_blank'));
       wrap.querySelector('button').addEventListener('click', async (e)=>{
@@ -3768,19 +3843,33 @@ async function renderImageGallery(sessionId){
 async function handleImageUpload(fileList){
   if(!activeSessionId || !fileList || fileList.length === 0) return;
   el('status').textContent = `Received ${fileList.length} file(s) from the picker — uploading…`;
-  let successCount = 0;
+  const canSync = isApproved();
+  let localCount = 0;
+  let serverCount = 0;
   for(const file of fileList){
     try{
-      await imageDB.add(activeSessionId, file, file.type);
-      successCount++;
+      await imageDB.add(activeSessionId, file, file.type); // always keep a fast local copy too
+      localCount++;
     }catch(e){
-      console.error('Image upload failed for', file.name, e);
+      console.error('Local image save failed for', file.name, e);
+    }
+    if(canSync){
+      try{
+        await uploadImageToServer(activeSessionId, file);
+        serverCount++;
+      }catch(e){
+        console.error('Server image upload failed for', file.name, e);
+      }
     }
   }
   renderImageGallery(activeSessionId);
-  el('status').textContent = successCount === fileList.length
-    ? `Added ${successCount} image(s).`
-    : `Added ${successCount} of ${fileList.length} image(s) — some failed, check console for details.`;
+  if(!canSync){
+    el('status').textContent = `Added ${localCount} image(s) — saved on this device only. Sign in and get approved to sync images across devices.`;
+  } else if(serverCount === fileList.length){
+    el('status').textContent = `Added ${serverCount} image(s) — synced to the clinic server, visible from any device.`;
+  } else {
+    el('status').textContent = `Added ${localCount} image(s) locally, but only ${serverCount} of ${fileList.length} synced to the server — check your connection.`;
+  }
 }
 
 async function retryTranscription(){
@@ -4079,6 +4168,11 @@ function hideSplashScreen(){
   }, wait);
 }
 el('sessionDate').value = todayStr();
+// Pre-warm the Google sign-in client in the background rather than only
+// initializing it lazily on first click — the closer requestAccessToken()
+// fires to the actual click, the less likely a browser is to silently
+// block the popup as "not a direct user gesture" with no error at all.
+waitForGoogleLibrary(8000).then(ready=>{ if(ready) initGoogleTokenClient(); });
 trySilentResumeSignIn();
 loadSessions().then(()=>{
   if(Object.keys(sessions).length === 0){
