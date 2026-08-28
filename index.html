@@ -986,8 +986,7 @@ const GOOGLE_CLIENT_ID = '334702495452-o72rokafql0sl020710og866p7m4t8em.apps.goo
 let googleClientId = GOOGLE_CLIENT_ID;
 let clinicianName = '';
 let doctorColorId = '';
-let googleAccessToken = ''; // no longer used for Drive — kept only in case future features need a Google API token
-let appSessionToken = null; // our own long-lived session token
+let googleAccessToken = '';
 
 const el = (id) => document.getElementById(id);
 
@@ -2362,24 +2361,77 @@ async function rejectDelete(id){
 }
 
 // ---- App session token (ours, not Google's) ----
-// Stored in localStorage (not sessionStorage) specifically so it survives
-// closing the tab/browser entirely — this is what makes "stay signed in"
-// actually work, since our token is valid for 90 days and never needs an
-// hourly refresh dance the way a raw Google access token would.
-function saveAppSessionToken(token){
-  appSessionToken = token;
-  try{ localStorage.setItem('app_session_token', token); }catch(e){}
+function saveGoogleTokenToSession(token, expiresInSeconds){
+  try{
+    const expiresAt = Date.now() + ((expiresInSeconds || 3300) * 1000) - 60000; // 1 min safety margin
+    sessionStorage.setItem('google_access_token', JSON.stringify({ token, expiresAt }));
+  }catch(e){ /* sessionStorage unavailable — not fatal, just means refresh will re-prompt */ }
 }
-function loadAppSessionToken(){
-  try{ return localStorage.getItem('app_session_token'); }catch(e){ return null; }
+
+function loadGoogleTokenFromSession(){
+  try{
+    const raw = sessionStorage.getItem('google_access_token');
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !parsed.token || !parsed.expiresAt) return null;
+    if(Date.now() >= parsed.expiresAt){
+      sessionStorage.removeItem('google_access_token');
+      return null;
+    }
+    return parsed.token;
+  }catch(e){ return null; }
 }
-function clearAppSessionToken(){
-  appSessionToken = null;
-  try{ localStorage.removeItem('app_session_token'); }catch(e){}
+
+function waitForGoogleLibrary(timeoutMs){
+  return new Promise((resolve)=>{
+    const start = Date.now();
+    const check = ()=>{
+      if(window.google && google.accounts && google.accounts.oauth2){
+        resolve(true);
+        return;
+      }
+      if(Date.now() - start >= timeoutMs){
+        resolve(false);
+        return;
+      }
+      setTimeout(check, 250);
+    };
+    check();
+  });
+}
+
+let googleTokenClient = null;
+let lastGoogleAuthFailureReason = '';
+let authRequestInFlight = false;
+
+async function initGoogleTokenClient(){
+  if(googleTokenClient) return true;
+  const manualOverride = el('googleClientIdInput').value.trim();
+  googleClientId = manualOverride || GOOGLE_CLIENT_ID;
+  if(!googleClientId){
+    lastGoogleAuthFailureReason = 'No Google Client ID is set.';
+    return false;
+  }
+  const ready = await waitForGoogleLibrary(5000);
+  if(!ready){
+    lastGoogleAuthFailureReason = 'Google sign-in library did not load in time — check your internet connection and try again.';
+    return false;
+  }
+  googleTokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: googleClientId,
+    scope: 'https://www.googleapis.com/auth/userinfo.email',
+    callback: ()=>{}, // overwritten per-call by whichever flow triggers requestAccessToken
+    error_callback: (err)=>{
+      console.error('Google OAuth error:', err);
+      lastGoogleAuthFailureReason = 'Google reported an error: ' + (err && err.type ? err.type : JSON.stringify(err)) + '. This often means popups are blocked for this browser, or you\'re in an in-app browser (e.g. opened from WhatsApp/Instagram) — try opening the link directly in Chrome or Safari instead.';
+      googleAccessToken = '';
+    }
+  });
+  return true;
 }
 
 function authHeader(){
-  return appSessionToken ? { 'Authorization': 'Bearer ' + appSessionToken } : {};
+  return googleAccessToken ? { 'Authorization': 'Bearer ' + googleAccessToken } : {};
 }
 
 function isApproved(){
@@ -2454,79 +2506,89 @@ async function callDoctorCheckinEndpoint(){
   }
 }
 
-// Sign-in: a full-page redirect through OUR BACKEND (never a popup, so no
-// browser or in-app webview can ever silently block it), which exchanges
-// the Google authorization code for tokens server-side and captures a
-// refresh token — that's what lets sessions last 90 days instead of
-// ~1 hour.
-function signInWithGoogleRedirect(){
-  const manualOverride = el('googleClientIdInput').value.trim();
-  const clientId = manualOverride || GOOGLE_CLIENT_ID;
-  const redirectUri = `${BACKEND_URL}/api/auth/google/callback`;
-  const params = new URLSearchParams({
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/userinfo.email',
-    access_type: 'offline',
-    include_granted_scopes: 'true',
-    prompt: 'consent select_account',
+function ensureGoogleAuth(){
+  if(googleAccessToken) return Promise.resolve(googleAccessToken);
+  const attempt = new Promise(async (resolve)=>{
+    if(!(await initGoogleTokenClient())){
+      resolve(null);
+      return;
+    }
+    let waited = 0;
+    const tryRequest = ()=>{
+      if(authRequestInFlight && waited < 2000){
+        waited += 150;
+        setTimeout(tryRequest, 150);
+        return;
+      }
+      authRequestInFlight = true;
+      googleTokenClient.callback = (response)=>{
+        authRequestInFlight = false;
+        if(response && response.access_token){
+          googleAccessToken = response.access_token;
+          saveGoogleTokenToSession(response.access_token, response.expires_in);
+          resolve(googleAccessToken);
+        } else {
+          if(response && response.error){
+            lastGoogleAuthFailureReason = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
+          } else if(!lastGoogleAuthFailureReason){
+            lastGoogleAuthFailureReason = 'Google sign-in returned no result — the window may have been closed before finishing.';
+          }
+          resolve(null);
+        }
+      };
+      googleTokenClient.requestAccessToken();
+    };
+    tryRequest();
   });
-  window.location.href = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+  const timeout = new Promise((resolve)=>{
+    setTimeout(()=>{
+      if(!lastGoogleAuthFailureReason){
+        lastGoogleAuthFailureReason = 'Google sign-in timed out with no response. Try again, or open this page directly in Chrome/Safari rather than from another app.';
+      }
+      resolve(null);
+    }, 15000);
+  });
+  return Promise.race([attempt, timeout]);
 }
 
-// Runs on every page load — checks whether we just landed back here after
-// the backend finished the OAuth exchange (it appends our session token
-// as #session=... when redirecting back). If so, stores it and finishes
-// sign-in automatically.
-async function handleGoogleRedirectCallback(){
-  if(!window.location.hash) return false;
-  const params = new URLSearchParams(window.location.hash.slice(1));
-  const session = params.get('session');
-  const authError = params.get('auth_error');
-  // Clean the fragment out of the URL either way, so refreshing never
-  // re-processes it and it never lingers in browser history.
-  history.replaceState(null, '', window.location.pathname + window.location.search);
-  if(authError){
-    setCheckinMessage('Sign-in failed: ' + decodeURIComponent(authError), '#a33d3d');
-    return true;
+async function doctorCheckIn(){
+  lastGoogleAuthFailureReason = '';
+  setCheckinMessage('Opening Google sign-in…', '#5b6863');
+  const token = await ensureGoogleAuth();
+  if(!token){
+    setCheckinMessage(lastGoogleAuthFailureReason || 'Google sign-in failed or was cancelled.', '#a33d3d');
+    return;
   }
-  if(!session) return false;
-  saveAppSessionToken(session);
-  setCheckinMessage('Finishing sign-in…', '#5b6863');
   try{
     await callDoctorCheckinEndpoint();
   }catch(e){
     console.error(e);
     setCheckinMessage('Sign-in failed: ' + (e.message || e), '#a33d3d');
   }
-  return true;
-}
-
-async function doctorCheckIn(){
-  signInWithGoogleRedirect();
 }
 
 function doctorSignOut(){
-  clearAppSessionToken();
-  signedInDoctor = null;
   googleAccessToken = '';
+  try{ sessionStorage.removeItem('google_access_token'); }catch(e){}
+  signedInDoctor = null;
   updateSignInStatusUI();
   setCheckinMessage('Signed out.', '#5b6863');
 }
 
-// On page load, if a session token is already saved from a previous
-// visit, just re-confirm status with it — no Google interaction needed
-// at all, since our token doesn't expire hourly the way Google's does.
+// On page load, if we still have a valid cached token from earlier this
+// tab session, skip the popup entirely and just re-confirm status — this
+// is what makes a refresh not force a fresh sign-in every time within the
+// same tab. A new tab / browser restart will need a fresh sign-in.
 async function trySilentResumeSignIn(){
-  const token = loadAppSessionToken();
+  const token = loadGoogleTokenFromSession();
   if(!token) return;
-  appSessionToken = token;
+  googleAccessToken = token;
   try{
     await callDoctorCheckinEndpoint();
   }catch(e){
-    console.error('Resuming session failed — token may have expired or been revoked:', e);
-    clearAppSessionToken();
+    console.error('Silent resume failed:', e);
+    googleAccessToken = '';
+    try{ sessionStorage.removeItem('google_access_token'); }catch(err){}
   }
 }
 
@@ -2577,7 +2639,8 @@ async function bootstrapOwner(){
     el('checkinStatus').textContent = 'Enter the one-time owner bootstrap code first.';
     return;
   }
-  if(!appSessionToken){
+  const token = await ensureGoogleAuth();
+  if(!token){
     el('checkinStatus').textContent = 'Sign in with Google first.';
     return;
   }
@@ -2607,7 +2670,8 @@ async function updateDisplayName(){
     setCheckinMessage('Type a display name first.', '#a33d3d');
     return;
   }
-  if(!appSessionToken){
+  const token = await ensureGoogleAuth();
+  if(!token){
     setCheckinMessage('Sign in with Google first.', '#a33d3d');
     return;
   }
@@ -3917,11 +3981,12 @@ function hideSplashScreen(){
   }, wait);
 }
 el('sessionDate').value = todayStr();
-handleGoogleRedirectCallback().then(handled=>{
-  if(!handled){
-    trySilentResumeSignIn();
-  }
-});
+// Pre-warm the Google sign-in client in the background rather than only
+// initializing it lazily on first click — the closer requestAccessToken()
+// fires to the actual click, the less likely a browser is to silently
+// block the popup as "not a direct user gesture" with no error at all.
+waitForGoogleLibrary(8000).then(ready=>{ if(ready) initGoogleTokenClient(); });
+trySilentResumeSignIn();
 loadSessions().then(()=>{
   if(Object.keys(sessions).length === 0){
     startNewSession();
