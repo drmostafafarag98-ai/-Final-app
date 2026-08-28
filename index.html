@@ -541,14 +541,8 @@
     <div class="status" id="keyStatus" style="margin-top:0;margin-bottom:14px;"></div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
-      <label style="font-size:0.78rem;color:#5b6863;">Google Drive backup (optional — everything already saves on this device without it)</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="text" id="googleClientIdInput" placeholder="Advanced: only fill this in if told to use a different Google Client ID" style="flex:2;min-width:200px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-        <button type="button" class="ghost" id="connectDriveBtn" style="white-space:nowrap;">Connect Google Drive</button>
-      </div>
-      <input type="text" id="clinicianNameInput" placeholder="Your name (shown on files you save, so the clinic owner can tell whose note is whose)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-      <input type="text" id="sharedFolderIdInput" placeholder="Shared clinic Drive folder ID (optional — ask the clinic owner for this)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-      <div id="driveStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+      <input type="text" id="googleClientIdInput" placeholder="Advanced: only fill this in if told to use a different Google Client ID" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <input type="text" id="clinicianNameInput" placeholder="Your name (shown on your saved notes and sessions)" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
     </div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -773,7 +767,6 @@
           <button class="ghost" id="saveNoteBtn">Save to session</button>
           <button class="ghost" id="downloadBtn">Download .txt</button>
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
-          <button class="ghost" id="saveDriveBtn">Save to Google Drive</button>
         </div>
         <div class="actions-row" style="margin-top:10px;">
           <button class="ghost" id="syncToServerBtn">☁️ Save to clinic server</button>
@@ -992,9 +985,8 @@ let wakeLock = null;
 const GOOGLE_CLIENT_ID = '334702495452-o72rokafql0sl020710og866p7m4t8em.apps.googleusercontent.com';
 let googleClientId = GOOGLE_CLIENT_ID;
 let clinicianName = '';
-let sharedFolderId = '';
 let doctorColorId = '';
-let googleAccessToken = ''; // short-lived, Drive-only — fetched via /api/auth/google/fresh-token
+let googleAccessToken = ''; // no longer used for Drive — kept only in case future features need a Google API token
 let appSessionToken = null; // our own long-lived session token
 
 const el = (id) => document.getElementById(id);
@@ -2386,43 +2378,6 @@ function clearAppSessionToken(){
   try{ localStorage.removeItem('app_session_token'); }catch(e){}
 }
 
-// Gets a short-lived real Google access token for direct-to-Google calls
-// (Drive uploads) via our backend, which holds the actual refresh token —
-// the browser itself never sees or stores it.
-async function getFreshGoogleAccessToken(){
-  try{
-    const res = await fetch(`${BACKEND_URL}/api/auth/google/fresh-token`, {
-      method: 'POST',
-      headers: authHeader()
-    });
-    if(!res.ok){
-      const errText = await res.text();
-      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
-    }
-    const data = await res.json();
-    return data.accessToken;
-  }catch(e){
-    console.error('Could not get a fresh Google token:', e);
-    return null;
-  }
-}
-
-async function connectGoogleDrive(){
-  el('driveStatus').textContent = 'Connecting to Google Drive…';
-  if(!isApproved()){
-    el('driveStatus').textContent = 'Sign in with Google and get approved first.';
-    return;
-  }
-  const token = await getFreshGoogleAccessToken();
-  if(token){
-    googleAccessToken = token;
-    el('driveStatus').textContent = 'Connected to Google Drive.';
-    el('connectDriveBtn').textContent = 'Reconnect Google Drive';
-  } else {
-    el('driveStatus').textContent = 'Could not connect to Google Drive — try signing out and in again to (re-)grant access.';
-  }
-}
-
 function authHeader(){
   return appSessionToken ? { 'Authorization': 'Bearer ' + appSessionToken } : {};
 }
@@ -2512,7 +2467,7 @@ function signInWithGoogleRedirect(){
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
-    scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/userinfo.email',
+    scope: 'https://www.googleapis.com/auth/userinfo.email',
     access_type: 'offline',
     include_granted_scopes: 'true',
     prompt: 'consent select_account',
@@ -3137,67 +3092,6 @@ async function loadTomorrowReminders(){
   }
 }
 
-async function uploadTextFileToDrive(filename, content){
-  if(!googleAccessToken){
-    const token = await getFreshGoogleAccessToken();
-    if(!token){
-      el('driveStatus').textContent = 'Could not connect to Google Drive — try signing out and in again.';
-      return false;
-    }
-    googleAccessToken = token;
-  }
-  return doUploadTextFile(filename, content);
-}
-
-async function doUploadTextFile(filename, content){
-  const boundary = 'qalamboundary' + Date.now();
-  // Setting mimeType to Google's native Doc format tells Drive to convert
-  // the uploaded plain text into a real, editable Google Doc automatically.
-  const metadata = {name: filename, mimeType: 'application/vnd.google-apps.document'};
-  if(sharedFolderId) metadata.parents = [sharedFolderId];
-  const body =
-    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(metadata)}\r\n` +
-    `--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${content}\r\n` +
-    `--${boundary}--`;
-  try{
-    const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${googleAccessToken}`,
-        'Content-Type': `multipart/related; boundary=${boundary}`
-      },
-      body
-    });
-    if(!res.ok){
-      const errText = await res.text();
-      throw new Error(`Drive API error ${res.status}: ${errText.slice(0,200)}`);
-    }
-    return true;
-  }catch(e){
-    console.error(e);
-    el('driveStatus').textContent = 'Upload failed: ' + (e.message || e);
-    return false;
-  }
-}
-
-async function saveNoteToDrive(){
-  const noteContent = el('noteText').value;
-  if(!noteContent){
-    el('driveStatus').textContent = 'Generate a note first.';
-    return;
-  }
-  const name = (el('patientName').value || 'session').replace(/[^a-z0-9]+/gi,'_');
-  const dateStr = (el('sessionDate').value||'').replace(/[^a-z0-9]+/gi,'_');
-  const clinicianTag = clinicianName ? `${clinicianName.replace(/[^a-z0-9]+/gi,'_')}_` : '';
-  el('driveStatus').textContent = 'Uploading to Google Drive…';
-  el('saveDriveBtn').disabled = true;
-  const noteOk = await uploadTextFileToDrive(`${clinicianTag}${name}_${dateStr}_note`, noteContent);
-  el('saveDriveBtn').disabled = false;
-  if(noteOk){
-    el('driveStatus').textContent = 'Saved to Google Drive.';
-  }
-}
-
 function populateTestRegionSelect(){
   const select = el('testRegionSelect');
   Object.keys(SPECIAL_TESTS_LIBRARY).forEach(region=>{
@@ -3790,8 +3684,6 @@ el('syncToServerBtn').addEventListener('click', syncSessionToServer);
 el('requestDeleteBtn').addEventListener('click', requestDeleteCurrentSession);
 el('downloadBtn').addEventListener('click', downloadNote);
 el('downloadPdfBtn').addEventListener('click', downloadNotePDF);
-el('connectDriveBtn').addEventListener('click', connectGoogleDrive);
-el('saveDriveBtn').addEventListener('click', saveNoteToDrive);
 el('googleClientIdInput').addEventListener('change', async (e)=>{
   googleClientId = e.target.value.trim();
   try{ await localDB.set('google_client_id', googleClientId); }catch(err){ console.error(err); }
@@ -3799,10 +3691,6 @@ el('googleClientIdInput').addEventListener('change', async (e)=>{
 el('clinicianNameInput').addEventListener('change', async (e)=>{
   clinicianName = e.target.value.trim();
   try{ await localDB.set('clinician_name', clinicianName); }catch(err){ console.error(err); }
-});
-el('sharedFolderIdInput').addEventListener('change', async (e)=>{
-  sharedFolderId = e.target.value.trim();
-  try{ await localDB.set('shared_folder_id', sharedFolderId); }catch(err){ console.error(err); }
 });
 renderDoctorColorSwatches();
 el('scheduleToggleBtn').addEventListener('click', ()=>{
@@ -4065,13 +3953,6 @@ loadSessions().then(()=>{
       el('clinicianNameInput').value = savedName.value;
     }
   }catch(e){ /* no saved name yet */ }
-  try{
-    const savedFolder = await localDB.get('shared_folder_id');
-    if(savedFolder && savedFolder.value){
-      sharedFolderId = savedFolder.value;
-      el('sharedFolderIdInput').value = savedFolder.value;
-    }
-  }catch(e){ /* no saved folder id yet */ }
   try{
     const savedColor = await localDB.get('doctor_color_id');
     if(savedColor && savedColor.value){
