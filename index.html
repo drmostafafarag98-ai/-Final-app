@@ -719,7 +719,8 @@
 
     <div style="margin-bottom:16px;">
       <label style="font-size:0.8rem;color:#5b6863;display:block;margin-bottom:6px;">Or upload an existing recording (e.g. from your phone's voice memo app):</label>
-      <input type="file" id="externalAudioInput" accept="audio/*">
+      <input type="file" id="externalAudioInput">
+      <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;">This now accepts any file type — some phones hide audio recordings when the picker is filtered to "audio only". Pick the recording file directly; we'll detect it's audio automatically.</div>
     </div>
 
     <div class="transcript" id="transcript">
@@ -1489,6 +1490,10 @@ function guessAudioMimeType(file){
 
 async function handleExternalAudioUpload(file){
   if(!file) return;
+  if(file.type && (file.type.startsWith('image/') || file.type.startsWith('video/'))){
+    el('status').textContent = `That looks like a ${file.type.startsWith('image/') ? 'photo' : 'video'}, not an audio recording — please pick the actual recording file instead.`;
+    return;
+  }
   if(!isApproved()){
     el('status').textContent = 'Sign in with Google above and get approved before processing an uploaded recording.';
     return;
@@ -1884,7 +1889,8 @@ async function transcribeSession(blob){
       transcriptLines = lines.map(text => ({speaker: 'doctor', text}));
       renderTranscript();
       el('generateBtn').disabled = false;
-      el('status').textContent = 'Transcribed. Checking terminology…';
+      el('status').textContent = 'Transcribed — saved automatically. Checking terminology…';
+      await saveSession();
       await applyTerminologyCorrection();
       el('status').textContent = 'Generating clinical note…';
       await generateNote();
@@ -2071,7 +2077,8 @@ ${sharedRules}`;
     el('noteText').style.display = 'block';
     el('notePreviewToggleBtn').textContent = '👁️ Preview with source highlighting';
     el('noteSection').style.display = 'block';
-    el('status').textContent = 'Draft ready. Review carefully before saving.';
+    el('status').textContent = 'Draft ready — saved automatically. Review carefully before finalizing.';
+    await saveSession();
   }catch(e){
     el('status').textContent = `Note generation failed: ${e.message || 'unknown error'}`;
     console.error(e);
@@ -3832,11 +3839,19 @@ el('notePreviewToggleBtn').addEventListener('click', ()=>{
     el('notePreviewToggleBtn').textContent = '✏️ Back to editing';
   }
 });
+let noteAutoSaveTimer = null;
 el('noteText').addEventListener('input', ()=>{
   if(el('noteApprovedCheckbox').checked){
     el('noteApprovedCheckbox').checked = false;
     el('status').textContent = 'Note edited — approval reset. Please review and re-approve before exporting.';
   }
+  if(noteAutoSaveTimer) clearTimeout(noteAutoSaveTimer);
+  noteAutoSaveTimer = setTimeout(async ()=>{
+    if(activeSessionId){
+      await saveSession();
+      el('status').textContent = 'Edits saved automatically.';
+    }
+  }, 2500);
 });
 el('imageUploadInput').addEventListener('change', async (e)=>{
   const files = Array.from(e.target.files || []);
@@ -3888,7 +3903,12 @@ el('syncSessionsBtn').addEventListener('click', loadSessionsFromServer);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
 
-el('patientName').addEventListener('change', (e)=> loadSurgeryDateForPatient(e.target.value));
+el('patientName').addEventListener('change', async (e)=>{
+  loadSurgeryDateForPatient(e.target.value);
+  if(activeSessionId && (transcriptLines.length > 0 || el('noteText').value)){
+    await saveSession();
+  }
+});
 el('surgeryDateInput').addEventListener('change', saveSurgeryDateForPatient);
 el('clearSurgeryDateBtn').addEventListener('click', ()=>{
   el('surgeryDateInput').value = '';
