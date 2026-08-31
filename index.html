@@ -460,14 +460,22 @@
   #printableNote.rx-mode{
     font-family:Arial,Helvetica,sans-serif;
     white-space:normal !important;
-    position:relative;
-    padding:28px 34px 24px 34px !important;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
   #printableNote.rx-mode *{
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
+    box-sizing:border-box;
+  }
+  .rx-page{
+    position:relative;
+    width:210mm;
+    min-height:297mm;
+    max-width:100%;
+    margin:0 auto;
+    padding:22mm 18mm 16mm 18mm;
+    border:1px solid #b7bfba;
   }
   .rx-dots{
     display:flex; flex-wrap:wrap; gap:6px;
@@ -488,8 +496,11 @@
   .rx-divider .line{ flex:1; border-top:2px solid var(--rx-navy,#1f3547); }
   .rx-divider .diamond{ color:var(--rx-red,#b23b3b); font-size:0.9rem; }
   .rx-namedate{ display:flex; gap:24px; align-items:baseline; font-size:0.95rem; margin:16px 0 22px 0; flex-wrap:wrap; }
-  .rx-namedate .field{ display:flex; align-items:baseline; gap:6px; flex:1; min-width:180px; }
-  .rx-namedate .field .val{ flex:1; border-bottom:1px dotted #333; padding-bottom:2px; min-height:1.1em; }
+  .rx-namedate .field{ display:flex; align-items:baseline; gap:6px; }
+  .rx-namedate .field.name .val{ width:260px; }
+  .rx-namedate .field.doctor .val{ width:220px; }
+  .rx-namedate .field.date .val{ width:130px; }
+  .rx-namedate .field .val{ display:inline-block; border-bottom:1px dotted #333; padding-bottom:2px; min-height:1.1em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .rx-body-wrap{ position:relative; min-height:180px; }
   .rx-body{ white-space:pre-wrap; font-size:1.05rem; line-height:1.9; position:relative; z-index:1; }
   .rx-watermark{
@@ -499,10 +510,11 @@
   .rx-stamp{ margin-top:40px; display:flex; justify-content:flex-end; }
   .rx-stamp img{ width:230px; height:auto; transform:rotate(-4deg); }
   .rx-footer{
-    margin-top:36px;
+    position:absolute; left:18mm; right:18mm; bottom:10mm;
     background:var(--rx-red,#b23b3b) !important; color:#fff !important;
     display:flex; justify-content:space-between; align-items:center;
-    padding:8px 20px; font-size:0.78rem;
+    flex-wrap:wrap; row-gap:4px;
+    padding:8px 20px; font-size:0.75rem;
   }
   .rx-footer .divider-v{ width:1px; align-self:stretch; background:rgba(255,255,255,0.6); margin:0 14px; }
 </style>
@@ -3750,9 +3762,10 @@ function downloadPrescriptionPdf(){
   }
   const patientName = el('patientName').value || '';
   const sessionDateVal = el('sessionDate').value || new Date().toLocaleDateString('en-GB').replace(/\//g,'/');
+  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-header"><div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">EMPOWE<span class="arrow">R</span></div><div class="rx-tagline">Physical Therapy and Rehabilitation</div></div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field"><strong>NAME:</strong><span class="val">${escapeHtml(patientName)}</span></div><div class="field" style="flex:0 0 auto;min-width:140px;"><strong>DATE:</strong><span class="val">${escapeHtml(sessionDateVal)}</span></div></div><div class="rx-body-wrap"><img src="${CLINIC_LOGO_DATA_URI}" class="rx-watermark"><div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${CLINIC_STAMP_DATA_URI}"></div><div class="rx-footer"><span>SAYED EL-MERGHANY, EL-MONTAZA, HELIOPOLIS</span><span class="divider-v"></span><span>&#9742; 01507119559</span></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="rx-header"><div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">EMPOWE<span class="arrow">R</span></div><div class="rx-tagline">Physical Therapy and Rehabilitation</div></div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field name"><strong>NAME:</strong><span class="val" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</span></div><div class="field date"><strong>DATE:</strong><span class="val" title="${escapeHtml(sessionDateVal)}">${escapeHtml(sessionDateVal)}</span></div>${doctorLabel ? `<div class="field doctor"><strong>DOCTOR:</strong><span class="val" title="${escapeHtml(doctorLabel)}">${escapeHtml(doctorLabel)}</span></div>` : ''}</div><div class="rx-body-wrap"><img src="${CLINIC_LOGO_DATA_URI}" class="rx-watermark"><div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${CLINIC_STAMP_DATA_URI}"></div><div class="rx-footer"><span>SAYED EL-MERGHANY, EL-MONTAZA, HELIOPOLIS</span><span class="divider-v"></span><span>&#9742; 01507119559</span></div></div>`;
   window.print();
   container.className = '';
 }
