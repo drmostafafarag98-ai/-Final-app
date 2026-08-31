@@ -456,6 +456,65 @@
       margin-bottom:16px;
     }
   }
+  /* ---- Soft-copy prescription (روشتة) layout ---- */
+  #printableNote.rx-mode{
+    font-family:Arial,Helvetica,sans-serif;
+    position:relative;
+    min-height:900px;
+    padding:32px 34px 90px 34px !important;
+  }
+  .rx-dots{
+    position:absolute;
+    top:20px;
+    right:24px;
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:6px;
+  }
+  .rx-dots span{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--rx-navy,#1f3547);
+    display:block;
+  }
+  .rx-dots span.lg{ width:13px; height:13px; }
+  .rx-header{ display:flex; align-items:flex-start; gap:0; margin-bottom:6px; }
+  .rx-logo-word{ font-size:2.3rem; font-weight:800; letter-spacing:0.5px; color:var(--rx-navy,#1f3547); line-height:1; }
+  .rx-logo-word .arrow{ color:var(--rx-red,#b23b3b); }
+  .rx-tagline{ font-size:0.72rem; letter-spacing:0.12em; color:var(--rx-red,#b23b3b); font-weight:600; margin-top:2px; text-transform:uppercase; }
+  .rx-divider{ display:flex; align-items:center; gap:10px; margin:14px 0 22px 0; }
+  .rx-divider .line{ flex:1; border-top:2px solid var(--rx-navy,#1f3547); }
+  .rx-divider .diamond{ color:var(--rx-red,#b23b3b); font-size:1rem; }
+  .rx-namedate{ display:flex; gap:24px; align-items:baseline; font-size:0.95rem; margin-bottom:26px; flex-wrap:wrap; }
+  .rx-namedate .field{ display:flex; align-items:baseline; gap:6px; flex:1; min-width:180px; }
+  .rx-namedate .field .val{ flex:1; border-bottom:1px dotted #333; padding-bottom:2px; min-height:1.1em; }
+  .rx-body{ white-space:pre-wrap; font-size:1.05rem; line-height:1.9; min-height:260px; position:relative; z-index:1; }
+  .rx-watermark{
+    position:absolute; left:50%; top:52%; transform:translate(-50%,-50%);
+    width:70%; opacity:0.06; z-index:0; pointer-events:none;
+  }
+  .rx-stamp{
+    margin-top:36px; display:flex; justify-content:flex-end;
+  }
+  .rx-stamp-box{
+    border:3px solid var(--rx-navy,#1f3547);
+    color:var(--rx-navy,#1f3547);
+    padding:10px 18px;
+    display:inline-block;
+    transform:rotate(-4deg);
+  }
+  .rx-stamp-box .word{ font-size:1.5rem; font-weight:800; letter-spacing:1px; }
+  .rx-stamp-box .word .arrow{ color:var(--rx-red,#b23b3b); }
+  .rx-stamp-box .sub{ font-size:0.6rem; letter-spacing:0.08em; text-transform:uppercase; border-top:1px solid var(--rx-navy,#1f3547); margin-top:2px; padding-top:2px; }
+  .rx-footer{
+    position:absolute; left:0; right:0; bottom:0;
+    background:var(--rx-red,#b23b3b); color:#fff;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:8px 20px; font-size:0.78rem;
+  }
+  .rx-footer .divider-v{ width:1px; align-self:stretch; background:rgba(255,255,255,0.6); margin:0 14px; }
+  @media print{
+    #printableNote.rx-mode{ padding:32px 34px 90px 34px !important; }
+  }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -678,9 +737,28 @@
       </div>
     </div>
 
+    <div id="prescriptionOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:560px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);">Prescription (روشتة)</span>
+          <button type="button" id="prescriptionCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+          <div style="font-size:0.78rem;color:#8a938e;margin-bottom:8px;">Uses the patient name above. Write freely below (referrals, imaging requests, instructions, etc.) — it will be laid out on the clinic letterhead when printed.</div>
+          <textarea id="prescriptionBodyText" placeholder="e.g.&#10;- X-ray on ...&#10;- ..." style="width:100%;min-height:220px;padding:12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;font-family:inherit;resize:vertical;"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
+          <button type="button" class="primary" id="downloadPrescriptionPdfBtn">Print / Save as PDF</button>
+        </div>
+      </div>
+    </div>
+
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
+    </div>
+    <div class="patient-row" style="margin-top:-8px;">
+      <button type="button" class="ghost" id="openPrescriptionBtn" style="flex:1;">🖨️ Prescription (روشتة)</button>
     </div>
 
     <div class="patient-row" style="margin-top:-8px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -3667,6 +3745,59 @@ function downloadSummaryPdf(){
   window.print();
 }
 
+function openPrescriptionOverlay(){
+  el('prescriptionOverlay').style.display = 'flex';
+  el('prescriptionBodyText').value = '';
+  el('prescriptionBodyText').focus();
+}
+
+function downloadPrescriptionPdf(){
+  const bodyText = el('prescriptionBodyText').value;
+  if(!bodyText.trim()){
+    el('status').textContent = 'Write the prescription content first.';
+    return;
+  }
+  const patientName = el('patientName').value || '';
+  const sessionDateVal = el('sessionDate').value || new Date().toLocaleDateString('en-GB').replace(/\//g,'/');
+  const container = el('printableNote');
+  container.className = 'rx-mode';
+  container.innerHTML = `
+    <div class="rx-dots">
+      <span class="lg"></span><span class="lg"></span><span class="lg"></span><span class="lg"></span><span class="lg"></span><span class="lg"></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+      <span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="rx-header">
+      <div>
+        <div class="rx-logo-word">EMPOWE<span class="arrow">R</span></div>
+        <div class="rx-tagline">Physical Therapy and Rehabilitation</div>
+      </div>
+    </div>
+    <div class="rx-divider"><span class="line"></span><span class="diamond">◆</span></div>
+    <div class="rx-divider" style="margin-top:-16px;"><span class="line"></span><span class="diamond">◆</span></div>
+    <div class="rx-namedate">
+      <div class="field"><strong>NAME:</strong><span class="val">${escapeHtml(patientName)}</span></div>
+      <div class="field" style="flex:0 0 auto;min-width:140px;"><strong>DATE:</strong><span class="val">${escapeHtml(sessionDateVal)}</span></div>
+    </div>
+    <img src="${CLINIC_LOGO_DATA_URI}" class="rx-watermark">
+    <div class="rx-body">${escapeHtml(bodyText)}</div>
+    <div class="rx-stamp">
+      <div class="rx-stamp-box">
+        <div class="word">EMPOWE<span class="arrow">R</span></div>
+        <div class="sub">Physical Therapy and Rehabilitation</div>
+      </div>
+    </div>
+    <div class="rx-footer">
+      <span>SAYED EL-MERGHANY, EL-MONTAZA, HELIOPOLIS</span>
+      <span class="divider-v"></span>
+      <span>&#9742; 01507119559</span>
+    </div>
+  `;
+  window.print();
+  container.className = '';
+}
+
 function showRecoveryControls(show){
   el('recoveryControls').style.display = show ? 'block' : 'none';
 }
@@ -3903,6 +4034,17 @@ el('patientSummaryOverlay').addEventListener('click', (e)=>{
 });
 el('downloadSummaryTxtBtn').addEventListener('click', downloadSummaryTxt);
 el('downloadSummaryPdfBtn').addEventListener('click', downloadSummaryPdf);
+el('openPrescriptionBtn').addEventListener('click', openPrescriptionOverlay);
+el('prescriptionCloseBtn').addEventListener('click', ()=>{
+  el('prescriptionOverlay').style.display = 'none';
+});
+el('prescriptionOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'prescriptionOverlay') el('prescriptionOverlay').style.display = 'none';
+});
+el('downloadPrescriptionPdfBtn').addEventListener('click', ()=>{
+  downloadPrescriptionPdf();
+  el('prescriptionOverlay').style.display = 'none';
+});
 el('voiceNoteBtn').addEventListener('click', toggleVoiceNote);
 populateExerciseRegionSelect();
 el('exerciseRegionSelect').addEventListener('change', ()=>{ el('exerciseSearchInput').value = ''; renderExerciseChecklist(); });
