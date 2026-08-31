@@ -546,6 +546,15 @@
     </div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">Current elevator code (shown here so anyone sending directions can grab it — updates instantly for everyone)</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="elevatorCodeInput" placeholder="e.g. 8965" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.9rem;font-weight:600;letter-spacing:1px;">
+        <button type="button" class="ghost" id="saveElevatorCodeBtn" style="white-space:nowrap;">Update code</button>
+      </div>
+      <div id="elevatorCodeStatus" style="font-size:0.75rem;color:#8a938e;"></div>
+    </div>
+
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
       <label style="font-size:0.78rem;color:#5b6863;">Your color on the clinic calendar</label>
       <div id="doctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
     </div>
@@ -630,6 +639,7 @@
           <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Tomorrow's appointments — send reminders</div>
           <button type="button" class="ghost" id="loadTomorrowRemindersBtn" style="font-size:0.75rem;padding:5px 10px;">Load</button>
         </div>
+        <div id="tomorrowRemindersElevatorCode" style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;"></div>
         <div id="tomorrowRemindersList"></div>
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
@@ -938,7 +948,7 @@ const EXERCISE_LIBRARY = {
 // errors on these exact, high-stakes clinical terms.
 const SPECIAL_TESTS_LIBRARY = {
   "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test","Sharp-Purser test","Alar ligament stress test","Anterior shear test","Posterior shear test"],
-  "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test","Painful arc test","Scapular Assistance Test (SAT)","Apprehension test","Relocation test","Sulcus sign","Cross-body adduction test","Lift-off test","Belly press test"],
+  "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test","Painful arc test","Scapular Assistance Test (SAT)","Apprehension test","Relocation test","Sulcus sign","Cross-body adduction test","Lift-off test","Belly press test","Scapular dyskinesis","Thoracic mobility limitations"],
   "Elbow": ["Cozen's test","Mill's test","Milking test (UCL)","Valgus stress test (elbow)","Varus stress test (elbow)","Tinel's sign (elbow / cubital tunnel)"],
   "Wrist / Hand": ["Tinel's sign","Phalen's test","Finkelstein's test"],
   "Lumbar Spine": ["Straight leg raise test","Slump test","Gaenslen's test","Prone instability test"],
@@ -3120,11 +3130,47 @@ function normalizeEgyptPhoneForWhatsApp(raw){
   return digits;
 }
 
+async function loadElevatorCode(){
+  if(!isApproved()) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/settings/elevator_code`, { headers: authHeader() });
+    if(!res.ok) return;
+    const data = await res.json();
+    const code = data.value || '';
+    el('elevatorCodeInput').value = code;
+    el('tomorrowRemindersElevatorCode').textContent = code ? `🔑 Current elevator code: ${code}` : '';
+  }catch(e){
+    console.error('Failed to load elevator code:', e);
+  }
+}
+
+async function saveElevatorCode(){
+  const code = el('elevatorCodeInput').value.trim();
+  el('elevatorCodeStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/settings/elevator_code`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ value: code })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('elevatorCodeStatus').textContent = 'Saved — everyone will see the new code.';
+    el('tomorrowRemindersElevatorCode').textContent = code ? `🔑 Current elevator code: ${code}` : '';
+  }catch(e){
+    console.error(e);
+    el('elevatorCodeStatus').textContent = 'Could not save: ' + (e.message || e);
+  }
+}
+
 async function loadTomorrowReminders(){
   if(!isApproved()){
     el('tomorrowRemindersStatus').textContent = 'Sign in with Google and get approved first.';
     return;
   }
+  loadElevatorCode();
   el('tomorrowRemindersStatus').textContent = 'Loading…';
   el('tomorrowRemindersList').innerHTML = '';
   try{
@@ -3778,6 +3824,7 @@ el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('loadTomorrowRemindersBtn').addEventListener('click', loadTomorrowReminders);
+el('saveElevatorCodeBtn').addEventListener('click', saveElevatorCode);
 
 el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
   el('appointmentNotesOverlay').style.display = 'none';
