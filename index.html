@@ -690,7 +690,8 @@
           </select>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="text" id="quickBookPatientInput" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <input type="text" id="quickBookPatientInput" list="knownPatientsList" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <datalist id="knownPatientsList"></datalist>
           <input type="tel" id="quickBookPhoneInput" placeholder="Phone (e.g. 010...)" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <button type="button" class="ghost" id="quickBookBtn">Book</button>
@@ -725,7 +726,7 @@
           <button type="button" id="editAppointmentCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
-          <input type="text" id="editAppointmentPatientInput" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          <input type="text" id="editAppointmentPatientInput" list="knownPatientsList" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <input type="tel" id="editAppointmentPhoneInput" placeholder="Phone" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <div style="display:flex;gap:8px;">
             <input type="date" id="editAppointmentDateInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
@@ -2925,8 +2926,18 @@ function renderDoctorColorSwatches(){
   container.querySelectorAll('.color-swatch-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       doctorColorId = btn.getAttribute('data-color');
-      try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
       renderDoctorColorSwatches();
+      try{ await localDB.set('doctor_color_id', doctorColorId); }catch(err){ console.error(err); }
+      if(isApproved()){
+        try{
+          const res = await fetch(`${BACKEND_URL}/api/doctors/me/color`, {
+            method: 'POST',
+            headers: { ...authHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ color: doctorColorId })
+          });
+          if(!res.ok) console.error('Could not save color to server:', await res.text());
+        }catch(err){ console.error(err); }
+      }
     });
   });
 }
@@ -4182,6 +4193,39 @@ el('clinicianNameInput').addEventListener('change', async (e)=>{
 });
 renderDoctorColorSwatches();
 renderManualDoctorColorSwatches();
+
+// "Have we seen this patient before" lookup — powers the name datalist
+// and auto-fills the phone field once the typed name matches someone
+// who's booked before, so returning patients' phone doesn't need
+// re-typing every time.
+let knownPatientsByName = {};
+async function loadKnownPatients(){
+  if(!isApproved()) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/patients`, { headers: authHeader() });
+    if(!res.ok) return;
+    const items = await res.json();
+    knownPatientsByName = {};
+    (items || []).forEach(p=>{ knownPatientsByName[p.name.toLowerCase()] = p; });
+    el('knownPatientsList').innerHTML = (items || [])
+      .map(p=> `<option value="${escapeHtml(p.name)}"></option>`).join('');
+  }catch(e){
+    console.error(e);
+  }
+}
+
+function autofillPatientPhone(nameInputId, phoneInputId){
+  const nameVal = el(nameInputId).value.trim().toLowerCase();
+  const phoneInput = el(phoneInputId);
+  const match = knownPatientsByName[nameVal];
+  if(match && match.phone && !phoneInput.value.trim()){
+    phoneInput.value = match.phone;
+  }
+}
+
+el('quickBookPatientInput').addEventListener('change', ()=> autofillPatientPhone('quickBookPatientInput', 'quickBookPhoneInput'));
+el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatientPhone('editAppointmentPatientInput', 'editAppointmentPhoneInput'));
+
 el('scheduleToggleBtn').addEventListener('click', ()=>{
   const panel = el('schedulePanel');
   const isOpen = panel.style.display !== 'none';
@@ -4190,6 +4234,7 @@ el('scheduleToggleBtn').addEventListener('click', ()=>{
     calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
     loadMonthAndDay();
     loadQuickBookDoctorOptions();
+    loadKnownPatients();
   }
 });
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
