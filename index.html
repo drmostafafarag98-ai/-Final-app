@@ -3130,6 +3130,39 @@ function normalizeEgyptPhoneForWhatsApp(raw){
   return digits;
 }
 
+// Ready-made WhatsApp message templates for the "Tomorrow's appointments"
+// list — picked per-patient from a dropdown, filled in with their name,
+// appointment time/date, and (for the elevator one) the clinic's current
+// elevator code. These are sent manually via wa.me (a plain WhatsApp deep
+// link), so — unlike the Meta API templates used for automatic sending —
+// they need no approval and can say anything, in any language, and change
+// any time.
+const WHATSAPP_TEMPLATES = {
+  reminder: {
+    label: 'Simple reminder',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `تذكير بميعادك في عيادة Empower يوم ${dateStr} الساعة ${timeStr}. لو محتاج تأجيل أو تأكيد كلمنا 🙏`
+  },
+  confirmation: {
+    label: 'Confirmation (with policy)',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `عزيزي/عزيزتي ${name}،\n\nبنكتبلك نأكد ميعادك القادم في عيادة Empower يوم ${dateStr} الساعة ${timeStr}.\nالعنوان: 92 شارع السيد المراغي، مصر الجديدة، القاهرة.\n\n📌 برجاء إرسال تأكيدك قبل الساعة 12 ظهرًا لضمان أفضل خدمة.\n\nبرجاء ملاحظة سياسة الإلغاء بتاعة العيادة:\n• في حالة الإلغاء أو التأجيل، برجاء إخطارنا قبل الميعاد بـ 5 ساعات على الأقل. الإلغاء بدون إخطار كافٍ ممكن يترتب عليه رسوم إلغاء.\n\nشاكرين تفهمك وتعاونك.\nشكرًا.\nعيادة Empower`
+  },
+  elevator: {
+    label: 'Elevator directions',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `عزيزي/عزيزتي ${name}،\n\nطريقة الوصول لعيادة Empower:\n\nالرقم المطلوب للدخول اليوم هو ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}.\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت، افتحيه وهتلاقي جواه كارت، خديه واعمليله سكان في الأسانسير، وبعدين دوسي على الدور الرابع.\n\nبعد الاستخدام، برجاء ترجعي الكارت مكانه جوه البوكس وتقفلي الغطا تاني.\n\nبرجاء التأكد إن البابين مقفولين كويس لما تدخلي العيادة ولما تخرجي منها.\n\nفي انتظارك يوم ${dateStr} الساعة ${timeStr}.\n\nمع تحيات\nعيادة Empower`
+  },
+  cancellation_policy: {
+    label: 'Cancellation policy',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `عزيزي/عزيزتي ${name}،\n\nبرجاء ملاحظة سياسة الإلغاء بتاعة العيادة:\n• رسوم إلغاء 150 جنيه بتتطبق لو الإلغاء حصل قبل الميعاد بأقل من 5 ساعات.\n• لأصحاب الباقات، إلغاء جلستين هيترتب عليه خصم جلسة واحدة من الباقة.\n\nشاكرين تفهمك وتعاونك.\nفي انتظارك.\n\nمع تحيات\nعيادة Empower`
+  }
+};
+
+let currentElevatorCode = '';
+let tomorrowRemindersData = [];
+
 async function loadElevatorCode(){
   if(!isApproved()) return;
   try{
@@ -3137,6 +3170,7 @@ async function loadElevatorCode(){
     if(!res.ok) return;
     const data = await res.json();
     const code = data.value || '';
+    currentElevatorCode = code;
     el('elevatorCodeInput').value = code;
     el('tomorrowRemindersElevatorCode').textContent = code ? `🔑 Current elevator code: ${code}` : '';
   }catch(e){
@@ -3157,6 +3191,7 @@ async function saveElevatorCode(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
+    currentElevatorCode = code;
     el('elevatorCodeStatus').textContent = 'Saved — everyone will see the new code.';
     el('tomorrowRemindersElevatorCode').textContent = code ? `🔑 Current elevator code: ${code}` : '';
   }catch(e){
@@ -3185,20 +3220,22 @@ async function loadTomorrowReminders(){
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
     const items = await res.json();
+    tomorrowRemindersData = items || [];
     if(!items || items.length === 0){
       el('tomorrowRemindersStatus').textContent = 'No appointments tomorrow.';
       return;
     }
-    el('tomorrowRemindersList').innerHTML = items.map(ev=>{
+    const templateOptions = Object.entries(WHATSAPP_TEMPLATES)
+      .map(([key, t])=> `<option value="${key}">${escapeHtml(t.label)}</option>`).join('');
+    el('tomorrowRemindersList').innerHTML = items.map((ev, idx)=>{
       const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
       const hasPhone = !!ev.patient_phone;
-      const message = `تذكير بميعادك في عيادة Empower بكرة الساعة ${timeStr}. لو محتاج تأجيل أو تأكيد كلمنا 🙏`;
-      const waLink = hasPhone ? `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}` : '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);">
+      return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;">
         <span style="font-size:0.82rem;color:#5b6863;min-width:55px;">${timeStr}</span>
-        <span style="font-size:0.85rem;flex:1;">${escapeHtml(ev.patient_name || '')}</span>
+        <span style="font-size:0.85rem;flex:1;min-width:80px;">${escapeHtml(ev.patient_name || '')}</span>
         ${hasPhone
-          ? `<a href="${waLink}" target="_blank" rel="noopener" class="ghost" style="font-size:0.75rem;padding:5px 10px;text-decoration:none;display:inline-block;">📱 Send reminder</a>`
+          ? `<select class="reminder-template-select" data-idx="${idx}" style="font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);">${templateOptions}</select>
+             <button type="button" class="ghost send-reminder-btn" data-idx="${idx}" style="font-size:0.75rem;padding:5px 10px;">📱 Send</button>`
           : `<span style="font-size:0.72rem;color:#c9b48c;">no phone on file</span>`}
       </div>`;
     }).join('');
@@ -3208,6 +3245,22 @@ async function loadTomorrowReminders(){
     el('tomorrowRemindersStatus').textContent = 'Could not load: ' + (e.message || e);
   }
 }
+
+el('tomorrowRemindersList').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.send-reminder-btn');
+  if(!btn) return;
+  const idx = parseInt(btn.dataset.idx, 10);
+  const ev = tomorrowRemindersData[idx];
+  if(!ev) return;
+  const select = el('tomorrowRemindersList').querySelector(`.reminder-template-select[data-idx="${idx}"]`);
+  const templateKey = select ? select.value : 'reminder';
+  const template = WHATSAPP_TEMPLATES[templateKey] || WHATSAPP_TEMPLATES.reminder;
+  const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+  const dateStr = ev.start_time ? new Date(ev.start_time).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'}) : '';
+  const message = template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode);
+  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
+  window.open(waLink, '_blank', 'noopener');
+});
 
 function populateTestRegionSelect(){
   const select = el('testRegionSelect');
