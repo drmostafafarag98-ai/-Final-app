@@ -473,10 +473,10 @@
   .rx-page{
     position:relative;
     width:210mm;
-    min-height:297mm;
+    min-height:268mm;
     max-width:100%;
     margin:0 auto;
-    padding:22mm 18mm 16mm 18mm;
+    padding:20mm 18mm 14mm 18mm;
     border:1px solid #b7bfba;
   }
   .rx-dots{
@@ -517,16 +517,11 @@
   .rx-footer img{ width:100%; height:auto; display:block; }
 
   /* ---- Invoice / payment receipt ---- */
-  .inv-header{ position:relative; overflow:hidden; min-height:90px; margin-bottom:6px; }
+  .inv-header{ position:relative; overflow:visible; min-height:90px; margin-bottom:6px; }
   .inv-logo-word{ font-size:2.1rem; font-weight:800; letter-spacing:0.5px; color:var(--rx-navy,#1f3547); line-height:1; }
   .inv-logo-word .arrow{ color:var(--rx-red,#b23b3b); }
   .inv-tagline{ font-size:0.72rem; letter-spacing:0.12em; color:var(--rx-red,#b23b3b); font-weight:600; margin-top:4px; text-transform:uppercase; }
-  .inv-diamonds{ position:absolute; top:0; right:0; width:220px; height:90px; }
-  .inv-diamonds span{ position:absolute; width:66px; height:66px; transform:rotate(45deg); }
-  .inv-diamonds span.d1{ background:#1c4a4a; top:8px; right:110px; }
-  .inv-diamonds span.d2{ background:#b23b3b; top:8px; right:60px; }
-  .inv-diamonds span.d3{ background:#b23b3b; top:38px; right:150px; }
-  .inv-diamonds span.d4{ width:0; height:0; border-left:16px solid transparent; border-right:16px solid transparent; border-bottom:26px solid #1f3547; background:none; transform:none; top:0; right:95px; }
+  .inv-diamonds{ position:absolute; top:0; right:0; width:180px; height:90px; }
   .inv-title{ font-size:1.7rem; font-weight:800; color:#1f4e8c; text-decoration:underline; margin:28px 0 30px 0; }
   .inv-fields{ display:flex; flex-direction:column; gap:14px; font-size:1.05rem; margin-bottom:34px; }
   .inv-fields .field{ display:flex; align-items:baseline; gap:10px; }
@@ -4234,7 +4229,7 @@ function downloadInvoicePdf(){
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page"><div class="inv-header"><div class="inv-diamonds"><span class="d1"></span><span class="d2"></span><span class="d3"></span><span class="d4"></span></div><div class="inv-logo-word">EMPOWE<span class="arrow">R</span></div><div class="inv-tagline">Physical Therapy and Rehabilitation</div></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">${escapeHtml(doctorName)}</div>` : ''}<div class="sig-label">Signature</div><div class="sig-line"></div></div></div><div class="rx-stamp" style="margin-top:30px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="inv-header"><div class="inv-diamonds"><svg viewBox="0 0 180 90" xmlns="http://www.w3.org/2000/svg"><polygon points="70,10 115,10 155,55 110,55" fill="#1c4a4a"/><polygon points="95,10 140,10 175,50 135,50" fill="#b23b3b" opacity="0.92"/><polygon points="60,55 95,55 115,80 80,80" fill="#b23b3b"/><polygon points="105,0 120,18 90,18" fill="#1f3547"/></svg></div><div class="inv-logo-word">EMPOWE<span class="arrow">R</span></div><div class="inv-tagline">Physical Therapy and Rehabilitation</div></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
   window.print();
   container.className = '';
 }
