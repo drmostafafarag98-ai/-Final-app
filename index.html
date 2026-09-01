@@ -573,6 +573,7 @@
       <label style="font-size:0.78rem;color:#5b6863;">Sign in (this is the only login — no shared password. The clinic owner approves each doctor by their real Google account.)</label>
       <button type="button" class="ghost" id="doctorCheckinBtn">Sign in with Google</button>
       <button type="button" class="ghost" id="doctorSignOutBtn" style="display:none;">Sign out</button>
+      <button type="button" class="ghost" id="doctorSignOutEverywhereBtn" style="display:none;font-size:0.75rem;color:var(--danger);">Sign out on all devices</button>
       <div id="checkinStatus" style="font-size:0.8rem;color:#5b6863;"></div>
       <div style="display:flex;gap:8px;">
         <input type="text" id="displayNameInput" placeholder="Your display name (e.g. Dr. Ahmed Farag) — shown instead of your email" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -1178,6 +1179,7 @@ let wakeLock = null;
 // web. Baking it in means doctors never configure anything: they just
 // sign in with their email.
 const GOOGLE_CLIENT_ID = '334702495452-o72rokafql0sl020710og866p7m4t8em.apps.googleusercontent.com';
+const APP_SESSION_SECONDS = 30 * 24 * 60 * 60; // matches server's APP_SESSION_DAYS (30)
 let googleClientId = GOOGLE_CLIENT_ID;
 let clinicianName = '';
 let doctorColorId = '';
@@ -2705,6 +2707,15 @@ async function callDoctorCheckinEndpoint(){
   if(!doctor || !doctor.email){
     throw new Error('Server response was missing expected doctor data — check Render logs for the real cause.');
   }
+  // The server hands back our own long-lived (30-day) session token the
+  // first time it sees a real Google sign-in. From here on we use THAT
+  // instead of the short-lived Google access token — this is what makes
+  // "stay signed in" no longer depend on Google's ~1hr token lifetime.
+  if(doctor.session_token){
+    googleAccessToken = doctor.session_token;
+    saveGoogleTokenToSession(doctor.session_token, APP_SESSION_SECONDS);
+    delete doctor.session_token;
+  }
   signedInDoctor = doctor;
   updateSignInStatusUI();
   if(signedInDoctor.status === 'approved'){
@@ -2774,11 +2785,32 @@ async function doctorCheckIn(){
 }
 
 function doctorSignOut(){
+  const tokenToRevoke = googleAccessToken;
+  if(tokenToRevoke){
+    fetch(`${BACKEND_URL}/api/auth/logout`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + tokenToRevoke }
+    }).catch(err=> console.error('Logout revoke failed (non-fatal):', err));
+  }
   googleAccessToken = '';
   try{ localStorage.removeItem('google_access_token'); }catch(e){}
   signedInDoctor = null;
   updateSignInStatusUI();
   setCheckinMessage('Signed out.', '#5b6863');
+}
+
+// For a lost/stolen phone: revokes every device's session for this
+// account immediately, instead of waiting out the 30-day expiry.
+async function doctorSignOutEverywhere(){
+  if(!confirm('This signs out every device currently signed in as you (including this one). Continue?')) return;
+  try{
+    await fetch(`${BACKEND_URL}/api/auth/logout-all`, { method: 'POST', headers: authHeader() });
+  }catch(err){ console.error('Logout-all failed:', err); }
+  googleAccessToken = '';
+  try{ localStorage.removeItem('google_access_token'); }catch(e){}
+  signedInDoctor = null;
+  updateSignInStatusUI();
+  setCheckinMessage('Signed out on all devices.', '#5b6863');
 }
 
 // On page load, if we still have a valid cached token, skip the popup
@@ -2840,6 +2872,7 @@ function updateSignInStatusUI(){
   const mainCard = el('mainSignInCard');
   const mainStatus = el('mainSignInStatus');
   el('doctorSignOutBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
+  el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
@@ -4625,6 +4658,7 @@ el('clearSurgeryDateBtn').addEventListener('click', ()=>{
 
 el('doctorCheckinBtn').addEventListener('click', doctorCheckIn);
 el('doctorSignOutBtn').addEventListener('click', doctorSignOut);
+el('doctorSignOutEverywhereBtn').addEventListener('click', doctorSignOutEverywhere);
 el('mainSignInBtn').addEventListener('click', doctorCheckIn);
 el('showBootstrapBtn').addEventListener('click', ()=>{
   const row = el('bootstrapOwnerRow');
