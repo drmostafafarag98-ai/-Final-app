@@ -2807,6 +2807,7 @@ async function callDoctorCheckinEndpoint(){
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
     loadDashboardSummary();
+    loadElevatorCode();
   }
 }
 
