@@ -169,6 +169,41 @@
     border-bottom:1px solid var(--gold);
     padding-bottom:8px;
   }
+  .admin-tab-btn{
+    flex:1;
+    background:transparent;
+    border:none;
+    border-bottom:2px solid transparent;
+    margin-bottom:-2px;
+    padding:10px 8px;
+    font-size:0.85rem;
+    font-weight:600;
+    color:#5b6863;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .admin-tab-btn.active{
+    color:var(--maroon);
+    border-bottom-color:var(--gold);
+  }
+  .dashboard-card{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-start;
+    gap:4px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-left:3px solid var(--maroon);
+    border-radius:var(--radius);
+    padding:12px 18px;
+    min-width:150px;
+    cursor:pointer;
+    font-family:inherit;
+    text-align:left;
+  }
+  .dashboard-card:hover{ border-left-color:var(--gold); }
+  .dashboard-card-num{ font-size:1.6rem; font-weight:700; color:var(--maroon); line-height:1; }
+  .dashboard-card-label{ font-size:0.75rem; color:#5b6863; }
   .sidebar h2{
     font-size:0.78rem;
     letter-spacing:0.03em;
@@ -561,6 +596,13 @@
 <div class="admin-drawer" id="adminDrawerPanel">
   <button id="adminDrawerCloseBtn" style="position:absolute;top:10px;left:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
   <h2 style="margin-left:30px;">Admin & Settings</h2>
+
+  <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--line);">
+    <button type="button" class="admin-tab-btn active" id="adminTabSettingsBtn" data-tab="settings">⚙️ Settings</button>
+    <button type="button" class="admin-tab-btn" id="adminTabTeamBtn" data-tab="team">👥 Team</button>
+  </div>
+
+  <div id="adminTabPanelSettings">
     <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
@@ -643,6 +685,9 @@
     </div>
 
     </div>
+  </div>
+
+  <div id="adminTabPanelTeam" style="display:none;">
     <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;">🔐 Pending Deletions (owner only)</button>
     <div id="pendingDeletesPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="pendingDeletesList"></div>
@@ -660,6 +705,7 @@
       <div id="doctorColorsList"></div>
       <div id="doctorColorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
+  </div>
 
 </div>
 
@@ -681,6 +727,17 @@
         <button type="button" class="ghost" id="mainSignInBtn" style="font-weight:600;">Sign in with Google</button>
         <div id="mainSignInStatus" style="font-size:0.8rem;color:#5b6863;margin-top:6px;">You must sign in and be approved by the clinic owner before recording or generating notes.</div>
       </div>
+    </div>
+
+    <div id="dashboardSummary" style="display:none;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
+      <button type="button" id="dashboardTodayCard" class="dashboard-card">
+        <div class="dashboard-card-num" id="dashboardTodayCount">–</div>
+        <div class="dashboard-card-label">Today's appointments</div>
+      </button>
+      <button type="button" id="dashboardPendingCard" class="dashboard-card" style="display:none;">
+        <div class="dashboard-card-num" id="dashboardPendingCount">–</div>
+        <div class="dashboard-card-label">Pending approvals</div>
+      </button>
     </div>
 
     <div id="browserWarning" class="warn-box" style="display:none;">
@@ -2716,6 +2773,7 @@ async function callDoctorCheckinEndpoint(){
   updateSignInStatusUI();
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
+    loadDashboardSummary();
   }
 }
 
@@ -2963,6 +3021,34 @@ async function updateDisplayName(){
   }catch(e){
     console.error(e);
     setCheckinMessage('Could not save name: ' + (e.message || e), '#a33d3d');
+  }
+}
+
+async function loadDashboardSummary(){
+  if(!isApproved()) return;
+  el('dashboardSummary').style.display = 'flex';
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(res.ok){
+      const items = await res.json();
+      const activeCount = (items || []).filter(ev => ev.status !== 'cancelled').length;
+      el('dashboardTodayCount').textContent = activeCount;
+    }
+  }catch(e){ console.error('Dashboard today-count failed:', e); }
+
+  if(signedInDoctor.role === 'owner'){
+    try{
+      const res = await fetch(`${BACKEND_URL}/api/doctors`, { headers: authHeader() });
+      if(res.ok){
+        const items = await res.json();
+        const pendingCount = (items || []).filter(d => d.status === 'pending').length;
+        el('dashboardPendingCount').textContent = pendingCount;
+        el('dashboardPendingCard').style.display = pendingCount > 0 ? 'flex' : 'none';
+      }
+    }catch(e){ console.error('Dashboard pending-count failed:', e); }
   }
 }
 
@@ -4651,6 +4737,28 @@ function closeAdminDrawer(){
   el('adminDrawerBackdrop').style.display = 'none';
 }
 el('adminDrawerToggleBtn').addEventListener('click', openAdminDrawer);
+
+function setAdminTab(tab){
+  el('adminTabPanelSettings').style.display = tab === 'settings' ? 'block' : 'none';
+  el('adminTabPanelTeam').style.display = tab === 'team' ? 'block' : 'none';
+  el('adminTabSettingsBtn').classList.toggle('active', tab === 'settings');
+  el('adminTabTeamBtn').classList.toggle('active', tab === 'team');
+}
+el('adminTabSettingsBtn').addEventListener('click', ()=> setAdminTab('settings'));
+el('adminTabTeamBtn').addEventListener('click', ()=> setAdminTab('team'));
+el('dashboardTodayCard').addEventListener('click', ()=>{
+  el('schedulePanel').style.display = 'block';
+  calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
+  loadMonthAndDay();
+  loadQuickBookDoctorOptions();
+  el('schedulePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+el('dashboardPendingCard').addEventListener('click', ()=>{
+  openAdminDrawer();
+  setAdminTab('team');
+  el('doctorsPanel').style.display = 'block';
+  loadDoctorsRoster();
+});
 el('adminDrawerCloseBtn').addEventListener('click', closeAdminDrawer);
 el('adminDrawerBackdrop').addEventListener('click', closeAdminDrawer);
 
