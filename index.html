@@ -803,6 +803,11 @@
           <select id="bulkReminderTemplateSelect" style="flex:1;min-width:160px;font-size:0.75rem;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel);"></select>
           <button type="button" class="ghost" id="sendAllRemindersBtn" style="font-size:0.75rem;padding:5px 10px;">📱 Send to everyone on this list</button>
         </div>
+        <div id="reminderQueueBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--gold);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;">
+          <span id="reminderQueueStatus" style="font-size:0.82rem;font-weight:600;color:var(--maroon);flex:1;min-width:140px;"></span>
+          <button type="button" class="primary" id="reminderQueueNextBtn" style="font-size:0.8rem;padding:6px 14px;">📱 Send next</button>
+          <button type="button" class="ghost" id="reminderQueueStopBtn" style="font-size:0.78rem;padding:6px 12px;">Stop</button>
+        </div>
         <div id="tomorrowRemindersList"></div>
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
@@ -2664,35 +2669,6 @@ function waitForGoogleLibrary(timeoutMs){
 let googleTokenClient = null;
 let lastGoogleAuthFailureReason = '';
 let authRequestInFlight = false;
-const GOOGLE_REDIRECT_URI = window.location.origin + window.location.pathname;
-
-// Handles every Google auth result: a fresh "Sign in with Google" tap, OR
-// (in redirect mode) the page reloading after Google sends the browser
-// back here with the token in the URL. Registered once as the token
-// client's permanent callback — redirect mode doesn't let us "await" a
-// promise across the navigation, so this is the one place a successful
-// or failed sign-in gets handled and shown in the UI.
-async function handleGoogleAuthResult(response){
-  authRequestInFlight = false;
-  if(response && response.access_token){
-    lastGoogleAuthFailureReason = '';
-    googleAccessToken = response.access_token;
-    saveGoogleTokenToSession(response.access_token, response.expires_in);
-    setCheckinMessage('Signing in…', '#5b6863');
-    try{
-      await callDoctorCheckinEndpoint();
-      loadDashboardSummary();
-    }catch(e){
-      console.error(e);
-      setCheckinMessage('Sign-in failed: ' + (e.message || e), '#a33d3d');
-    }
-  } else if(response && response.error){
-    lastGoogleAuthFailureReason = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
-    setCheckinMessage(lastGoogleAuthFailureReason, '#a33d3d');
-  }
-  // No response and no error (e.g. a plain page load with nothing to
-  // resume) — nothing to show, leave the UI as-is.
-}
 
 async function initGoogleTokenClient(){
   if(googleTokenClient) return true;
@@ -2710,15 +2686,12 @@ async function initGoogleTokenClient(){
   googleTokenClient = google.accounts.oauth2.initTokenClient({
     client_id: googleClientId,
     scope: 'https://www.googleapis.com/auth/userinfo.email',
-    ux_mode: 'redirect',
-    redirect_uri: GOOGLE_REDIRECT_URI,
-    callback: handleGoogleAuthResult,
+    callback: ()=>{}, // overwritten per-call by whichever flow triggers requestAccessToken
     error_callback: (err)=>{
       console.error('Google OAuth error:', err);
       authRequestInFlight = false;
       lastGoogleAuthFailureReason = 'Google reported an error: ' + (err && err.type ? err.type : JSON.stringify(err)) + '. This often means popups are blocked for this browser, or you\'re in an in-app browser (e.g. opened from WhatsApp/Instagram) — try opening the link directly in Chrome or Safari instead.';
       googleAccessToken = '';
-      setCheckinMessage(lastGoogleAuthFailureReason, '#a33d3d');
     }
   });
   return true;
@@ -2811,34 +2784,65 @@ async function callDoctorCheckinEndpoint(){
   }
 }
 
-// In redirect mode, requesting a token navigates the whole page away to
-// Google and back — there's no token to hand back synchronously. This
-// just kicks the request off; handleGoogleAuthResult (registered once on
-// the token client) picks up the result on the page load that follows.
-async function ensureGoogleAuth(){
-  if(googleAccessToken) return googleAccessToken;
-  if(!(await initGoogleTokenClient())) return null;
-  if(authRequestInFlight) return null;
-  authRequestInFlight = true;
-  lastGoogleAuthFailureReason = '';
-  try{
-    googleTokenClient.requestAccessToken();
-  }catch(e){
-    authRequestInFlight = false;
-    lastGoogleAuthFailureReason = 'Could not open Google sign-in: ' + (e.message || e);
-  }
-  return null; // page is navigating away (or the request failed synchronously)
+function ensureGoogleAuth(){
+  if(googleAccessToken) return Promise.resolve(googleAccessToken);
+  const attempt = new Promise(async (resolve)=>{
+    if(!(await initGoogleTokenClient())){
+      resolve(null);
+      return;
+    }
+    let waited = 0;
+    const tryRequest = ()=>{
+      if(authRequestInFlight && waited < 2000){
+        waited += 150;
+        setTimeout(tryRequest, 150);
+        return;
+      }
+      authRequestInFlight = true;
+      googleTokenClient.callback = (response)=>{
+        authRequestInFlight = false;
+        if(response && response.access_token){
+          googleAccessToken = response.access_token;
+          saveGoogleTokenToSession(response.access_token, response.expires_in);
+          resolve(googleAccessToken);
+        } else {
+          if(response && response.error){
+            lastGoogleAuthFailureReason = `Google sign-in error: ${response.error}${response.error_description ? ' — ' + response.error_description : ''}`;
+          } else if(!lastGoogleAuthFailureReason){
+            lastGoogleAuthFailureReason = 'Google sign-in returned no result — the window may have been closed before finishing.';
+          }
+          resolve(null);
+        }
+      };
+      googleTokenClient.requestAccessToken();
+    };
+    tryRequest();
+  });
+  const timeout = new Promise((resolve)=>{
+    setTimeout(()=>{
+      if(!lastGoogleAuthFailureReason){
+        lastGoogleAuthFailureReason = 'Google sign-in timed out with no response. Try again, or open this page directly in Chrome/Safari rather than from another app.';
+      }
+      resolve(null);
+    }, 15000);
+  });
+  return Promise.race([attempt, timeout]);
 }
 
 async function doctorCheckIn(){
   lastGoogleAuthFailureReason = '';
   setCheckinMessage('Opening Google sign-in…', '#5b6863');
-  await ensureGoogleAuth();
-  if(lastGoogleAuthFailureReason){
-    setCheckinMessage(lastGoogleAuthFailureReason, '#a33d3d');
+  const token = await ensureGoogleAuth();
+  if(!token){
+    setCheckinMessage(lastGoogleAuthFailureReason || 'Google sign-in failed or was cancelled.', '#a33d3d');
+    return;
   }
-  // Otherwise the page is navigating to Google right now — nothing more
-  // to do here; handleGoogleAuthResult takes over once we're back.
+  try{
+    await callDoctorCheckinEndpoint();
+  }catch(e){
+    console.error(e);
+    setCheckinMessage('Sign-in failed: ' + (e.message || e), '#a33d3d');
+  }
 }
 
 function doctorSignOut(){
@@ -2879,16 +2883,10 @@ async function doctorSignOutEverywhere(){
 // fails, we fall back to needing an explicit "Sign in" tap, same as
 // before, rather than getting stuck.
 // On load, only try resuming via our own cached 30-day app session token
-// (no Google interaction at all — just a fetch). We deliberately don't
-// attempt a silent Google re-auth automatically: in redirect mode (needed
-// for iOS "Add to Home Screen" apps, which block the old popup flow) that
-// would mean silently navigating the whole page away and back on every
-// cold visit, which is a worse experience than just showing "Sign in with
-// Google" and letting the person tap it once every ~30 days.
+// (no Google interaction at all — just a fetch). No automatic popup
+// attempt — if there's no cached app session, we just show "Sign in with
+// Google" and let the person tap it.
 async function trySilentResumeSignIn(){
-  // Still register the token client early so that if this page load IS a
-  // return from a Google redirect, handleGoogleAuthResult catches it.
-  initGoogleTokenClient();
   const token = loadGoogleTokenFromSession();
   if(!token) return;
   googleAccessToken = token;
@@ -3683,7 +3681,7 @@ const WHATSAPP_TEMPLATES = {
   elevator: {
     label: 'Elevator directions',
     build: (name, timeStr, dateStr, elevatorCode) =>
-      `عزيزي/عزيزتي ${name}،\n\nطريقة الوصول لعيادة Empower:\n\nالشفرة: ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت وشد غطا البوكس عليك هتلاقي جوا شفرة، خودها اعملها اسكان في الأسانسير، ودوسي على الدور الرابع، وبعدين رجّع الشفرة مكانها واقفل البوكس وغيّر الأرقام.\n\nبس اتأكدي إنك أول ما تدخلي البابين مقفولين كويس، ولما تخرجي برضو اقفليهم كويس.\n\nفي انتظارك يوم ${dateStr} الساعة ${timeStr}.\n\nمع تحيات\nعيادة Empower`
+      `طريقة الوصول لعيادة Empower:\n\nالشفرة: ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت وشد غطا البوكس عليك هتلاقي جوا شفرة، خودها اعملها اسكان في الأسانسير، ودوسي على الدور الرابع، وبعدين رجّع الشفرة مكانها واقفل البوكس وغيّر الأرقام.\n\nبس اتأكدي إنك أول ما تدخلي البابين مقفولين كويس، ولما تخرجي برضو اقفليهم كويس.\n\nفي انتظارك يوم ${dateStr} الساعة ${timeStr}.\n\nمع تحيات\nعيادة Empower`
   },
   cancellation_policy: {
     label: 'Cancellation policy',
@@ -3860,36 +3858,56 @@ el('tomorrowRemindersList').addEventListener('change', async (e)=>{
 });
 
 // Sends the bulk-selected template to every appointment on the current
-// list that has a phone number, one WhatsApp deep-link tap at a time.
-// WhatsApp itself has no "send to many" via link, and mobile browsers
-// will only open one wa.me link per user gesture — so this opens the
-// first one immediately, then queues the rest a beat apart so returning
-// from WhatsApp back to the browser lets the next one fire. It still
-// means one app-switch per patient, but the person only has to pick the
-// template and tap once instead of doing that for every appointment.
-async function sendAllReminders(){
+// list that has a phone number — one tap per patient. Mobile browsers
+// throttle/kill JS timers as soon as the tab goes to the background
+// (which happens the instant WhatsApp opens as its own app), so an
+// auto-advancing timer chain silently stops after the first message.
+// A "Send next" button sidesteps that entirely: each send is a fresh,
+// genuine tap, which also avoids popup-blocking issues.
+let reminderQueue = [];
+let reminderQueueIndex = 0;
+let reminderQueueTemplateKey = 'reminder';
+
+function sendAllReminders(){
   const templateKey = el('bulkReminderTemplateSelect').value;
   const targets = tomorrowRemindersData.filter(ev => !!ev.patient_phone);
   if(targets.length === 0){
     el('tomorrowRemindersStatus').textContent = 'No one on this list has a phone number on file.';
     return;
   }
-  if(!confirm(`Send the "${(WHATSAPP_TEMPLATES[templateKey]||{}).label || templateKey}" message to ${targets.length} patient(s)? You'll be switched to WhatsApp once per patient.`)) return;
-  let i = 0;
-  const sendNext = ()=>{
-    if(i >= targets.length){
-      el('tomorrowRemindersStatus').textContent = `Sent to ${targets.length} patient(s).`;
-      return;
-    }
-    const ev = targets[i];
-    const message = buildReminderMessage(ev, templateKey);
-    const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
-    window.open(waLink, '_blank', 'noopener');
-    i++;
-    el('tomorrowRemindersStatus').textContent = `Sending ${i} of ${targets.length}…`;
-    setTimeout(sendNext, 1200);
-  };
-  sendNext();
+  reminderQueue = targets;
+  reminderQueueIndex = 0;
+  reminderQueueTemplateKey = templateKey;
+  el('reminderQueueBar').style.display = 'flex';
+  updateReminderQueueStatus();
+}
+
+function updateReminderQueueStatus(){
+  const total = reminderQueue.length;
+  if(reminderQueueIndex >= total){
+    el('reminderQueueStatus').textContent = `Done — sent to all ${total} patient(s).`;
+    el('reminderQueueNextBtn').style.display = 'none';
+    return;
+  }
+  const nextName = reminderQueue[reminderQueueIndex].patient_name || '(unnamed)';
+  el('reminderQueueStatus').textContent = `${reminderQueueIndex} of ${total} sent — next: ${nextName}`;
+  el('reminderQueueNextBtn').style.display = 'inline-block';
+}
+
+function sendNextInReminderQueue(){
+  if(reminderQueueIndex >= reminderQueue.length) return;
+  const ev = reminderQueue[reminderQueueIndex];
+  const message = buildReminderMessage(ev, reminderQueueTemplateKey);
+  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
+  window.open(waLink, '_blank', 'noopener');
+  reminderQueueIndex++;
+  updateReminderQueueStatus();
+}
+
+function stopReminderQueue(){
+  reminderQueue = [];
+  reminderQueueIndex = 0;
+  el('reminderQueueBar').style.display = 'none';
 }
 
 function populateTestRegionSelect(){
@@ -4609,6 +4627,8 @@ el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
 el('sendAllRemindersBtn').addEventListener('click', sendAllReminders);
+el('reminderQueueNextBtn').addEventListener('click', sendNextInReminderQueue);
+el('reminderQueueStopBtn').addEventListener('click', stopReminderQueue);
 el('saveElevatorCodeBtn').addEventListener('click', saveElevatorCode);
 
 el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
