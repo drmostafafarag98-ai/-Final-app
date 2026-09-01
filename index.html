@@ -611,6 +611,8 @@
       <button type="button" class="ghost" id="doctorCheckinBtn">Sign in with Google</button>
       <button type="button" class="ghost" id="doctorSignOutBtn" style="display:none;">Sign out</button>
       <button type="button" class="ghost" id="doctorSignOutEverywhereBtn" style="display:none;font-size:0.75rem;color:var(--danger);">Sign out on all devices</button>
+      <button type="button" class="ghost" id="enableNotificationsBtn" style="display:none;">🔔 Enable notifications on this device</button>
+      <div id="notificationsStatus" style="font-size:0.75rem;color:#8a938e;"></div>
       <div id="checkinStatus" style="font-size:0.8rem;color:#5b6863;"></div>
       <div style="display:flex;gap:8px;">
         <input type="text" id="displayNameInput" placeholder="Your display name (e.g. Dr. Ahmed Farag) — shown instead of your email" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -2678,7 +2680,7 @@ async function initGoogleTokenClient(){
     lastGoogleAuthFailureReason = 'No Google Client ID is set.';
     return false;
   }
-  const ready = await waitForGoogleLibrary(5000);
+  const ready = await waitForGoogleLibrary(12000);
   if(!ready){
     lastGoogleAuthFailureReason = 'Google sign-in library did not load in time — check your internet connection and try again.';
     return false;
@@ -2904,6 +2906,8 @@ function updateSignInStatusUI(){
   const mainStatus = el('mainSignInStatus');
   el('doctorSignOutBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
+  el('enableNotificationsBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
+  if(signedInDoctor) refreshNotificationButtonLabel();
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
@@ -4916,6 +4920,84 @@ el('sessionDate').value = todayStr();
 // fires to the actual click, the less likely a browser is to silently
 // block the popup as "not a direct user gesture" with no error at all.
 waitForGoogleLibrary(8000).then(ready=>{ if(ready) initGoogleTokenClient(); });
+// ---- Push notifications ----
+// A doctor's device subscribes here once; the backend then pushes an OS
+// notification (works even with the app fully closed) whenever one of
+// their appointments is booked, edited, or cancelled. iOS Safari only
+// supports this for a page that's been "Added to Home Screen" (iOS
+// 16.4+); Android Chrome supports it in a normal tab too.
+const VAPID_PUBLIC_KEY = 'BCrnbbAzLC09f9IrEmQ2xFhK9-NWKiM6DvrZqJ9KWtfYmMJYUxgBzbBJNacShWZHuQOnagnJcWKDyv8DyXEaOs4';
+
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for(let i = 0; i < rawData.length; ++i) outputArray[i] = rawData.charCodeAt(i);
+  return outputArray;
+}
+
+let swRegistration = null;
+async function registerServiceWorker(){
+  if(!('serviceWorker' in navigator)) return null;
+  try{
+    swRegistration = await navigator.serviceWorker.register('./sw.js');
+    return swRegistration;
+  }catch(e){
+    console.error('Service worker registration failed:', e);
+    return null;
+  }
+}
+
+async function refreshNotificationButtonLabel(){
+  const btn = el('enableNotificationsBtn');
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    btn.style.display = 'none';
+    return;
+  }
+  if(!swRegistration) swRegistration = await navigator.serviceWorker.getRegistration('./');
+  const existing = swRegistration ? await swRegistration.pushManager.getSubscription() : null;
+  btn.textContent = existing ? '🔔 Notifications on for this device' : '🔔 Enable notifications on this device';
+}
+
+async function enableNotifications(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    el('notificationsStatus').textContent = 'This browser doesn\'t support push notifications.';
+    return;
+  }
+  el('notificationsStatus').textContent = 'Setting up…';
+  try{
+    const reg = await registerServiceWorker();
+    if(!reg) throw new Error('Could not register the notification service worker.');
+    const permission = await Notification.requestPermission();
+    if(permission !== 'granted'){
+      el('notificationsStatus').textContent = 'Notifications were not allowed — you can enable them later in your browser/site settings.';
+      return;
+    }
+    let subscription = await reg.pushManager.getSubscription();
+    if(!subscription){
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      });
+    }
+    const res = await fetch(`${BACKEND_URL}/api/push/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ subscription })
+    });
+    if(!res.ok) throw new Error('Server error ' + res.status);
+    el('notificationsStatus').textContent = 'Notifications are on for this device.';
+    refreshNotificationButtonLabel();
+  }catch(e){
+    console.error(e);
+    el('notificationsStatus').textContent = 'Could not enable notifications: ' + (e.message || e);
+  }
+}
+
+el('enableNotificationsBtn').addEventListener('click', enableNotifications);
+registerServiceWorker();
+
 trySilentResumeSignIn();
 loadSessions().then(()=>{
   if(Object.keys(sessions).length === 0){
