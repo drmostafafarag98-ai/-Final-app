@@ -709,11 +709,18 @@
       </div>
 
       <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Tomorrow's appointments — send reminders</div>
-          <button type="button" class="ghost" id="loadTomorrowRemindersBtn" style="font-size:0.75rem;padding:5px 10px;">Load</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+          <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Send appointment reminders</div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" class="ghost reminders-day-btn" id="remindersDayTodayBtn" data-offset="0" style="font-size:0.75rem;padding:5px 10px;">Today</button>
+            <button type="button" class="ghost reminders-day-btn" id="remindersDayTomorrowBtn" data-offset="1" style="font-size:0.75rem;padding:5px 10px;">Tomorrow</button>
+          </div>
         </div>
         <div id="tomorrowRemindersElevatorCode" style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <select id="bulkReminderTemplateSelect" style="flex:1;min-width:160px;font-size:0.75rem;padding:5px 8px;border:1px solid var(--line);border-radius:4px;background:var(--panel);"></select>
+          <button type="button" class="ghost" id="sendAllRemindersBtn" style="font-size:0.75rem;padding:5px 10px;">📱 Send to everyone on this list</button>
+        </div>
         <div id="tomorrowRemindersList"></div>
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
@@ -3467,6 +3474,7 @@ const WHATSAPP_TEMPLATES = {
 
 let currentElevatorCode = '';
 let tomorrowRemindersData = [];
+let remindersDayOffset = 1; // 0 = today, 1 = tomorrow (default, matches prior behavior)
 
 async function loadElevatorCode(){
   if(!isApproved()) return;
@@ -3505,6 +3513,15 @@ async function saveElevatorCode(){
   }
 }
 
+function setRemindersDay(offset){
+  remindersDayOffset = offset;
+  el('remindersDayTodayBtn').style.background = offset === 0 ? 'var(--maroon)' : '';
+  el('remindersDayTodayBtn').style.color = offset === 0 ? '#fff' : '';
+  el('remindersDayTomorrowBtn').style.background = offset === 1 ? 'var(--maroon)' : '';
+  el('remindersDayTomorrowBtn').style.color = offset === 1 ? '#fff' : '';
+  loadTomorrowReminders();
+}
+
 async function loadTomorrowReminders(){
   if(!isApproved()){
     el('tomorrowRemindersStatus').textContent = 'Sign in with Google and get approved first.';
@@ -3515,9 +3532,9 @@ async function loadTomorrowReminders(){
   el('tomorrowRemindersList').innerHTML = '';
   try{
     const now = new Date();
-    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const start = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 0,0,0);
-    const end = new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate(), 23,59,59);
+    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + remindersDayOffset);
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0,0,0);
+    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23,59,59);
     const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
     const res = await fetch(url, { headers: authHeader() });
     if(!res.ok){
@@ -3526,12 +3543,14 @@ async function loadTomorrowReminders(){
     }
     const items = await res.json();
     tomorrowRemindersData = items || [];
+    const dayLabel = remindersDayOffset === 0 ? 'today' : 'tomorrow';
     if(!items || items.length === 0){
-      el('tomorrowRemindersStatus').textContent = 'No appointments tomorrow.';
+      el('tomorrowRemindersStatus').textContent = `No appointments ${dayLabel}.`;
       return;
     }
     const templateOptions = Object.entries(WHATSAPP_TEMPLATES)
       .map(([key, t])=> `<option value="${key}">${escapeHtml(t.label)}</option>`).join('');
+    el('bulkReminderTemplateSelect').innerHTML = templateOptions;
     el('tomorrowRemindersList').innerHTML = items.map((ev, idx)=>{
       const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
       const hasPhone = !!ev.patient_phone;
@@ -3551,6 +3570,15 @@ async function loadTomorrowReminders(){
   }
 }
 
+function buildReminderMessage(ev, templateKey){
+  const template = WHATSAPP_TEMPLATES[templateKey] || WHATSAPP_TEMPLATES.reminder;
+  const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+  const timeStrEn = ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}) : '';
+  const dateStr = ev.start_time ? new Date(ev.start_time).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'}) : '';
+  const dateStrEn = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'}) : '';
+  return template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn);
+}
+
 el('tomorrowRemindersList').addEventListener('click', (e)=>{
   const btn = e.target.closest('.send-reminder-btn');
   if(!btn) return;
@@ -3559,15 +3587,43 @@ el('tomorrowRemindersList').addEventListener('click', (e)=>{
   if(!ev) return;
   const select = el('tomorrowRemindersList').querySelector(`.reminder-template-select[data-idx="${idx}"]`);
   const templateKey = select ? select.value : 'reminder';
-  const template = WHATSAPP_TEMPLATES[templateKey] || WHATSAPP_TEMPLATES.reminder;
-  const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
-  const timeStrEn = ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}) : '';
-  const dateStr = ev.start_time ? new Date(ev.start_time).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'}) : '';
-  const dateStrEn = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'}) : '';
-  const message = template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn);
+  const message = buildReminderMessage(ev, templateKey);
   const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
   window.open(waLink, '_blank', 'noopener');
 });
+
+// Sends the bulk-selected template to every appointment on the current
+// list that has a phone number, one WhatsApp deep-link tap at a time.
+// WhatsApp itself has no "send to many" via link, and mobile browsers
+// will only open one wa.me link per user gesture — so this opens the
+// first one immediately, then queues the rest a beat apart so returning
+// from WhatsApp back to the browser lets the next one fire. It still
+// means one app-switch per patient, but the person only has to pick the
+// template and tap once instead of doing that for every appointment.
+async function sendAllReminders(){
+  const templateKey = el('bulkReminderTemplateSelect').value;
+  const targets = tomorrowRemindersData.filter(ev => !!ev.patient_phone);
+  if(targets.length === 0){
+    el('tomorrowRemindersStatus').textContent = 'No one on this list has a phone number on file.';
+    return;
+  }
+  if(!confirm(`Send the "${(WHATSAPP_TEMPLATES[templateKey]||{}).label || templateKey}" message to ${targets.length} patient(s)? You'll be switched to WhatsApp once per patient.`)) return;
+  let i = 0;
+  const sendNext = ()=>{
+    if(i >= targets.length){
+      el('tomorrowRemindersStatus').textContent = `Sent to ${targets.length} patient(s).`;
+      return;
+    }
+    const ev = targets[i];
+    const message = buildReminderMessage(ev, templateKey);
+    const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
+    window.open(waLink, '_blank', 'noopener');
+    i++;
+    el('tomorrowRemindersStatus').textContent = `Sending ${i} of ${targets.length}…`;
+    setTimeout(sendNext, 1200);
+  };
+  sendNext();
+}
 
 function populateTestRegionSelect(){
   const select = el('testRegionSelect');
@@ -4242,7 +4298,9 @@ el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
-el('loadTomorrowRemindersBtn').addEventListener('click', loadTomorrowReminders);
+el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
+el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('sendAllRemindersBtn').addEventListener('click', sendAllReminders);
 el('saveElevatorCodeBtn').addEventListener('click', saveElevatorCode);
 
 el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
