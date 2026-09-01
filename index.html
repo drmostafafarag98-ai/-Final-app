@@ -773,6 +773,7 @@
         <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
           <button type="button" class="primary" id="saveEditAppointmentBtn">Save changes</button>
           <button type="button" class="ghost" id="cancelAppointmentBtn" style="color:var(--danger);border-color:var(--danger);">Cancel appointment</button>
+          <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
         </div>
       </div>
     </div>
@@ -3231,13 +3232,15 @@ function renderScheduleList(events){
     const timeStr = ev.start_time
       ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
       : 'All day';
-    const colorHex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
+    const isCancelled = ev.status === 'cancelled';
+    const colorHex = isCancelled ? '#a33d3d' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e');
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const noteCount = (ev.notes && ev.notes.length) || 0;
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isMine ? 'font-weight:600;' : ''}">
-      <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;"></span>
-      <span style="font-size:0.82rem;color:#5b6863;min-width:60px;">${timeStr}</span>
-      <span style="font-size:0.85rem;flex:1;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isMine && !isCancelled ? 'font-weight:600;' : ''}">
+      <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
+      <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
+      <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      ${isCancelled ? '<span style="font-size:0.7rem;color:#a33d3d;font-weight:700;border:1px solid #a33d3d;border-radius:4px;padding:1px 6px;">CANCELLED</span>' : ''}
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
       <button type="button" class="ghost edit-appointment-btn" data-id="${ev.id}" style="font-size:0.72rem;padding:3px 8px;">✏️</button>
     </div>`;
@@ -3278,6 +3281,9 @@ async function openEditAppointment(id){
   select.innerHTML = '<option value="">— keep current —</option>' + doctorOptions;
   const currentMatch = Object.values(quickBookDoctorsByEmail).find(d=> d.name === ev.doctor_name);
   if(currentMatch) select.value = currentMatch.email;
+  const isCancelled = ev.status === 'cancelled';
+  el('cancelAppointmentBtn').style.display = isCancelled ? 'none' : 'inline-block';
+  el('restoreAppointmentBtn').style.display = isCancelled ? 'inline-block' : 'none';
 }
 
 async function saveEditAppointment(){
@@ -3327,12 +3333,13 @@ async function saveEditAppointment(){
 
 async function cancelAppointment(){
   if(!currentEditAppointment) return;
-  if(!confirm('Cancel this appointment? This cannot be undone.')) return;
+  if(!confirm('Mark this appointment as cancelled? It stays on the calendar, shown in red, instead of being removed.')) return;
   el('editAppointmentStatus').textContent = 'Cancelling…';
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}`, {
-      method: 'DELETE',
-      headers: authHeader()
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'cancelled' })
     });
     if(!res.ok){
       const errText = await res.text();
@@ -3343,6 +3350,27 @@ async function cancelAppointment(){
   }catch(e){
     console.error(e);
     el('editAppointmentStatus').textContent = 'Could not cancel: ' + (e.message || e);
+  }
+}
+
+async function restoreAppointment(){
+  if(!currentEditAppointment) return;
+  el('editAppointmentStatus').textContent = 'Restoring…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'confirmed' })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('editAppointmentOverlay').style.display = 'none';
+    await loadMonthAndDay();
+  }catch(e){
+    console.error(e);
+    el('editAppointmentStatus').textContent = 'Could not restore: ' + (e.message || e);
   }
 }
 
@@ -4501,6 +4529,7 @@ el('editAppointmentOverlay').addEventListener('click', (e)=>{
 });
 el('saveEditAppointmentBtn').addEventListener('click', saveEditAppointment);
 el('cancelAppointmentBtn').addEventListener('click', cancelAppointment);
+el('restoreAppointmentBtn').addEventListener('click', restoreAppointment);
 el('appointmentNoteSendBtn').addEventListener('click', sendAppointmentNote);
 el('appointmentNoteInput').addEventListener('keydown', (e)=>{
   if(e.key === 'Enter'){ e.preventDefault(); sendAppointmentNote(); }
