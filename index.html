@@ -3468,7 +3468,17 @@ const WHATSAPP_TEMPLATES = {
   cancellation_policy: {
     label: 'Cancellation policy',
     build: (name, timeStr, dateStr, elevatorCode) =>
-      `عزيزي/عزيزتي ${name}،\n\nبرجاء ملاحظة سياسة الإلغاء بتاعة العيادة:\n• رسوم إلغاء 150 جنيه بتتطبق لو الإلغاء حصل قبل الميعاد بأقل من 5 ساعات.\n• لأصحاب الباقات، إلغاء جلستين هيترتب عليه خصم جلسة واحدة من الباقة.\n\nشاكرين تفهمك وتعاونك.\nفي انتظارك.\n\nمع تحيات\nعيادة Empower`
+      `Kindly note our cancellation policy:\n• A cancellation fee of *150 EGP* applies if the appointment is cancelled less than 5 hours before the scheduled time.\n• For package holders, cancelling *two sessions* will result in one session being deducted from your package.\n\nThank you for your understanding and cooperation.\nWe look forward to seeing you.\n\nBest regards`
+  },
+  package_policy: {
+    label: 'Package validity & refund policy',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `Hello 🌷\n\nThank you for choosing Empower Physiotherapy Clinic.\n\nPlease note our Package Validity & Refund Policy:\n\nPackage Validity:\n• 6-session package: Valid for 3 weeks from the date of the first session.\n• 9-session package: Valid for 1 month from the date of the first session.\n• 12-session package: Valid for 6 weeks from the date of the first session.\n\nRefund Policy:\n• If a refund is requested within the same calendar month in which the payment was made, the remaining balance will be refunded in full, after deducting the value of the sessions already used.\n• If a refund is requested after the end of the calendar month in which the payment was made, 50% of the remaining balance will be refunded, after deducting the value of the sessions already used.\n• No refund will be issued once the package validity period has expired, regardless of the number of unused sessions.\n\nThank you for your understanding and cooperation. We look forward to supporting your recovery and well-being. 💙\n\nEmpower Physiotherapy Clinic`
+  },
+  recovery_session_policy: {
+    label: 'Recovery session policy',
+    build: (name, timeStr, dateStr, elevatorCode) =>
+      `Thank you for choosing Empower Physiotherapy Clinic.\n\nPlease note our Recovery Session Policy:\n\nEach Recovery Session includes treatment for the following muscle groups:\n• Upper Back\n• Lower Back\n• Quadriceps\n• Hamstrings\n• Calves\n\nAny additional body part requested beyond those listed above will be charged at an additional fee of EGP 200 per body part.\n\nThank you for your understanding and cooperation. 💙\n\nEmpower Physiotherapy Clinic`
   }
 };
 
