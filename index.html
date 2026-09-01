@@ -461,6 +461,7 @@
   #printableNote.rx-mode{
     font-family:Arial,Helvetica,sans-serif;
     white-space:normal !important;
+    padding:0 !important;
     -webkit-print-color-adjust:exact;
     print-color-adjust:exact;
   }
@@ -840,6 +841,8 @@
           <input type="text" id="invoicePatientInput" placeholder="Patient's name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Date</label>
           <input type="date" id="invoiceDateInput" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          <label style="font-size:0.78rem;color:#5b6863;">Doctor's name (appears above the signature)</label>
+          <input type="text" id="invoiceDoctorInput" placeholder="Doctor's name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Number of sessions (1 for a single session, or a package size)</label>
           <input type="number" id="invoiceSessionsInput" min="1" step="1" placeholder="e.g. 1 or 6" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Price per session (EGP)</label>
@@ -2559,21 +2562,26 @@ async function rejectDelete(id){
 }
 
 // ---- App session token (ours, not Google's) ----
+// Stored in localStorage (not sessionStorage) so it survives fully closing
+// and reopening the app/browser tab, not just a page refresh — a Google
+// access token is only good for about an hour either way, but this at
+// least means "closed the app for 10 minutes" doesn't force a fresh
+// sign-in on its own.
 function saveGoogleTokenToSession(token, expiresInSeconds){
   try{
     const expiresAt = Date.now() + ((expiresInSeconds || 3300) * 1000) - 60000; // 1 min safety margin
-    sessionStorage.setItem('google_access_token', JSON.stringify({ token, expiresAt }));
-  }catch(e){ /* sessionStorage unavailable — not fatal, just means refresh will re-prompt */ }
+    localStorage.setItem('google_access_token', JSON.stringify({ token, expiresAt }));
+  }catch(e){ /* storage unavailable — not fatal, just means refresh will re-prompt */ }
 }
 
 function loadGoogleTokenFromSession(){
   try{
-    const raw = sessionStorage.getItem('google_access_token');
+    const raw = localStorage.getItem('google_access_token');
     if(!raw) return null;
     const parsed = JSON.parse(raw);
     if(!parsed || !parsed.token || !parsed.expiresAt) return null;
     if(Date.now() >= parsed.expiresAt){
-      sessionStorage.removeItem('google_access_token');
+      localStorage.removeItem('google_access_token');
       return null;
     }
     return parsed.token;
@@ -2767,27 +2775,65 @@ async function doctorCheckIn(){
 
 function doctorSignOut(){
   googleAccessToken = '';
-  try{ sessionStorage.removeItem('google_access_token'); }catch(e){}
+  try{ localStorage.removeItem('google_access_token'); }catch(e){}
   signedInDoctor = null;
   updateSignInStatusUI();
   setCheckinMessage('Signed out.', '#5b6863');
 }
 
-// On page load, if we still have a valid cached token from earlier this
-// tab session, skip the popup entirely and just re-confirm status — this
-// is what makes a refresh not force a fresh sign-in every time within the
-// same tab. A new tab / browser restart will need a fresh sign-in.
+// On page load, if we still have a valid cached token, skip the popup
+// entirely and just re-confirm status. If the cached token has expired
+// (tokens last ~1hr), try one silent Google re-auth attempt first —
+// prompt:'' asks Google to reuse the browser's existing Google session
+// without showing any popup. That only works if the browser still has an
+// active Google session and isn't blocking third-party sign-in; if it
+// fails, we fall back to needing an explicit "Sign in" tap, same as
+// before, rather than getting stuck.
 async function trySilentResumeSignIn(){
   const token = loadGoogleTokenFromSession();
-  if(!token) return;
-  googleAccessToken = token;
-  try{
-    await callDoctorCheckinEndpoint();
-  }catch(e){
-    console.error('Silent resume failed:', e);
-    googleAccessToken = '';
-    try{ sessionStorage.removeItem('google_access_token'); }catch(err){}
+  if(token){
+    googleAccessToken = token;
+    try{
+      await callDoctorCheckinEndpoint();
+      return;
+    }catch(e){
+      console.error('Silent resume failed:', e);
+      googleAccessToken = '';
+      try{ localStorage.removeItem('google_access_token'); }catch(err){}
+    }
   }
+  await trySilentGoogleReauth();
+}
+
+function trySilentGoogleReauth(){
+  return new Promise(async (resolve)=>{
+    if(!(await initGoogleTokenClient())){ resolve(); return; }
+    if(authRequestInFlight){ resolve(); return; }
+    authRequestInFlight = true;
+    let settled = false;
+    const finish = async ()=>{
+      if(settled) return;
+      settled = true;
+      authRequestInFlight = false;
+      resolve();
+    };
+    googleTokenClient.callback = async (response)=>{
+      if(response && response.access_token){
+        googleAccessToken = response.access_token;
+        saveGoogleTokenToSession(response.access_token, response.expires_in);
+        try{ await callDoctorCheckinEndpoint(); }catch(e){ console.error('Silent reauth check-in failed:', e); googleAccessToken = ''; }
+      }
+      finish();
+    };
+    try{
+      googleTokenClient.requestAccessToken({ prompt: '' });
+    }catch(e){
+      console.error('Silent reauth request failed:', e);
+      finish();
+    }
+    // Safety timeout in case Google never calls back (e.g. silently blocked).
+    setTimeout(finish, 4000);
+  });
 }
 
 function updateSignInStatusUI(){
@@ -4126,6 +4172,7 @@ function openInvoiceOverlay(){
   const today = new Date();
   const pad = n => String(n).padStart(2,'0');
   el('invoiceDateInput').value = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+  el('invoiceDoctorInput').value = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   el('invoiceSessionsInput').value = '';
   el('invoicePriceInput').value = '';
   el('invoiceTotalInput').value = '';
@@ -4142,6 +4189,7 @@ function recalcInvoiceTotal(){
 function downloadInvoicePdf(){
   const patientName = el('invoicePatientInput').value.trim();
   const dateVal = el('invoiceDateInput').value;
+  const doctorName = el('invoiceDoctorInput').value.trim();
   const sessions = el('invoiceSessionsInput').value;
   const price = el('invoicePriceInput').value;
   const total = el('invoiceTotalInput').value;
@@ -4153,7 +4201,7 @@ function downloadInvoicePdf(){
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page"><div class="inv-header"><div class="inv-diamonds"><span class="d1"></span><span class="d2"></span><span class="d3"></span><span class="d4"></span></div><div class="inv-logo-word">EMPOWE<span class="arrow">R</span></div><div class="inv-tagline">Physical Therapy and Rehabilitation</div></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div></div></div><div class="rx-stamp" style="margin-top:30px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="inv-header"><div class="inv-diamonds"><span class="d1"></span><span class="d2"></span><span class="d3"></span><span class="d4"></span></div><div class="inv-logo-word">EMPOWE<span class="arrow">R</span></div><div class="inv-tagline">Physical Therapy and Rehabilitation</div></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-bottom:4px;">${escapeHtml(doctorName)}</div>` : ''}<div class="sig-label">Signature</div><div class="sig-line"></div></div></div><div class="rx-stamp" style="margin-top:30px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
   window.print();
   container.className = '';
 }
