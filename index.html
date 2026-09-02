@@ -826,6 +826,21 @@
     </div>
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
+      <label style="font-size:0.78rem;color:#5b6863;">🧪 Test the WhatsApp Cloud API (send yourself a real message before trusting it with real patients)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="tel" id="waTestPhone" placeholder="Your phone, e.g. 01012345678" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <select id="waTestTemplate" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <option value="appointment_confirmation">Confirmation (needs name/date/time)</option>
+          <option value="cancellation_policy">Cancellation policy (needs name/date/time)</option>
+          <option value="package_policy">Package policy (no variables)</option>
+          <option value="recovery_session_policy">Recovery session policy (no variables)</option>
+        </select>
+        <button type="button" class="ghost" id="waTestSendBtn" style="white-space:nowrap;">Send test</button>
+      </div>
+      <div id="waTestStatus" style="font-size:0.75rem;color:#8a938e;"></div>
+    </div>
+
+    <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
       <label style="font-size:0.78rem;color:#5b6863;">Your color on the clinic calendar</label>
       <div id="doctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
     </div>
@@ -5005,6 +5020,34 @@ el('sendAllRemindersBtn').addEventListener('click', sendAllReminders);
 el('reminderQueueNextBtn').addEventListener('click', sendNextInReminderQueue);
 el('reminderQueueStopBtn').addEventListener('click', stopReminderQueue);
 el('saveElevatorCodeBtn').addEventListener('click', saveElevatorCode);
+el('waTestSendBtn').addEventListener('click', async ()=>{
+  const phone = el('waTestPhone').value.trim();
+  const templateName = el('waTestTemplate').value;
+  if(!phone){
+    el('waTestStatus').textContent = 'Enter a phone number first.';
+    return;
+  }
+  el('waTestStatus').textContent = 'Sending…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/whatsapp/send-reminder`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({
+        patientPhone: phone,
+        patientName: 'Test Patient',
+        appointmentDate: 'Thursday, 3 September',
+        appointmentTime: '9:00 AM',
+        templateName
+      })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    el('waTestStatus').textContent = `Sent! Check WhatsApp on ${phone} now. (message id: ${data.messageId || 'n/a'})`;
+  }catch(e){
+    console.error(e);
+    el('waTestStatus').textContent = 'Failed: ' + (e.message || e);
+  }
+});
 
 el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
   el('appointmentNotesOverlay').style.display = 'none';
