@@ -407,6 +407,17 @@
     font-size:0.9rem;
   }
   button.ghost:hover{background:#f0e6d2;}
+  button.save-action{
+    background:transparent;
+    border:2px solid var(--maroon);
+    color:var(--maroon);
+    font-weight:700;
+    padding:9px 16px;
+    border-radius:var(--radius);
+    cursor:pointer;
+    font-size:0.9rem;
+  }
+  button.save-action:hover{ background:#eaf1ef; }
   .session-type-btn.active, .mode-btn.active, .provider-btn.active, .aux-provider-btn.active{
     background:var(--maroon);
     color:#fff;
@@ -1173,12 +1184,12 @@
           <label for="noteApprovedCheckbox" style="font-size:0.83rem;color:#6b5842;cursor:pointer;">I have reviewed this note (including checking the highlighted AI-inferred content above) and approve it for the patient record. Required before exporting a PDF.</label>
         </div>
         <div class="actions-row">
-          <button class="ghost" id="saveNoteBtn">Save to session</button>
+          <button class="save-action" id="saveNoteBtn">💾 Save to session</button>
           <button class="ghost" id="downloadBtn">Download .txt</button>
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
         </div>
         <div class="actions-row" style="margin-top:10px;">
-          <button class="ghost" id="syncToServerBtn">☁️ Save to clinic server</button>
+          <button class="save-action" id="syncToServerBtn">☁️ Save to clinic server</button>
           <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);">🗑️ Request delete (needs owner approval)</button>
         </div>
         <div class="status" id="syncStatus" style="margin-top:6px;margin-bottom:0;"></div>
