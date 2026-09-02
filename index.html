@@ -49,6 +49,42 @@
     flex-wrap:wrap;
     border-bottom:4px double var(--gold);
   }
+  #mainNavBar{
+    position:fixed;
+    top:0;
+    left:0;
+    bottom:0;
+    width:62px;
+    background:var(--maroon-deep);
+    border-right:2px solid var(--gold);
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    padding-top:10px;
+    z-index:30;
+  }
+  .main-nav-btn{
+    background:transparent;
+    border:none;
+    color:#cdd9d5;
+    padding:14px 4px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    cursor:pointer;
+    font-family:inherit;
+  }
+  .main-nav-icon{ font-size:1.4rem; }
+  .main-nav-label{ font-size:0.62rem; letter-spacing:0.02em; }
+  .main-nav-btn.active{
+    background:rgba(184,137,79,0.22);
+    color:#f3e6c8;
+    border-right:3px solid var(--gold);
+  }
+  #appBody{
+    margin-left:62px;
+  }
   header h1{
     font-size:1.6rem;
     margin:0;
@@ -583,6 +619,19 @@
   <div id="splashTag">PT Session Scribe</div>
 </div>
 
+<div id="mainNavBar">
+  <button type="button" class="main-nav-btn" id="navCalendarBtn" title="Calendar">
+    <span class="main-nav-icon">📅</span>
+    <span class="main-nav-label">Calendar</span>
+  </button>
+  <button type="button" class="main-nav-btn active" id="navDocumentationBtn" title="Documentation">
+    <span class="main-nav-icon">📝</span>
+    <span class="main-nav-label">Docs</span>
+  </button>
+</div>
+
+<div id="appBody">
+
 <header>
   <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
@@ -752,8 +801,8 @@
       Confirm the patient has agreed to this session being recorded before you start.
     </div>
 
-    <button type="button" id="scheduleToggleBtn" class="ghost" style="margin-bottom:14px;">📅 Calendar</button>
-    <div id="schedulePanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
+    <div id="calendarView" style="display:none;">
+    <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
         <span style="font-size:0.9rem;font-weight:700;color:var(--maroon);" id="calMonthLabel"></span>
@@ -813,6 +862,7 @@
         <div id="tomorrowRemindersList"></div>
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
+    </div>
     </div>
 
     <div id="editAppointmentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
@@ -917,6 +967,7 @@
         </div>
       </div>
     </div>
+    <div id="documentationView">
     <div class="section-title" style="margin-top:28px;">Patient</div>
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
@@ -1077,7 +1128,9 @@
         </div>
       </div>
     </div>
+    </div>
   </div>
+</div>
 </div>
 
 <div id="printableNote"></div>
@@ -2805,6 +2858,30 @@ async function loadSessionsFromServer(){
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
     const serverSessions = await res.json();
+    const serverIds = new Set((serverSessions || []).map(s=> s.id));
+
+    // A session that's genuinely gone from the server (deleted, e.g. via
+    // an approved delete request) previously just stayed stuck in the
+    // sidebar forever, since this function only ever added/updated local
+    // entries and never removed any. Fix: track which IDs we've actually
+    // confirmed synced from the server before, and if one of THOSE is
+    // now missing, remove it locally too. A session we've never confirmed
+    // synced (e.g. a brand-new draft not saved yet) is never in that set,
+    // so it's never at risk of being pruned by this.
+    let previouslySynced = [];
+    try{
+      const raw = await localDB.get('synced_session_ids');
+      previouslySynced = JSON.parse(raw.value) || [];
+    }catch(e){ /* first run — nothing tracked yet */ }
+    for(const id of previouslySynced){
+      if(id === activeSessionId) continue;
+      if(!serverIds.has(id) && sessions[id]){
+        delete sessions[id];
+        try{ await localDB.delete('session:' + id); }catch(e){ /* non-fatal */ }
+      }
+    }
+    try{ await localDB.set('synced_session_ids', JSON.stringify(Array.from(serverIds))); }catch(e){ /* non-fatal */ }
+
     let addedOrUpdated = 0;
     for(const s of (serverSessions || [])){
       // Never clobber a session that's currently open and possibly being
@@ -4706,17 +4783,28 @@ function autofillPatientPhone(nameInputId, phoneInputId){
 el('quickBookPatientInput').addEventListener('change', ()=> autofillPatientPhone('quickBookPatientInput', 'quickBookPhoneInput'));
 el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatientPhone('editAppointmentPatientInput', 'editAppointmentPhoneInput'));
 
-el('scheduleToggleBtn').addEventListener('click', ()=>{
-  const panel = el('schedulePanel');
-  const isOpen = panel.style.display !== 'none';
-  panel.style.display = isOpen ? 'none' : 'block';
-  if(!isOpen){
+// ---- Top-level view switcher: Calendar vs Documentation ----
+// Documentation owns the Sessions sidebar (☰ button in the header) — it
+// only makes sense while looking at patient notes, so it's hidden while
+// the Calendar view is active instead of floating globally.
+function switchMainView(view){
+  const isCalendar = view === 'calendar';
+  el('calendarView').style.display = isCalendar ? 'block' : 'none';
+  el('documentationView').style.display = isCalendar ? 'none' : 'block';
+  el('navCalendarBtn').classList.toggle('active', isCalendar);
+  el('navDocumentationBtn').classList.toggle('active', !isCalendar);
+  el('sidebarToggleBtn').style.display = isCalendar ? 'none' : 'inline-block';
+  if(isCalendar){
+    if(el('sidebarPanel').classList.contains('open')) closeSidebar();
     calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
     loadMonthAndDay();
     loadQuickBookDoctorOptions();
     loadKnownPatients();
   }
-});
+}
+el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
+el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
+
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
@@ -4881,11 +4969,8 @@ function setAdminTab(tab){
 el('adminTabSettingsBtn').addEventListener('click', ()=> setAdminTab('settings'));
 el('adminTabTeamBtn').addEventListener('click', ()=> setAdminTab('team'));
 el('dashboardTodayCard').addEventListener('click', ()=>{
-  el('schedulePanel').style.display = 'block';
-  calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
-  loadMonthAndDay();
-  loadQuickBookDoctorOptions();
-  el('schedulePanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  switchMainView('calendar');
+  el('calendarView').scrollIntoView({ behavior: 'smooth', block: 'start' });
 });
 el('dashboardPendingCard').addEventListener('click', ()=>{
   openAdminDrawer();
