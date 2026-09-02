@@ -780,6 +780,16 @@
       </div>
     </div>
 
+    <div id="passwordSignInCard" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;">
+      <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:10px;">Or sign in with email &amp; password</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="email" id="passwordLoginEmail" placeholder="Email" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+        <input type="password" id="passwordLoginPassword" placeholder="Password" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+        <button type="button" class="ghost" id="passwordLoginBtn">Sign in</button>
+      </div>
+      <div id="passwordLoginStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+    </div>
+
     <div id="dashboardSummary" style="display:none;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
       <button type="button" id="dashboardTodayCard" class="dashboard-card">
         <div class="dashboard-card-num" id="dashboardTodayCount">–</div>
@@ -2909,6 +2919,23 @@ async function loadSessionsFromServer(){
   }
 }
 
+// Shared by every login path (Google checkin, email/password login) —
+// takes the doctor object the server returned and finishes signing in.
+function applyLoginResult(doctor){
+  if(doctor.session_token){
+    googleAccessToken = doctor.session_token;
+    saveGoogleTokenToSession(doctor.session_token, APP_SESSION_SECONDS);
+    delete doctor.session_token;
+  }
+  signedInDoctor = doctor;
+  updateSignInStatusUI();
+  if(signedInDoctor.status === 'approved'){
+    loadSessionsFromServer();
+    loadDashboardSummary();
+    loadElevatorCode();
+  }
+}
+
 async function callDoctorCheckinEndpoint(){
   // Render's free tier puts the backend to sleep after inactivity — the
   // very first request after that can fail outright (not just be slow)
@@ -2943,23 +2970,37 @@ async function callDoctorCheckinEndpoint(){
   if(!doctor || !doctor.email){
     throw new Error('Server response was missing expected doctor data — check Render logs for the real cause.');
   }
-  // The server hands back our own long-lived (30-day) session token the
-  // first time it sees a real Google sign-in. From here on we use THAT
-  // instead of the short-lived Google access token — this is what makes
-  // "stay signed in" no longer depend on Google's ~1hr token lifetime.
-  if(doctor.session_token){
-    googleAccessToken = doctor.session_token;
-    saveGoogleTokenToSession(doctor.session_token, APP_SESSION_SECONDS);
-    delete doctor.session_token;
+  applyLoginResult(doctor);
+}
+
+async function passwordLogin(){
+  const email = el('passwordLoginEmail').value.trim();
+  const password = el('passwordLoginPassword').value;
+  if(!email || !password){
+    el('passwordLoginStatus').textContent = 'Enter your email and password.';
+    return;
   }
-  signedInDoctor = doctor;
-  updateSignInStatusUI();
-  if(signedInDoctor.status === 'approved'){
-    loadSessionsFromServer();
-    loadDashboardSummary();
-    loadElevatorCode();
+  el('passwordLoginStatus').textContent = 'Signing in…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    const doctor = await res.json();
+    applyLoginResult(doctor);
+    el('passwordLoginStatus').textContent = '';
+    el('passwordLoginPassword').value = '';
+  }catch(e){
+    console.error(e);
+    el('passwordLoginStatus').textContent = e.message || 'Sign-in failed.';
   }
 }
+el('passwordLoginBtn').addEventListener('click', passwordLogin);
 
 // In redirect mode, requesting a token navigates the whole page away to
 // Google and back — there's no token to hand back synchronously. This
@@ -3051,6 +3092,7 @@ async function trySilentResumeSignIn(){
 function updateSignInStatusUI(){
   const mainCard = el('mainSignInCard');
   const mainStatus = el('mainSignInStatus');
+  el('passwordSignInCard').style.display = signedInDoctor ? 'none' : 'block';
   el('doctorSignOutBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('enableNotificationsBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
@@ -3231,8 +3273,20 @@ function renderDoctorsRoster(items){
         </select>
         <button type="button" class="ghost merge-doctor-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Merge</button>
       </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);align-items:center;">
+        <span style="font-size:0.72rem;color:#8a938e;">Email/password login:</span>
+        <input type="password" class="set-password-input" data-email="${d.email}" placeholder="Set a password" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);min-width:120px;">
+        <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
+      </div>
     </div>`;
   }).join('');
+  container.querySelectorAll('.set-password-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const email = btn.getAttribute('data-email');
+      const input = container.querySelector(`.set-password-input[data-email="${email}"]`);
+      setDoctorPassword(email, input.value, input);
+    });
+  });
   container.querySelectorAll('.merge-doctor-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const removeEmail = btn.getAttribute('data-email');
@@ -3245,6 +3299,30 @@ function renderDoctorsRoster(items){
       mergeDoctors(keepEmail, removeEmail);
     });
   });
+}
+
+async function setDoctorPassword(email, password, inputEl){
+  if(!password || password.length < 4){
+    el('doctorsStatus').textContent = 'Password must be at least 4 characters.';
+    return;
+  }
+  el('doctorsStatus').textContent = 'Setting password…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/set-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ password })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    el('doctorsStatus').textContent = `Password set for ${email}. Tell them the password directly — they sign in with it on the "email & password" form.`;
+    if(inputEl) inputEl.value = '';
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not set password: ' + (e.message || e);
+  }
 }
 
 async function mergeDoctors(keepEmail, removeEmail){
