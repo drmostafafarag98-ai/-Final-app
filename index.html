@@ -140,6 +140,79 @@
     margin-top:10px;
     animation:splashFadeIn 0.8s ease 0.3s both;
   }
+  #loginGate{
+    position:fixed;
+    inset:0;
+    z-index:500;
+    background:var(--paper);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  #loginGate.hidden{ display:none; }
+  #loginGateCard{
+    width:100%;
+    max-width:360px;
+    background:var(--panel);
+    border:2px solid var(--gold);
+    border-radius:var(--radius);
+    padding:32px 26px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+  }
+  #loginGateLogo{
+    font-family:'Aref Ruqaa','Amiri',serif;
+    font-weight:700;
+    font-size:2.6rem;
+    color:var(--maroon);
+    text-align:center;
+    margin-bottom:2px;
+  }
+  #loginGateTag{
+    text-align:center;
+    color:#5b6863;
+    font-size:0.85rem;
+    margin-bottom:14px;
+  }
+  #loginGateCard input{
+    padding:11px 14px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    background:var(--paper);
+    font-size:0.9rem;
+    font-family:inherit;
+  }
+  #loginGateDivider{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color:#a9b3ae;
+    font-size:0.78rem;
+    margin:6px 0;
+  }
+  #loginGateDivider::before, #loginGateDivider::after{
+    content:'';
+    flex:1;
+    border-top:1px solid var(--line);
+  }
+  #mainSignInBtn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    width:100%;
+    background:#fff;
+    color:#3c4043;
+    border:1px solid #dadce0;
+    border-radius:var(--radius);
+    padding:11px 14px;
+    font-size:0.9rem;
+    font-weight:600;
+    cursor:pointer;
+    font-family:inherit;
+  }
   @keyframes splashPop{
     0%{ transform:scale(0.6); opacity:0; }
     60%{ transform:scale(1.08); opacity:1; }
@@ -619,6 +692,28 @@
   <div id="splashTag">PT Session Scribe</div>
 </div>
 
+<div id="loginGate">
+  <div id="loginGateCard">
+    <div id="loginGateLogo" lang="ar" dir="rtl">مُسَاعِد</div>
+    <div id="loginGateTag">PT session scribe — sign in to continue</div>
+
+    <input type="email" id="passwordLoginEmail" placeholder="Email" autocomplete="username">
+    <input type="password" id="passwordLoginPassword" placeholder="Password" autocomplete="current-password">
+    <button type="button" class="primary" id="passwordLoginBtn" style="width:100%;">Sign in</button>
+    <div id="passwordLoginStatus" style="font-size:0.78rem;color:#8a938e;min-height:1.2em;"></div>
+
+    <div id="loginGateDivider"><span>or</span></div>
+
+    <button type="button" id="mainSignInBtn">
+      <span style="width:20px;height:20px;border-radius:50%;background:#fff;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <span style="font-family:Arial,sans-serif;font-size:12px;font-weight:700;color:#4285F4;">G</span>
+      </span>
+      Continue with Google
+    </button>
+    <div id="mainSignInStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;min-height:1.2em;"></div>
+  </div>
+</div>
+
 <div id="mainNavBar">
   <button type="button" class="main-nav-btn" id="navCalendarBtn" title="Calendar">
     <span class="main-nav-icon">📅</span>
@@ -770,25 +865,6 @@
   </div>
 
   <div class="main">
-    <div id="mainSignInCard" style="display:flex;align-items:center;gap:14px;background:var(--panel);border:2px solid var(--gold);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;">
-      <div style="width:38px;height:38px;border-radius:50%;background:#fff;border:1.5px solid #dadce0;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,0.12);">
-        <span style="font-family:Arial,sans-serif;font-size:19px;font-weight:700;color:#4285F4;">G</span>
-      </div>
-      <div style="flex:1;">
-        <button type="button" class="ghost" id="mainSignInBtn" style="font-weight:600;">Sign in with Google</button>
-        <div id="mainSignInStatus" style="font-size:0.8rem;color:#5b6863;margin-top:6px;">You must sign in and be approved by the clinic owner before recording or generating notes.</div>
-      </div>
-    </div>
-
-    <div id="passwordSignInCard" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:16px;">
-      <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:10px;">Or sign in with email &amp; password</div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="email" id="passwordLoginEmail" placeholder="Email" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
-        <input type="password" id="passwordLoginPassword" placeholder="Password" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
-        <button type="button" class="ghost" id="passwordLoginBtn">Sign in</button>
-      </div>
-      <div id="passwordLoginStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
-    </div>
 
     <div id="dashboardSummary" style="display:none;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
       <button type="button" id="dashboardTodayCard" class="dashboard-card">
@@ -845,6 +921,7 @@
         <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">➕ Add a doctor to the roster (owner only — no sign-in needed yet)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="manualDoctorNameInput" placeholder="Doctor's name" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <input type="email" id="manualDoctorEmailInput" placeholder="Email (if known — lets them sign in right away)" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <div id="manualDoctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           <button type="button" class="ghost" id="addManualDoctorBtn">Add doctor</button>
         </div>
@@ -3090,9 +3167,8 @@ async function trySilentResumeSignIn(){
 }
 
 function updateSignInStatusUI(){
-  const mainCard = el('mainSignInCard');
   const mainStatus = el('mainSignInStatus');
-  el('passwordSignInCard').style.display = signedInDoctor ? 'none' : 'block';
+  el('loginGate').classList.toggle('hidden', !!signedInDoctor);
   el('doctorSignOutBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('enableNotificationsBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
@@ -3100,9 +3176,7 @@ function updateSignInStatusUI(){
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
-    mainStatus.textContent = 'You must sign in and be approved by the clinic owner before recording or generating notes.';
-    mainStatus.style.color = '#5b6863';
-    mainCard.style.display = 'flex';
+    mainStatus.textContent = '';
     return;
   }
   if(signedInDoctor.name && signedInDoctor.name !== signedInDoctor.email && !el('displayNameInput').value){
@@ -3115,22 +3189,14 @@ function updateSignInStatusUI(){
     const msg = `✅ Signed in as ${signedInDoctor.name || signedInDoctor.email} (${signedInDoctor.email})${roleLabel}.`;
     el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#0b8043';
-    // Collapse the big card once approved — no need to take up space every visit.
-    mainCard.style.padding = '8px 14px';
-    mainStatus.textContent = msg;
-    mainStatus.style.color = '#0b8043';
   } else if(signedInDoctor.status === 'removed'){
     const msg = `Access for ${signedInDoctor.email} has been removed by the clinic owner.`;
     el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#a33d3d';
-    mainStatus.textContent = msg;
-    mainStatus.style.color = '#a33d3d';
   } else {
     const msg = `⏳ Signed in as ${signedInDoctor.email} — waiting for the clinic owner to approve you. Recording and notes are locked until then.`;
     el('checkinStatus').textContent = msg;
     el('checkinStatus').style.color = '#b8894f';
-    mainStatus.textContent = msg;
-    mainStatus.style.color = '#b8894f';
   }
 }
 
@@ -3277,6 +3343,7 @@ function renderDoctorsRoster(items){
         <span style="font-size:0.72rem;color:#8a938e;">Email/password login:</span>
         <input type="password" class="set-password-input" data-email="${d.email}" placeholder="Set a password" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);min-width:120px;">
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
+        <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;">📋 Copy</button>
       </div>
     </div>`;
   }).join('');
@@ -3285,6 +3352,22 @@ function renderDoctorsRoster(items){
       const email = btn.getAttribute('data-email');
       const input = container.querySelector(`.set-password-input[data-email="${email}"]`);
       setDoctorPassword(email, input.value, input);
+    });
+  });
+  container.querySelectorAll('.copy-password-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const email = btn.getAttribute('data-email');
+      const input = container.querySelector(`.set-password-input[data-email="${email}"]`);
+      if(!input.value){
+        el('doctorsStatus').textContent = 'Type the password in the box first, then Copy.';
+        return;
+      }
+      try{
+        await navigator.clipboard.writeText(`${email} / ${input.value}`);
+        el('doctorsStatus').textContent = `Copied "${email} / ${input.value}" — paste it somewhere safe now.`;
+      }catch(e){
+        el('doctorsStatus').textContent = `Copy failed — here it is to note down: ${email} / ${input.value}`;
+      }
     });
   });
   container.querySelectorAll('.merge-doctor-btn').forEach(btn=>{
@@ -3317,8 +3400,7 @@ async function setDoctorPassword(email, password, inputEl){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
-    el('doctorsStatus').textContent = `Password set for ${email}. Tell them the password directly — they sign in with it on the "email & password" form.`;
-    if(inputEl) inputEl.value = '';
+    el('doctorsStatus').textContent = `Password set for ${email} — tap 📋 Copy now to save it somewhere before you forget it (it can't be recovered from here later).`;
   }catch(e){
     console.error(e);
     el('doctorsStatus').textContent = 'Could not set password: ' + (e.message || e);
@@ -3900,6 +3982,7 @@ function renderManualDoctorColorSwatches(){
 
 async function addManualDoctor(){
   const name = el('manualDoctorNameInput').value.trim();
+  const email = el('manualDoctorEmailInput').value.trim();
   if(!name){
     el('manualDoctorStatus').textContent = 'Enter the doctor\'s name first.';
     return;
@@ -3909,14 +3992,17 @@ async function addManualDoctor(){
     const res = await fetch(`${BACKEND_URL}/api/doctors/manual`, {
       method: 'POST',
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, color: manualDoctorColorId })
+      body: JSON.stringify({ name, color: manualDoctorColorId, email: email || undefined })
     });
     if(!res.ok){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
     el('manualDoctorNameInput').value = '';
-    el('manualDoctorStatus').textContent = `${name} added — she'll show up in Quick Book and the color list right away, and will link automatically once she signs in with Google.`;
+    el('manualDoctorEmailInput').value = '';
+    el('manualDoctorStatus').textContent = email
+      ? `${name} added with ${email} — set a password for her below, or she can sign in with Google using that same email.`
+      : `${name} added — she'll show up in Quick Book and the color list right away, and will link automatically once she signs in with Google.`;
     await loadQuickBookDoctorOptions();
     if(el('doctorColorsPanel').style.display !== 'none') await loadDoctorColorsRoster();
     if(el('doctorsPanel').style.display !== 'none') await loadDoctorsRoster();
