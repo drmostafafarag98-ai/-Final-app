@@ -1009,6 +1009,29 @@
     </div>
     </div>
 
+    <div id="paymentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);">Record payment — <span id="paymentPatientName"></span></span>
+          <button type="button" id="paymentOverlayCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Tick every session this payment covers (unpaid sessions for this patient are listed below — untick any that aren't included).</div>
+          <div id="paymentAppointmentsList"></div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;gap:8px;align-items:center;">
+            <input type="number" id="paymentAmountInput" placeholder="Total amount (EGP)" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="ghost" id="paymentMethodCashBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
+            <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
+          </div>
+          <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="editAppointmentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
@@ -3811,6 +3834,81 @@ async function markAppointmentPaid(id, method, amount){
   }
 }
 
+// A patient doesn't always pay per-session — one payment can settle this
+// session plus an earlier unpaid one. Opening this shows every unpaid
+// appointment for that patient (pre-ticked) so the owner picks exactly
+// which ones this payment covers.
+let currentPaymentTarget = null;
+
+async function openPaymentOverlay(ev){
+  currentPaymentTarget = ev;
+  el('paymentPatientName').textContent = ev.patient_name || '(untitled)';
+  el('paymentAmountInput').value = '';
+  el('paymentOverlayStatus').textContent = 'Loading unpaid sessions…';
+  el('paymentAppointmentsList').innerHTML = '';
+  el('paymentOverlay').style.display = 'flex';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/unpaid-by-patient?patientName=${encodeURIComponent(ev.patient_name || '')}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    let items = await res.json();
+    if(!Array.isArray(items)) items = [];
+    // Make sure the appointment they clicked from is in the list even if
+    // it wasn't returned (edge case), and dedupe by id.
+    if(!items.some(i=> String(i.id) === String(ev.id))) items.unshift(ev);
+    const seen = new Set();
+    items = items.filter(i=> !seen.has(i.id) && seen.add(i.id));
+    el('paymentAppointmentsList').innerHTML = items.map(i=>{
+      const dateLabel = i.start_time ? new Date(i.start_time).toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}) : '';
+      const timeLabel = i.start_time ? new Date(i.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+      return `<label style="display:flex;align-items:center;gap:8px;padding:6px 2px;border-bottom:1px solid var(--line);cursor:pointer;font-size:0.85rem;">
+        <input type="checkbox" class="payment-appt-checkbox" value="${i.id}" checked>
+        <span>${escapeHtml(dateLabel)} ${escapeHtml(timeLabel)}${String(i.id) === String(ev.id) ? ' (this session)' : ''}</span>
+      </label>`;
+    }).join('');
+    el('paymentOverlayStatus').textContent = '';
+  }catch(err){
+    console.error(err);
+    el('paymentOverlayStatus').textContent = 'Could not load unpaid sessions: ' + (err.message || err);
+  }
+}
+
+async function submitPayment(method){
+  const amount = el('paymentAmountInput').value.trim();
+  if(!amount){
+    el('paymentOverlayStatus').textContent = 'Enter the total amount first.';
+    return;
+  }
+  const checkedIds = Array.from(el('paymentAppointmentsList').querySelectorAll('.payment-appt-checkbox:checked')).map(cb=> cb.value);
+  if(checkedIds.length === 0){
+    el('paymentOverlayStatus').textContent = 'Tick at least one session this payment covers.';
+    return;
+  }
+  el('paymentOverlayStatus').textContent = 'Saving…';
+  const noteText = checkedIds.length > 1
+    ? `Paid ${amount} EGP (${method}) — covers ${checkedIds.length} sessions`
+    : `Paid ${amount} EGP (${method})`;
+  try{
+    await Promise.all(checkedIds.map(async (id)=>{
+      const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paid: true })
+      });
+      if(!res.ok) throw new Error(`Server error ${res.status}`);
+      await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ text: noteText })
+      });
+    }));
+    el('paymentOverlay').style.display = 'none';
+    await loadMonthAndDay();
+  }catch(err){
+    console.error(err);
+    el('paymentOverlayStatus').textContent = 'Could not save: ' + (err.message || err);
+  }
+}
+
 function renderScheduleList(events){
   el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
   const container = el('scheduleList');
@@ -3872,37 +3970,11 @@ function renderScheduleList(events){
       const id = btn.getAttribute('data-id');
       const currentlyPaid = btn.getAttribute('data-paid') === 'true';
       if(currentlyPaid){
-        markAppointmentPaid(id, null, btn); // unmark, no method needed
+        markAppointmentPaid(id, null, null); // unmark, no method needed
         return;
       }
-      // Show an inline amount + Cash/InstaPay choice in place of the button.
-      const choiceWrap = document.createElement('span');
-      choiceWrap.style.cssText = 'display:inline-flex;gap:4px;align-items:center;';
-      choiceWrap.innerHTML = `
-        <input type="number" class="pay-amount-input" placeholder="EGP" style="width:64px;font-size:0.72rem;padding:2px 5px;border:1px solid var(--line);border-radius:4px;">
-        <button type="button" class="ghost pay-method-btn" data-method="Cash" style="font-size:0.72rem;padding:2px 7px;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
-        <button type="button" class="ghost pay-method-btn" data-method="InstaPay" style="font-size:0.72rem;padding:2px 7px;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
-        <button type="button" class="ghost pay-method-cancel" style="font-size:0.72rem;padding:2px 6px;">✕</button>
-      `;
-      btn.replaceWith(choiceWrap);
-      const amountInput = choiceWrap.querySelector('.pay-amount-input');
-      amountInput.focus();
-      choiceWrap.querySelectorAll('.pay-method-btn').forEach(mbtn=>{
-        mbtn.addEventListener('click', (ev)=>{
-          ev.stopPropagation();
-          const amount = amountInput.value.trim();
-          if(!amount){
-            amountInput.style.borderColor = 'var(--danger)';
-            amountInput.focus();
-            return;
-          }
-          markAppointmentPaid(id, mbtn.getAttribute('data-method'), amount);
-        });
-      });
-      choiceWrap.querySelector('.pay-method-cancel').addEventListener('click', (ev)=>{
-        ev.stopPropagation();
-        renderScheduleList(events); // just re-render to restore the plain button
-      });
+      const ev = events.find(x=> String(x.id) === String(id));
+      if(ev) openPaymentOverlay(ev);
     });
   });
   container.querySelectorAll('.edit-appointment-btn').forEach(btn=>{
@@ -5299,6 +5371,14 @@ el('appointmentNotesOverlay').addEventListener('click', (e)=>{
     currentNotesAppointmentId = null;
   }
 });
+el('paymentOverlayCloseBtn').addEventListener('click', ()=>{
+  el('paymentOverlay').style.display = 'none';
+});
+el('paymentOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'paymentOverlay') el('paymentOverlay').style.display = 'none';
+});
+el('paymentMethodCashBtn').addEventListener('click', ()=> submitPayment('Cash'));
+el('paymentMethodInstaPayBtn').addEventListener('click', ()=> submitPayment('InstaPay'));
 el('editAppointmentCloseBtn').addEventListener('click', ()=>{
   el('editAppointmentOverlay').style.display = 'none';
 });
