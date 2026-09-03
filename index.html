@@ -864,7 +864,6 @@
         <input type="tel" id="waTestPhone" placeholder="Your phone, e.g. 01012345678" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
         <select id="waTestTemplate" style="flex:1;min-width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <option value="appointment_confirmation">Confirmation (needs name/date/time)</option>
-          <option value="cancellation_policy">Cancellation policy (needs name/date/time)</option>
           <option value="package_policy">Package policy (no variables)</option>
           <option value="recovery_session_policy">Recovery session policy (no variables)</option>
         </select>
@@ -988,9 +987,10 @@
       <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
           <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Send appointment reminders</div>
-          <div style="display:flex;gap:6px;">
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTodayBtn" data-offset="0" style="font-size:0.75rem;padding:5px 10px;">Today</button>
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTomorrowBtn" data-offset="1" style="font-size:0.75rem;padding:5px 10px;">Tomorrow</button>
+            <input type="date" id="remindersCustomDateInput" style="font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);">
           </div>
         </div>
         <div id="tomorrowRemindersElevatorCode" style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;"></div>
@@ -4138,12 +4138,36 @@ function renderAppointmentNotes(notes){
   }
   container.innerHTML = notes.map(n=>{
     const timeStr = n.at ? new Date(n.at).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
-    return `<div style="background:var(--paper);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;">
-      <div style="font-size:0.9rem;">${escapeHtml(n.text)}</div>
-      <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;">${escapeHtml(n.author || '')} · ${timeStr}</div>
+    return `<div style="background:var(--paper);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;position:relative;">
+      <button type="button" class="delete-note-btn" data-at="${escapeHtml(n.at || '')}" title="Delete this note" style="position:absolute;top:6px;left:8px;background:transparent;border:none;cursor:pointer;font-size:0.85rem;color:#a33d3d;opacity:0.6;">🗑️</button>
+      <div style="font-size:0.9rem;padding-left:20px;">${escapeHtml(n.text)}</div>
+      <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;padding-left:20px;">${escapeHtml(n.author || '')} · ${timeStr}</div>
     </div>`;
   }).join('');
   container.scrollTop = container.scrollHeight;
+  container.querySelectorAll('.delete-note-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> deleteAppointmentNote(btn.getAttribute('data-at')));
+  });
+}
+
+async function deleteAppointmentNote(at){
+  if(!currentNotesAppointmentId || !at) return;
+  if(!confirm('Delete this note? This can\'t be undone.')) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentNotesAppointmentId)}/notes?at=${encodeURIComponent(at)}`, {
+      method: 'DELETE',
+      headers: authHeader()
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const data = await res.json();
+    renderAppointmentNotes(data.notes || []);
+  }catch(e){
+    console.error(e);
+    el('appointmentNotesStatus').textContent = 'Could not delete note: ' + (e.message || e);
+  }
 }
 
 async function sendAppointmentNote(){
@@ -4350,11 +4374,6 @@ const WHATSAPP_TEMPLATES = {
     build: (name, timeStr, dateStr, elevatorCode) =>
       `طريقة الوصول لعيادة Empower:\n\nالشفرة: ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت وشد غطا البوكس عليك هتلاقي جوا شفرة، خودها اعملها اسكان في الأسانسير، ودوسي على الدور الرابع، وبعدين رجّع الشفرة مكانها واقفل البوكس وغيّر الأرقام.\n\nبس اتأكدي إنك أول ما تدخلي البابين مقفولين كويس، ولما تخرجي برضو اقفليهم كويس.`
   },
-  cancellation_policy: {
-    label: 'Cancellation policy',
-    build: (name, timeStr, dateStr, elevatorCode) =>
-      `Kindly note our cancellation policy:\n• A cancellation fee of *150 EGP* applies if the appointment is cancelled less than 5 hours before the scheduled time.\n• For package holders, cancelling *two sessions* will result in one session being deducted from your package.\n\nThank you for your understanding and cooperation.\nWe look forward to seeing you.\n\nBest regards`
-  },
   package_policy: {
     label: 'Package validity & refund policy',
     build: (name, timeStr, dateStr, elevatorCode) =>
@@ -4374,7 +4393,7 @@ const WHATSAPP_TEMPLATES = {
 
 let currentElevatorCode = '';
 let tomorrowRemindersData = [];
-let remindersDayOffset = 1; // 0 = today, 1 = tomorrow (default, matches prior behavior)
+let remindersTargetDate = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate() + 1); // defaults to tomorrow, matches prior behavior
 
 async function loadElevatorCode(){
   if(!isApproved()) return;
@@ -4413,12 +4432,27 @@ async function saveElevatorCode(){
   }
 }
 
+function pad2(n){ return String(n).padStart(2,'0'); }
+
 function setRemindersDay(offset){
-  remindersDayOffset = offset;
+  const now = new Date();
+  remindersTargetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
   el('remindersDayTodayBtn').style.background = offset === 0 ? 'var(--maroon)' : '';
   el('remindersDayTodayBtn').style.color = offset === 0 ? '#fff' : '';
   el('remindersDayTomorrowBtn').style.background = offset === 1 ? 'var(--maroon)' : '';
   el('remindersDayTomorrowBtn').style.color = offset === 1 ? '#fff' : '';
+  el('remindersCustomDateInput').value = `${remindersTargetDate.getFullYear()}-${pad2(remindersTargetDate.getMonth()+1)}-${pad2(remindersTargetDate.getDate())}`;
+  loadTomorrowReminders();
+}
+
+function setRemindersCustomDate(dateStr){
+  if(!dateStr) return;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  remindersTargetDate = new Date(y, m-1, d);
+  el('remindersDayTodayBtn').style.background = '';
+  el('remindersDayTodayBtn').style.color = '';
+  el('remindersDayTomorrowBtn').style.background = '';
+  el('remindersDayTomorrowBtn').style.color = '';
   loadTomorrowReminders();
 }
 
@@ -4431,8 +4465,7 @@ async function loadTomorrowReminders(){
   el('tomorrowRemindersStatus').textContent = 'Loading…';
   el('tomorrowRemindersList').innerHTML = '';
   try{
-    const now = new Date();
-    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + remindersDayOffset);
+    const day = remindersTargetDate;
     const start = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 0,0,0);
     const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), 23,59,59);
     const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`;
@@ -4443,9 +4476,9 @@ async function loadTomorrowReminders(){
     }
     const items = await res.json();
     tomorrowRemindersData = items || [];
-    const dayLabel = remindersDayOffset === 0 ? 'today' : 'tomorrow';
+    const dayLabel = day.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
     if(!items || items.length === 0){
-      el('tomorrowRemindersStatus').textContent = `No appointments ${dayLabel}.`;
+      el('tomorrowRemindersStatus').textContent = `No appointments on ${dayLabel}.`;
       return;
     }
     const templateOptions = Object.entries(WHATSAPP_TEMPLATES)
@@ -5328,6 +5361,7 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('remindersCustomDateInput').addEventListener('change', (e)=> setRemindersCustomDate(e.target.value));
 el('sendAllRemindersBtn').addEventListener('click', sendAllReminders);
 el('reminderQueueNextBtn').addEventListener('click', sendNextInReminderQueue);
 el('reminderQueueStopBtn').addEventListener('click', stopReminderQueue);
@@ -5642,6 +5676,7 @@ function hideSplashScreen(){
   }, wait);
 }
 el('sessionDate').value = todayStr();
+el('remindersCustomDateInput').value = `${remindersTargetDate.getFullYear()}-${pad2(remindersTargetDate.getMonth()+1)}-${pad2(remindersTargetDate.getDate())}`;
 // Pre-warm the Google sign-in client in the background rather than only
 // initializing it lazily on first click — the closer requestAccessToken()
 // fires to the actual click, the less likely a browser is to silently
