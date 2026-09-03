@@ -26,7 +26,7 @@
     --doctor:#1f5c56;
     --patient:#7a5c3e;
     --danger:#a33d3d;
-    --radius:3px;
+    --radius:12px;
   }
   *{box-sizing:border-box;}
   body{
@@ -309,8 +309,11 @@
     cursor:pointer;
     font-family:inherit;
     text-align:left;
+    box-shadow:0 2px 6px rgba(0,0,0,0.07);
+    transition:transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease;
   }
-  .dashboard-card:hover{ border-left-color:var(--gold); }
+  .dashboard-card:hover{ border-left-color:var(--gold); box-shadow:0 4px 12px rgba(0,0,0,0.12); transform:translateY(-2px); }
+  .dashboard-card:active{ transform:translateY(0); }
   .dashboard-card-num{ font-size:1.6rem; font-weight:700; color:var(--maroon); line-height:1; }
   .dashboard-card-label{ font-size:0.75rem; color:#5b6863; }
   .sidebar h2{
@@ -393,22 +396,28 @@
     border-radius:var(--radius);
     font-size:0.95rem;
     cursor:pointer;
+    box-shadow:0 2px 6px rgba(18,63,58,0.25);
+    transition:transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
   }
-  button.primary:hover{background:var(--maroon-deep);}
-  button.primary:disabled{background:#a9b6b2; cursor:not-allowed;}
+  button.primary:hover{background:var(--maroon-deep); box-shadow:0 3px 10px rgba(18,63,58,0.32); transform:translateY(-1px);}
+  button.primary:active{transform:translateY(0); box-shadow:0 1px 3px rgba(18,63,58,0.25);}
+  button.primary:disabled{background:#a9b6b2; cursor:not-allowed; box-shadow:none; transform:none;}
   button.stop{background:var(--danger);}
   button.stop:hover{background:#832f2f;}
   button.ghost{
-    background:transparent;
+    background:var(--panel);
     border:1px solid var(--line);
     padding:10px 16px;
     border-radius:var(--radius);
     cursor:pointer;
     font-size:0.9rem;
+    box-shadow:0 1px 3px rgba(0,0,0,0.06);
+    transition:transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease, border-color 0.15s ease;
   }
-  button.ghost:hover{background:#f0e6d2;}
+  button.ghost:hover{background:#f0e6d2; box-shadow:0 2px 6px rgba(0,0,0,0.1); transform:translateY(-1px); border-color:var(--gold);}
+  button.ghost:active{transform:translateY(0); box-shadow:0 1px 2px rgba(0,0,0,0.08);}
   button.save-action{
-    background:transparent;
+    background:var(--panel);
     border:2px solid var(--maroon);
     color:var(--maroon);
     font-weight:700;
@@ -416,8 +425,11 @@
     border-radius:var(--radius);
     cursor:pointer;
     font-size:0.9rem;
+    box-shadow:0 1px 4px rgba(18,63,58,0.12);
+    transition:transform 0.12s ease, box-shadow 0.12s ease, background 0.15s ease;
   }
-  button.save-action:hover{ background:#eaf1ef; }
+  button.save-action:hover{ background:#eaf1ef; box-shadow:0 3px 8px rgba(18,63,58,0.18); transform:translateY(-1px); }
+  button.save-action:active{ transform:translateY(0); }
   .session-type-btn.active, .mode-btn.active, .provider-btn.active, .aux-provider-btn.active{
     background:var(--maroon);
     color:#fff;
@@ -3672,7 +3684,13 @@ function renderScheduleList(events){
   el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
   const container = el('scheduleList');
   if(events.length === 0){ container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No events this day.</div>'; return; }
-  container.innerHTML = events.map(ev=>{
+  const sortedEvents = [...events].sort((a, b)=>{
+    const aCancelled = a.status === 'cancelled' ? 0 : 1;
+    const bCancelled = b.status === 'cancelled' ? 0 : 1;
+    if(aCancelled !== bCancelled) return aCancelled - bCancelled;
+    return new Date(a.start_time || 0) - new Date(b.start_time || 0);
+  });
+  container.innerHTML = sortedEvents.map(ev=>{
     const timeStr = ev.start_time
       ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
       : 'All day';
@@ -3680,19 +3698,42 @@ function renderScheduleList(events){
     const colorHex = isCancelled ? '#a33d3d' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e');
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const noteCount = (ev.notes && ev.notes.length) || 0;
+    const isPaid = !!ev.paid;
     return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isMine && !isCancelled ? 'font-weight:600;' : ''}">
       <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
       ${isCancelled ? '<span style="font-size:0.7rem;color:#a33d3d;font-weight:700;border:1px solid #a33d3d;border-radius:4px;padding:1px 6px;">CANCELLED</span>' : ''}
+      <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
       <button type="button" class="ghost edit-appointment-btn" data-id="${ev.id}" style="font-size:0.72rem;padding:3px 8px;">✏️</button>
     </div>`;
   }).join('');
   container.querySelectorAll('.appointment-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.edit-appointment-btn')) return;
+      if(e.target.closest('.edit-appointment-btn') || e.target.closest('.paid-toggle-btn')) return;
       openAppointmentNotes(row.getAttribute('data-id'));
+    });
+  });
+  container.querySelectorAll('.paid-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      const currentlyPaid = btn.getAttribute('data-paid') === 'true';
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
+          method: 'PATCH',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paid: !currentlyPaid })
+        });
+        if(!res.ok) throw new Error(`Server error ${res.status}`);
+        await loadMonthAndDay();
+      }catch(err){
+        console.error(err);
+        el('scheduleStatus').textContent = 'Could not update paid status: ' + (err.message || err);
+        btn.disabled = false;
+      }
     });
   });
   container.querySelectorAll('.edit-appointment-btn').forEach(btn=>{
