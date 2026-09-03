@@ -932,6 +932,9 @@
 
       <div class="section-title">🗓️ This year</div>
       <div class="dashboard-stats-row" id="statsRow_year"></div>
+
+      <div class="section-title">👨‍⚕️ By doctor — this month</div>
+      <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
     </div>
 
     <div id="browserWarning" class="warn-box" style="display:none;">
@@ -3427,6 +3430,61 @@ async function loadDashboardStats(){
   renderStatsRow('today', todayStats);
   renderStatsRow('month', monthStats);
   renderStatsRow('year', yearStats);
+  loadDoctorStatsThisMonth();
+}
+
+// Per-doctor breakdown for the current calendar month: how many sessions
+// each doctor saw, and how much money came in from their sessions —
+// grouped by appointments.doctor_name (the same text snapshot used
+// elsewhere in the app), using the same amount-parsing rule as the money
+// totals above (only the "primary" note per payment carries an amount,
+// so this doesn't double-count multi-session payments either).
+async function loadDoctorStatsThisMonth(){
+  const table = el('doctorStatsTable');
+  table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const active = items.filter(ev => ev.status !== 'cancelled');
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    const byDoctor = {};
+    active.forEach(ev=>{
+      const name = ev.doctor_name || 'Unassigned';
+      if(!byDoctor[name]) byDoctor[name] = { count: 0, money: 0 };
+      byDoctor[name].count++;
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(m){
+          const amt = parseFloat(m[1].replace(/,/g, ''));
+          if(!isNaN(amt)) byDoctor[name].money += amt;
+        }
+      });
+    });
+    const rows = Object.entries(byDoctor).sort((a,b)=> b[1].count - a[1].count);
+    if(rows.length === 0){
+      table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">No sessions this month yet.</div>';
+      return;
+    }
+    table.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+      <tr style="background:#f4f6f5;">
+        <th style="text-align:left;padding:10px 14px;font-size:0.78rem;color:#5b6863;">Doctor</th>
+        <th style="text-align:right;padding:10px 14px;font-size:0.78rem;color:#5b6863;">Sessions</th>
+        <th style="text-align:right;padding:10px 14px;font-size:0.78rem;color:#5b6863;">Collected (EGP)</th>
+      </tr>
+      ${rows.map(([name, d])=> `<tr style="border-top:1px solid var(--line);">
+        <td style="padding:9px 14px;font-size:0.85rem;">${escapeHtml(name)}</td>
+        <td style="padding:9px 14px;font-size:0.85rem;text-align:right;">${d.count}</td>
+        <td style="padding:9px 14px;font-size:0.85rem;text-align:right;font-weight:600;color:#0b8043;">${d.money.toLocaleString()}</td>
+      </tr>`).join('')}
+    </table>`;
+  }catch(e){
+    console.error(e);
+    table.innerHTML = `<div style="padding:14px;font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
 }
 
 async function loadDashboardSummary(){
