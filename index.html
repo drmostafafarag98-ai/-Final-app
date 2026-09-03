@@ -748,7 +748,7 @@
     <span class="main-nav-icon">📅</span>
     <span class="main-nav-label">Calendar</span>
   </button>
-  <button type="button" class="main-nav-btn" id="navDashboardBtn" title="Dashboard">
+  <button type="button" class="main-nav-btn" id="navDashboardBtn" title="Dashboard" style="display:none;">
     <span class="main-nav-icon">📊</span>
     <span class="main-nav-label">Stats</span>
   </button>
@@ -3240,6 +3240,13 @@ function updateSignInStatusUI(){
     el('displayNameInput').value = signedInDoctor.name;
   }
   if(signedInDoctor.status === 'approved'){
+    const isOwner = signedInDoctor.role === 'owner';
+    const canViewDashboard = isOwner || !!signedInDoctor.can_view_dashboard;
+    el('navDashboardBtn').style.display = canViewDashboard ? 'flex' : 'none';
+    el('statsRow_todayInline').style.display = canViewDashboard ? 'flex' : 'none';
+    if(!canViewDashboard && el('navDashboardBtn').classList.contains('active')){
+      switchMainView('documentation');
+    }
     const roleLabel = signedInDoctor.role === 'owner' ? ' — clinic owner'
       : signedInDoctor.role === 'secretary' ? ' — secretary (calendar access only; recording and notes are not available on this account)'
       : '';
@@ -3381,7 +3388,9 @@ async function loadDashboardSummary(){
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
   const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
-  fetchStatsForRange(todayStart, todayEnd).then(stats=> renderStatsRow('todayInline', stats));
+  if(signedInDoctor.role === 'owner' || signedInDoctor.can_view_dashboard){
+    fetchStatsForRange(todayStart, todayEnd).then(stats=> renderStatsRow('todayInline', stats));
+  }
 
   if(signedInDoctor.role === 'owner'){
     try{
@@ -3453,8 +3462,19 @@ function renderDoctorsRoster(items){
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
         <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;">📋 Copy</button>
       </div>
+      ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);align-items:center;">
+        <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
+          <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
+          📊 Can view Dashboard (payment/confirmation stats)
+        </label>
+      </div>` : ''}
     </div>`;
   }).join('');
+  container.querySelectorAll('.dashboard-access-checkbox').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      setDashboardAccess(cb.getAttribute('data-email'), cb.checked);
+    });
+  });
   container.querySelectorAll('.set-password-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const email = btn.getAttribute('data-email');
@@ -3490,6 +3510,22 @@ function renderDoctorsRoster(items){
       mergeDoctors(keepEmail, removeEmail);
     });
   });
+}
+
+async function setDashboardAccess(email, canView){
+  el('doctorsStatus').textContent = 'Updating…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/dashboard-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ canView })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('doctorsStatus').textContent = canView ? `${email} can now see the Dashboard.` : `${email} can no longer see the Dashboard.`;
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not update: ' + (e.message || e);
+  }
 }
 
 async function setDoctorPassword(email, password, inputEl){
