@@ -921,6 +921,8 @@
       </button>
     </div>
 
+    <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
+
     <div id="dashboardStatsView" style="display:none;">
       <div class="section-title" style="margin-top:8px;">📊 Today</div>
       <div class="dashboard-stats-row" id="statsRow_today"></div>
@@ -3375,6 +3377,11 @@ async function loadDashboardStats(){
 async function loadDashboardSummary(){
   if(!isApproved()) return;
   el('dashboardSummary').style.display = 'flex';
+
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
+  fetchStatsForRange(todayStart, todayEnd).then(stats=> renderStatsRow('todayInline', stats));
 
   if(signedInDoctor.role === 'owner'){
     try{
