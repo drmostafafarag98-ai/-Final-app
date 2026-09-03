@@ -920,6 +920,7 @@
       </button>
     </div>
 
+    <div class="section-title" id="statsRow_todayInline_label" style="margin-top:8px;">📊 Today</div>
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
 
     <div id="dashboardStatsView" style="display:none;">
@@ -3268,6 +3269,7 @@ function updateSignInStatusUI(){
     const canViewDashboard = isOwner || !!signedInDoctor.can_view_dashboard;
     el('navDashboardBtn').style.display = canViewDashboard ? 'flex' : 'none';
     el('statsRow_todayInline').style.display = canViewDashboard ? 'flex' : 'none';
+    el('statsRow_todayInline_label').style.display = canViewDashboard ? 'block' : 'none';
     if(!canViewDashboard && el('navDashboardBtn').classList.contains('active')){
       switchMainView('documentation');
     }
@@ -3408,13 +3410,7 @@ async function loadDashboardStats(){
 async function loadDashboardSummary(){
   if(!isApproved()) return;
   el('dashboardSummary').style.display = 'flex';
-
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
-  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
-  if(signedInDoctor.role === 'owner' || signedInDoctor.can_view_dashboard){
-    fetchStatsForRange(todayStart, todayEnd).then(stats=> renderStatsRow('todayInline', stats));
-  }
+  refreshInlineStatsRow();
 
   if(signedInDoctor.role === 'owner'){
     try{
@@ -3427,6 +3423,24 @@ async function loadDashboardSummary(){
       }
     }catch(e){ console.error('Dashboard pending-count failed:', e); }
   }
+}
+
+// The main-page stats row reflects whichever day is currently selected in
+// the Calendar (calSelectedDate) — not necessarily literal today — so
+// clicking a different day there and coming back here shows that day's
+// numbers instead.
+function refreshInlineStatsRow(){
+  if(!isApproved()) return;
+  if(!(signedInDoctor.role === 'owner' || signedInDoctor.can_view_dashboard)) return;
+  const d = calSelectedDate;
+  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0);
+  const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59);
+  const label = el('statsRow_todayInline_label');
+  if(label){
+    const isToday = sameDay(d, new Date());
+    label.textContent = isToday ? '📊 Today' : `📊 ${d.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'})}`;
+  }
+  fetchStatsForRange(dayStart, dayEnd).then(stats=> renderStatsRow('todayInline', stats));
 }
 
 async function loadDoctorsRoster(){
@@ -5371,6 +5385,8 @@ function switchMainView(view){
     loadKnownPatients();
   } else if(view === 'dashboard'){
     loadDashboardStats();
+  } else if(view === 'documentation'){
+    refreshInlineStatsRow();
   }
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
