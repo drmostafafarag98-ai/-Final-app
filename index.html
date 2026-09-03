@@ -909,6 +909,26 @@
         <div class="dashboard-card-num" id="dashboardTodayCount">–</div>
         <div class="dashboard-card-label">Today's appointments</div>
       </button>
+      <button type="button" id="dashboardSentCard" class="dashboard-card" style="border-left-color:#b8894f;">
+        <div class="dashboard-card-num" id="dashboardSentCount">–</div>
+        <div class="dashboard-card-label">Confirmation sent</div>
+      </button>
+      <button type="button" id="dashboardConfirmedCard" class="dashboard-card" style="border-left-color:#0b8043;">
+        <div class="dashboard-card-num" id="dashboardConfirmedCount">–</div>
+        <div class="dashboard-card-label">Confirmed</div>
+      </button>
+      <button type="button" id="dashboardPaidCard" class="dashboard-card" style="border-left-color:#0b8043;">
+        <div class="dashboard-card-num" id="dashboardPaidCount">–</div>
+        <div class="dashboard-card-label">Paid</div>
+      </button>
+      <button type="button" id="dashboardUnpaidCard" class="dashboard-card" style="border-left-color:#a33d3d;">
+        <div class="dashboard-card-num" id="dashboardUnpaidCount">–</div>
+        <div class="dashboard-card-label">Not paid yet</div>
+      </button>
+      <button type="button" id="dashboardCancelledCard" class="dashboard-card" style="border-left-color:#a33d3d;">
+        <div class="dashboard-card-num" id="dashboardCancelledCount">–</div>
+        <div class="dashboard-card-label">Cancelled today</div>
+      </button>
       <button type="button" id="dashboardPendingCard" class="dashboard-card" style="display:none;">
         <div class="dashboard-card-num" id="dashboardPendingCount">–</div>
         <div class="dashboard-card-label">Pending approvals</div>
@@ -3308,8 +3328,20 @@ async function loadDashboardSummary(){
     const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
     if(res.ok){
       const items = await res.json();
-      const activeCount = (items || []).filter(ev => ev.status !== 'cancelled').length;
-      el('dashboardTodayCount').textContent = activeCount;
+      const items2 = items || [];
+      const active = items2.filter(ev => ev.status !== 'cancelled');
+      const cancelledCount = items2.filter(ev => ev.status === 'cancelled').length;
+      el('dashboardTodayCount').textContent = active.length;
+      el('dashboardCancelledCount').textContent = cancelledCount;
+      const hasNote = (ev, text) => (ev.notes || []).some(n => (n.text || '').trim().toLowerCase() === text);
+      const sentCount = active.filter(ev => hasNote(ev, 'confirmation sent')).length;
+      const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
+      const paidCount = active.filter(ev => !!ev.paid).length;
+      const unpaidCount = active.length - paidCount;
+      el('dashboardSentCount').textContent = sentCount;
+      el('dashboardConfirmedCount').textContent = confirmedCount;
+      el('dashboardPaidCount').textContent = paidCount;
+      el('dashboardUnpaidCount').textContent = unpaidCount;
     }
   }catch(e){ console.error('Dashboard today-count failed:', e); }
 
@@ -3680,17 +3712,42 @@ function renderCalendarGrid(){
   }
 }
 
+let cancelledGroupExpanded = false;
+
+async function markAppointmentPaid(id, method, amount){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paid: !!method })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    if(method){
+      const noteText = amount ? `Paid ${amount} EGP (${method})` : `Paid (${method})`;
+      await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ text: noteText })
+      });
+    }
+    await loadMonthAndDay();
+  }catch(err){
+    console.error(err);
+    el('scheduleStatus').textContent = 'Could not update paid status: ' + (err.message || err);
+  }
+}
+
 function renderScheduleList(events){
   el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
   const container = el('scheduleList');
   if(events.length === 0){ container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No events this day.</div>'; return; }
-  const sortedEvents = [...events].sort((a, b)=>{
-    const aCancelled = a.status === 'cancelled' ? 0 : 1;
-    const bCancelled = b.status === 'cancelled' ? 0 : 1;
-    if(aCancelled !== bCancelled) return aCancelled - bCancelled;
-    return new Date(a.start_time || 0) - new Date(b.start_time || 0);
-  });
-  container.innerHTML = sortedEvents.map(ev=>{
+
+  const cancelledEvents = events.filter(ev=> ev.status === 'cancelled')
+    .sort((a,b)=> new Date(a.start_time || 0) - new Date(b.start_time || 0));
+  const activeEvents = events.filter(ev=> ev.status !== 'cancelled')
+    .sort((a,b)=> new Date(a.start_time || 0) - new Date(b.start_time || 0));
+
+  function renderRow(ev){
     const timeStr = ev.start_time
       ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
       : 'All day';
@@ -3703,12 +3760,32 @@ function renderScheduleList(events){
       <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
-      ${isCancelled ? '<span style="font-size:0.7rem;color:#a33d3d;font-weight:700;border:1px solid #a33d3d;border-radius:4px;padding:1px 6px;">CANCELLED</span>' : ''}
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
       <button type="button" class="ghost edit-appointment-btn" data-id="${ev.id}" style="font-size:0.72rem;padding:3px 8px;">✏️</button>
     </div>`;
-  }).join('');
+  }
+
+  let html = '';
+  if(cancelledEvents.length > 0){
+    html += `<div id="cancelledGroupHeader" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-radius:6px;background:#fbeaea;cursor:pointer;margin-bottom:4px;">
+      <span style="font-size:0.8rem;font-weight:700;color:#a33d3d;">${cancelledGroupExpanded ? '▾' : '▸'} ❌ Cancelled (${cancelledEvents.length})</span>
+    </div>`;
+    if(cancelledGroupExpanded){
+      html += cancelledEvents.map(renderRow).join('');
+    }
+  }
+  html += activeEvents.map(renderRow).join('');
+  container.innerHTML = html;
+
+  const headerEl = document.getElementById('cancelledGroupHeader');
+  if(headerEl){
+    headerEl.addEventListener('click', ()=>{
+      cancelledGroupExpanded = !cancelledGroupExpanded;
+      renderScheduleList(events);
+    });
+  }
+
   container.querySelectorAll('.appointment-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
       if(e.target.closest('.edit-appointment-btn') || e.target.closest('.paid-toggle-btn')) return;
@@ -3716,24 +3793,42 @@ function renderScheduleList(events){
     });
   });
   container.querySelectorAll('.paid-toggle-btn').forEach(btn=>{
-    btn.addEventListener('click', async (e)=>{
+    btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       const id = btn.getAttribute('data-id');
       const currentlyPaid = btn.getAttribute('data-paid') === 'true';
-      btn.disabled = true;
-      try{
-        const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
-          method: 'PATCH',
-          headers: { ...authHeader(), 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paid: !currentlyPaid })
-        });
-        if(!res.ok) throw new Error(`Server error ${res.status}`);
-        await loadMonthAndDay();
-      }catch(err){
-        console.error(err);
-        el('scheduleStatus').textContent = 'Could not update paid status: ' + (err.message || err);
-        btn.disabled = false;
+      if(currentlyPaid){
+        markAppointmentPaid(id, null, btn); // unmark, no method needed
+        return;
       }
+      // Show an inline amount + Cash/InstaPay choice in place of the button.
+      const choiceWrap = document.createElement('span');
+      choiceWrap.style.cssText = 'display:inline-flex;gap:4px;align-items:center;';
+      choiceWrap.innerHTML = `
+        <input type="number" class="pay-amount-input" placeholder="EGP" style="width:64px;font-size:0.72rem;padding:2px 5px;border:1px solid var(--line);border-radius:4px;">
+        <button type="button" class="ghost pay-method-btn" data-method="Cash" style="font-size:0.72rem;padding:2px 7px;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
+        <button type="button" class="ghost pay-method-btn" data-method="InstaPay" style="font-size:0.72rem;padding:2px 7px;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
+        <button type="button" class="ghost pay-method-cancel" style="font-size:0.72rem;padding:2px 6px;">✕</button>
+      `;
+      btn.replaceWith(choiceWrap);
+      const amountInput = choiceWrap.querySelector('.pay-amount-input');
+      amountInput.focus();
+      choiceWrap.querySelectorAll('.pay-method-btn').forEach(mbtn=>{
+        mbtn.addEventListener('click', (ev)=>{
+          ev.stopPropagation();
+          const amount = amountInput.value.trim();
+          if(!amount){
+            amountInput.style.borderColor = 'var(--danger)';
+            amountInput.focus();
+            return;
+          }
+          markAppointmentPaid(id, mbtn.getAttribute('data-method'), amount);
+        });
+      });
+      choiceWrap.querySelector('.pay-method-cancel').addEventListener('click', (ev)=>{
+        ev.stopPropagation();
+        renderScheduleList(events); // just re-render to restore the plain button
+      });
     });
   });
   container.querySelectorAll('.edit-appointment-btn').forEach(btn=>{
@@ -4243,6 +4338,17 @@ function buildReminderMessage(ev, templateKey){
   return template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn);
 }
 
+async function logReminderSentNote(appointmentId, templateKey){
+  if(templateKey !== 'confirmation') return; // only track the actual confirmation template
+  try{
+    await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(appointmentId)}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ text: 'Confirmation sent' })
+    });
+  }catch(e){ console.error('Could not log sent note:', e); }
+}
+
 el('tomorrowRemindersList').addEventListener('click', (e)=>{
   const btn = e.target.closest('.send-reminder-btn');
   if(!btn) return;
@@ -4254,6 +4360,7 @@ el('tomorrowRemindersList').addEventListener('click', (e)=>{
   const message = buildReminderMessage(ev, templateKey);
   const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
   window.open(waLink, '_blank', 'noopener');
+  logReminderSentNote(ev.id, templateKey);
 });
 
 el('tomorrowRemindersList').addEventListener('change', async (e)=>{
@@ -4331,6 +4438,7 @@ function sendNextInReminderQueue(){
   const message = buildReminderMessage(ev, reminderQueueTemplateKey);
   const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
   window.open(waLink, '_blank', 'noopener');
+  logReminderSentNote(ev.id, reminderQueueTemplateKey);
   reminderQueueIndex++;
   updateReminderQueueStatus();
 }
@@ -5255,6 +5363,12 @@ el('adminTabTeamBtn').addEventListener('click', ()=> setAdminTab('team'));
 el('dashboardTodayCard').addEventListener('click', ()=>{
   switchMainView('calendar');
   el('calendarView').scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
+['dashboardSentCard','dashboardConfirmedCard','dashboardPaidCard','dashboardUnpaidCard','dashboardCancelledCard'].forEach(id=>{
+  el(id).addEventListener('click', ()=>{
+    switchMainView('calendar');
+    el('calendarView').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
 });
 el('dashboardPendingCard').addEventListener('click', ()=>{
   openAdminDrawer();
