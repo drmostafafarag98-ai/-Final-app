@@ -3362,7 +3362,25 @@ async function fetchStatsForRange(start, end){
     const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
     const paidCount = active.filter(ev => !!ev.paid).length;
     const unpaidCount = active.length - paidCount;
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, cancelledCount };
+
+    // Money totals: only notes matching "Paid <amount> EGP (Method)"
+    // carry a number (the multi-session payment flow deliberately puts
+    // the amount on just one appointment per payment, so this never
+    // double-counts a single payment across several covered sessions).
+    let cashTotal = 0, instapayTotal = 0;
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    items.forEach(ev=>{
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(!m) return;
+        const amt = parseFloat(m[1].replace(/,/g, ''));
+        if(isNaN(amt)) return;
+        if(m[2].toLowerCase() === 'cash') cashTotal += amt;
+        else instapayTotal += amt;
+      });
+    });
+
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, cancelledCount, cashTotal, instapayTotal, moneyTotal: cashTotal + instapayTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -3376,6 +3394,7 @@ function renderStatsRow(prefix, stats){
     row.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Could not load.</div>';
     return;
   }
+  const fmt = n => (n || 0).toLocaleString();
   const cards = [
     { label: 'Appointments', num: stats.total, color: 'var(--maroon)' },
     { label: 'Confirmation sent', num: stats.sentCount, color: '#b8894f' },
@@ -3383,6 +3402,9 @@ function renderStatsRow(prefix, stats){
     { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
     { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d' },
     { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
+    { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), color: 'var(--gold)' },
+    { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043' },
+    { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043' },
   ];
   row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};cursor:default;">
     <div class="dashboard-card-num">${c.num}</div>
@@ -3899,9 +3921,17 @@ async function submitPayment(method){
     return;
   }
   el('paymentOverlayStatus').textContent = 'Saving…';
-  const noteText = checkedIds.length > 1
+  // Only ONE appointment carries the actual amount in its note (so money
+  // totals never double-count a single payment across several sessions);
+  // the rest just get a reference note pointing at it.
+  const primaryId = currentPaymentTarget ? String(currentPaymentTarget.id) : checkedIds[0];
+  const primaryDateLabel = currentPaymentTarget && currentPaymentTarget.start_time
+    ? new Date(currentPaymentTarget.start_time).toLocaleDateString(undefined, {month:'short', day:'numeric'})
+    : '';
+  const primaryNoteText = checkedIds.length > 1
     ? `Paid ${amount} EGP (${method}) — covers ${checkedIds.length} sessions`
     : `Paid ${amount} EGP (${method})`;
+  const referenceNoteText = `Paid (${method}) — covered by payment on ${primaryDateLabel}`;
   try{
     await Promise.all(checkedIds.map(async (id)=>{
       const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
@@ -3913,7 +3943,7 @@ async function submitPayment(method){
       await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ text: noteText })
+        body: JSON.stringify({ text: String(id) === primaryId ? primaryNoteText : referenceNoteText })
       });
     }));
     el('paymentOverlay').style.display = 'none';
