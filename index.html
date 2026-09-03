@@ -295,6 +295,12 @@
     color:var(--maroon);
     border-bottom-color:var(--gold);
   }
+  .dashboard-stats-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:20px;
+  }
   .dashboard-card{
     display:flex;
     flex-direction:column;
@@ -742,6 +748,10 @@
     <span class="main-nav-icon">📅</span>
     <span class="main-nav-label">Calendar</span>
   </button>
+  <button type="button" class="main-nav-btn" id="navDashboardBtn" title="Dashboard">
+    <span class="main-nav-icon">📊</span>
+    <span class="main-nav-label">Stats</span>
+  </button>
   <button type="button" class="main-nav-btn active" id="navDocumentationBtn" title="Documentation">
     <span class="main-nav-icon">📝</span>
     <span class="main-nav-label">Docs</span>
@@ -905,34 +915,21 @@
   <div class="main">
 
     <div id="dashboardSummary" style="display:none;gap:10px;margin-bottom:18px;flex-wrap:wrap;">
-      <button type="button" id="dashboardTodayCard" class="dashboard-card">
-        <div class="dashboard-card-num" id="dashboardTodayCount">–</div>
-        <div class="dashboard-card-label">Today's appointments</div>
-      </button>
-      <button type="button" id="dashboardSentCard" class="dashboard-card" style="border-left-color:#b8894f;">
-        <div class="dashboard-card-num" id="dashboardSentCount">–</div>
-        <div class="dashboard-card-label">Confirmation sent</div>
-      </button>
-      <button type="button" id="dashboardConfirmedCard" class="dashboard-card" style="border-left-color:#0b8043;">
-        <div class="dashboard-card-num" id="dashboardConfirmedCount">–</div>
-        <div class="dashboard-card-label">Confirmed</div>
-      </button>
-      <button type="button" id="dashboardPaidCard" class="dashboard-card" style="border-left-color:#0b8043;">
-        <div class="dashboard-card-num" id="dashboardPaidCount">–</div>
-        <div class="dashboard-card-label">Paid</div>
-      </button>
-      <button type="button" id="dashboardUnpaidCard" class="dashboard-card" style="border-left-color:#a33d3d;">
-        <div class="dashboard-card-num" id="dashboardUnpaidCount">–</div>
-        <div class="dashboard-card-label">Not paid yet</div>
-      </button>
-      <button type="button" id="dashboardCancelledCard" class="dashboard-card" style="border-left-color:#a33d3d;">
-        <div class="dashboard-card-num" id="dashboardCancelledCount">–</div>
-        <div class="dashboard-card-label">Cancelled today</div>
-      </button>
       <button type="button" id="dashboardPendingCard" class="dashboard-card" style="display:none;">
         <div class="dashboard-card-num" id="dashboardPendingCount">–</div>
         <div class="dashboard-card-label">Pending approvals</div>
       </button>
+    </div>
+
+    <div id="dashboardStatsView" style="display:none;">
+      <div class="section-title" style="margin-top:8px;">📊 Today</div>
+      <div class="dashboard-stats-row" id="statsRow_today"></div>
+
+      <div class="section-title">📆 This month</div>
+      <div class="dashboard-stats-row" id="statsRow_month"></div>
+
+      <div class="section-title">🗓️ This year</div>
+      <div class="dashboard-stats-row" id="statsRow_year"></div>
     </div>
 
     <div id="browserWarning" class="warn-box" style="display:none;">
@@ -3318,32 +3315,66 @@ async function updateDisplayName(){
   }
 }
 
+async function fetchStatsForRange(start, end){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) return null;
+    const items = (await res.json()) || [];
+    const active = items.filter(ev => ev.status !== 'cancelled');
+    const cancelledCount = items.filter(ev => ev.status === 'cancelled').length;
+    const hasNote = (ev, text) => (ev.notes || []).some(n => (n.text || '').trim().toLowerCase() === text);
+    const sentCount = active.filter(ev => hasNote(ev, 'confirmation sent')).length;
+    const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
+    const paidCount = active.filter(ev => !!ev.paid).length;
+    const unpaidCount = active.length - paidCount;
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, cancelledCount };
+  }catch(e){
+    console.error('Stats fetch failed:', e);
+    return null;
+  }
+}
+
+function renderStatsRow(prefix, stats){
+  const row = el('statsRow_' + prefix);
+  if(!row) return;
+  if(!stats){
+    row.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Could not load.</div>';
+    return;
+  }
+  const cards = [
+    { label: 'Appointments', num: stats.total, color: 'var(--maroon)' },
+    { label: 'Confirmation sent', num: stats.sentCount, color: '#b8894f' },
+    { label: 'Confirmed', num: stats.confirmedCount, color: '#0b8043' },
+    { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
+    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d' },
+    { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
+  ];
+  row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};cursor:default;">
+    <div class="dashboard-card-num">${c.num}</div>
+    <div class="dashboard-card-label">${c.label}</div>
+  </div>`).join('');
+}
+
+async function loadDashboardStats(){
+  if(!isApproved()) return;
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
+  const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
+  const yearStart = new Date(now.getFullYear(), 0, 1, 0,0,0);
+  const [todayStats, monthStats, yearStats] = await Promise.all([
+    fetchStatsForRange(todayStart, todayEnd),
+    fetchStatsForRange(monthStart, todayEnd),
+    fetchStatsForRange(yearStart, todayEnd),
+  ]);
+  renderStatsRow('today', todayStats);
+  renderStatsRow('month', monthStats);
+  renderStatsRow('year', yearStats);
+}
+
 async function loadDashboardSummary(){
   if(!isApproved()) return;
   el('dashboardSummary').style.display = 'flex';
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
-  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
-  try{
-    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
-    if(res.ok){
-      const items = await res.json();
-      const items2 = items || [];
-      const active = items2.filter(ev => ev.status !== 'cancelled');
-      const cancelledCount = items2.filter(ev => ev.status === 'cancelled').length;
-      el('dashboardTodayCount').textContent = active.length;
-      el('dashboardCancelledCount').textContent = cancelledCount;
-      const hasNote = (ev, text) => (ev.notes || []).some(n => (n.text || '').trim().toLowerCase() === text);
-      const sentCount = active.filter(ev => hasNote(ev, 'confirmation sent')).length;
-      const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
-      const paidCount = active.filter(ev => !!ev.paid).length;
-      const unpaidCount = active.length - paidCount;
-      el('dashboardSentCount').textContent = sentCount;
-      el('dashboardConfirmedCount').textContent = confirmedCount;
-      el('dashboardPaidCount').textContent = paidCount;
-      el('dashboardUnpaidCount').textContent = unpaidCount;
-    }
-  }catch(e){ console.error('Dashboard today-count failed:', e); }
 
   if(signedInDoctor.role === 'owner'){
     try{
@@ -5152,21 +5183,27 @@ el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatien
 // only makes sense while looking at patient notes, so it's hidden while
 // the Calendar view is active instead of floating globally.
 function switchMainView(view){
-  const isCalendar = view === 'calendar';
-  el('calendarView').style.display = isCalendar ? 'block' : 'none';
-  el('documentationView').style.display = isCalendar ? 'none' : 'block';
-  el('navCalendarBtn').classList.toggle('active', isCalendar);
-  el('navDocumentationBtn').classList.toggle('active', !isCalendar);
-  el('sidebarToggleBtn').style.display = isCalendar ? 'none' : 'inline-block';
-  if(isCalendar){
+  el('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
+  el('dashboardStatsView').style.display = view === 'dashboard' ? 'block' : 'none';
+  el('documentationView').style.display = view === 'documentation' ? 'block' : 'none';
+  el('navCalendarBtn').classList.toggle('active', view === 'calendar');
+  el('navDashboardBtn').classList.toggle('active', view === 'dashboard');
+  el('navDocumentationBtn').classList.toggle('active', view === 'documentation');
+  el('sidebarToggleBtn').style.display = view === 'documentation' ? 'inline-block' : 'none';
+  if(view === 'calendar' || view === 'dashboard'){
     if(el('sidebarPanel').classList.contains('open')) closeSidebar();
+  }
+  if(view === 'calendar'){
     calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
     loadMonthAndDay();
     loadQuickBookDoctorOptions();
     loadKnownPatients();
+  } else if(view === 'dashboard'){
+    loadDashboardStats();
   }
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
+el('navDashboardBtn').addEventListener('click', ()=> switchMainView('dashboard'));
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
@@ -5360,16 +5397,6 @@ function setAdminTab(tab){
 }
 el('adminTabSettingsBtn').addEventListener('click', ()=> setAdminTab('settings'));
 el('adminTabTeamBtn').addEventListener('click', ()=> setAdminTab('team'));
-el('dashboardTodayCard').addEventListener('click', ()=>{
-  switchMainView('calendar');
-  el('calendarView').scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-['dashboardSentCard','dashboardConfirmedCard','dashboardPaidCard','dashboardUnpaidCard','dashboardCancelledCard'].forEach(id=>{
-  el(id).addEventListener('click', ()=>{
-    switchMainView('calendar');
-    el('calendarView').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  });
-});
 el('dashboardPendingCard').addEventListener('click', ()=>{
   openAdminDrawer();
   setAdminTab('team');
