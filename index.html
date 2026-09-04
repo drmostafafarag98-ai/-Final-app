@@ -3480,21 +3480,22 @@ async function exportCsv(){
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     const items = (await res.json()) || [];
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
-    const rows = [['Date','Patient','Doctor','Payment method','Amount (EGP)','Status']];
+    const rows = [['Date','Doctor','Type Of Package','Patient Name','#/type of session','EGP']];
     items.forEach(ev=>{
+      if(ev.status === 'cancelled') return; // your sheet only tracks real income, not cancelled bookings
       const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB') : '';
-      let method = '', amount = '';
+      let amount = '';
       (ev.notes || []).forEach(n=>{
         const m = (n.text || '').trim().match(paidNoteRe);
-        if(m){ method = m[2]; amount = m[1]; }
+        if(m) amount = m[1];
       });
       rows.push([
         dateLabel,
-        ev.patient_name || '',
         ev.doctor_name || '',
-        method,
-        amount,
-        ev.status === 'cancelled' ? 'Cancelled' : (ev.paid ? 'Paid' : 'Not paid')
+        '', // Type Of Package — not tracked by the app yet, fill in manually
+        ev.patient_name || '',
+        '', // #/type of session — not tracked by the app yet, fill in manually
+        amount
       ]);
     });
     const csvContent = rows.map(r=> r.map(cell=>{
