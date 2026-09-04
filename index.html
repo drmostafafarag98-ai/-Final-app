@@ -935,6 +935,18 @@
 
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
+
+      <div class="section-title">📥 Export</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Downloads a CSV file (date, patient, doctor, payment method, amount) for the range you pick below — open it in Excel, or upload/paste it into Google Sheets.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="date" id="exportFromDate" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.85rem;color:#5b6863;">to</span>
+          <input type="date" id="exportToDate" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="exportCsvBtn">📥 Download CSV</button>
+        </div>
+        <div id="exportStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
+      </div>
     </div>
 
     <div id="browserWarning" class="warn-box" style="display:none;">
@@ -3405,10 +3417,17 @@ function renderStatsRow(prefix, stats){
     { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
     { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d' },
     { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
-    { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), color: 'var(--gold)' },
-    { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043' },
-    { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043' },
   ];
+  // Money figures only belong on the dedicated Dashboard view (its own
+  // access-gated page) — not on the main page's quick-glance row, which
+  // more people might casually see.
+  if(prefix !== 'todayInline'){
+    cards.push(
+      { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), color: 'var(--gold)' },
+      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043' },
+      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043' },
+    );
+  }
   row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};cursor:default;">
     <div class="dashboard-card-num">${c.num}</div>
     <div class="dashboard-card-label">${c.label}</div>
@@ -3431,6 +3450,11 @@ async function loadDashboardStats(){
   renderStatsRow('month', monthStats);
   renderStatsRow('year', yearStats);
   loadDoctorStatsThisMonth();
+  if(!el('exportFromDate').value){
+    const pad2 = n=> String(n).padStart(2,'0');
+    el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
+    el('exportToDate').value = `${todayEnd.getFullYear()}-${pad2(todayEnd.getMonth()+1)}-${pad2(todayEnd.getDate())}`;
+  }
 }
 
 // Per-doctor breakdown for the current calendar month: how many sessions
@@ -3439,6 +3463,60 @@ async function loadDashboardStats(){
 // elsewhere in the app), using the same amount-parsing rule as the money
 // totals above (only the "primary" note per payment carries an amount,
 // so this doesn't double-count multi-session payments either).
+async function exportCsv(){
+  const fromVal = el('exportFromDate').value;
+  const toVal = el('exportToDate').value;
+  if(!fromVal || !toVal){
+    el('exportStatus').textContent = 'Pick both a from and to date first.';
+    return;
+  }
+  const [fy, fm, fd] = fromVal.split('-').map(Number);
+  const [ty, tm, td] = toVal.split('-').map(Number);
+  const start = new Date(fy, fm-1, fd, 0,0,0);
+  const end = new Date(ty, tm-1, td, 23,59,59);
+  el('exportStatus').textContent = 'Preparing…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    const rows = [['Date','Patient','Doctor','Payment method','Amount (EGP)','Status']];
+    items.forEach(ev=>{
+      const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB') : '';
+      let method = '', amount = '';
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(m){ method = m[2]; amount = m[1]; }
+      });
+      rows.push([
+        dateLabel,
+        ev.patient_name || '',
+        ev.doctor_name || '',
+        method,
+        amount,
+        ev.status === 'cancelled' ? 'Cancelled' : (ev.paid ? 'Paid' : 'Not paid')
+      ]);
+    });
+    const csvContent = rows.map(r=> r.map(cell=>{
+      const s = String(cell ?? '');
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+    }).join(',')).join('\r\n');
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `empower-clinic-${fromVal}-to-${toVal}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    el('exportStatus').textContent = `Downloaded — ${items.length} appointment(s) in this range.`;
+  }catch(e){
+    console.error(e);
+    el('exportStatus').textContent = 'Could not export: ' + (e.message || e);
+  }
+}
+
 async function loadDoctorStatsThisMonth(){
   const table = el('doctorStatsTable');
   table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">Loading…</div>';
@@ -5479,6 +5557,7 @@ function switchMainView(view){
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
 el('navDashboardBtn').addEventListener('click', ()=> switchMainView('dashboard'));
+el('exportCsvBtn').addEventListener('click', exportCsv);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
