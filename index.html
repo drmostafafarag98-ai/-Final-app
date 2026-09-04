@@ -61,7 +61,7 @@
     flex-direction:column;
     align-items:stretch;
     padding-top:10px;
-    z-index:30;
+    z-index:60;
   }
   .main-nav-btn{
     background:transparent;
@@ -84,6 +84,32 @@
   }
   #appBody{
     margin-left:62px;
+  }
+  #mainNavBackdrop{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.4);
+    z-index:55;
+  }
+  @media (max-width: 640px){
+    #mainNavBar{
+      transform:translateX(-100%);
+      transition:transform 0.22s ease;
+      box-shadow:4px 0 16px rgba(0,0,0,0.25);
+    }
+    #mainNavBar.open{
+      transform:translateX(0);
+    }
+    #appBody{
+      margin-left:0;
+    }
+    #mainNavToggleBtn{
+      display:inline-block !important;
+    }
+    #mainNavBackdrop.open{
+      display:block;
+    }
   }
   header h1{
     font-size:1.6rem;
@@ -757,10 +783,12 @@
     <span class="main-nav-label">Docs</span>
   </button>
 </div>
+<div id="mainNavBackdrop"></div>
 
 <div id="appBody">
 
 <header>
+  <button id="mainNavToggleBtn" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 10px;font-size:1rem;cursor:pointer;">☰</button>
   <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
   <span class="tag">PT session scribe — pilot build</span>
@@ -974,19 +1002,8 @@
       <div id="scheduleList" style="margin-bottom:14px;"></div>
       <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
       <div style="border-top:1px solid var(--line);padding-top:12px;">
-        <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">+ Quick book (for the selected day above)</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">
-          <select id="quickBookDoctorSelect" style="flex:1;min-width:160px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-            <option value="">For me (my own color)</option>
-          </select>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          <input type="text" id="quickBookPatientInput" list="knownPatientsList" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-          <datalist id="knownPatientsList"></datalist>
-          <input type="tel" id="quickBookPhoneInput" placeholder="Phone (e.g. 010...)" style="flex:1;min-width:120px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-          <input type="time" id="quickBookTimeInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
-          <button type="button" class="ghost" id="quickBookBtn">Book</button>
-        </div>
+        <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
+        <datalist id="knownPatientsList"></datalist>
       </div>
 
       <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
@@ -1023,6 +1040,45 @@
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
     </div>
+    </div>
+
+    <div id="quickBookOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);">+ Book appointment</span>
+          <button type="button" id="quickBookCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div style="padding:14px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+          <div id="quickBookDateLabel" style="font-size:0.8rem;color:#5b6863;"></div>
+
+          <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
+          <select id="quickBookDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+            <option value="">For me (my own color)</option>
+          </select>
+
+          <label style="font-size:0.78rem;color:#5b6863;">Patient name</label>
+          <input type="text" id="quickBookPatientInput" list="knownPatientsList" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+
+          <label style="font-size:0.78rem;color:#5b6863;">Phone</label>
+          <input type="tel" id="quickBookPhoneInput" placeholder="e.g. 010..." style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+
+          <label style="font-size:0.78rem;color:#5b6863;">Time</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="quickBookHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+            <span style="font-weight:700;color:var(--maroon);">:</span>
+            <select id="quickBookMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+            <div id="quickBookAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
+              <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
+              <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
+            </div>
+          </div>
+
+          <div id="quickBookStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+        </div>
+        <div style="padding:12px 16px;border-top:1px solid var(--line);">
+          <button type="button" class="primary" id="quickBookBtn" style="width:100%;">Book appointment</button>
+        </div>
+      </div>
     </div>
 
     <div id="paymentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
@@ -4425,22 +4481,70 @@ function goToNextMonth(){
   loadMonthAndDay();
 }
 
+let quickBookPeriod = 'AM';
+
+function populateQuickBookTimeSelects(){
+  const hourSelect = el('quickBookHourSelect');
+  const minuteSelect = el('quickBookMinuteSelect');
+  if(hourSelect.options.length === 0){
+    for(let h=1; h<=12; h++){
+      const opt = document.createElement('option');
+      opt.value = String(h);
+      opt.textContent = String(h);
+      hourSelect.appendChild(opt);
+    }
+    hourSelect.value = '9';
+  }
+  if(minuteSelect.options.length === 0){
+    for(let m=0; m<60; m+=5){
+      const opt = document.createElement('option');
+      opt.value = String(m);
+      opt.textContent = String(m).padStart(2,'0');
+      minuteSelect.appendChild(opt);
+    }
+  }
+}
+
+function openQuickBookOverlay(){
+  populateQuickBookTimeSelects();
+  el('quickBookDateLabel').textContent = 'For ' + calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
+  el('quickBookPatientInput').value = '';
+  el('quickBookPhoneInput').value = '';
+  el('quickBookStatus').textContent = '';
+  el('quickBookOverlay').style.display = 'flex';
+  loadQuickBookDoctorOptions();
+}
+
+el('quickBookAmPmToggle').querySelectorAll('.ampm-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    quickBookPeriod = btn.getAttribute('data-period');
+    el('quickBookAmPmToggle').querySelectorAll('.ampm-btn').forEach(b=>{
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+      b.style.color = active ? '#fff' : 'var(--ink)';
+    });
+  });
+});
+
 async function quickBookAppointment(){
   if(!isApproved()){
-    el('scheduleStatus').textContent = 'Sign in with Google and get approved first (in Settings).';
+    el('quickBookStatus').textContent = 'Sign in with Google and get approved first (in Settings).';
     return;
   }
   const patientName = el('quickBookPatientInput').value.trim();
   const patientPhone = el('quickBookPhoneInput').value.trim();
-  const timeVal = el('quickBookTimeInput').value;
-  if(!patientName || !timeVal){
-    el('scheduleStatus').textContent = 'Enter a patient name and time first.';
+  const hour12 = parseInt(el('quickBookHourSelect').value, 10);
+  const minute = parseInt(el('quickBookMinuteSelect').value, 10);
+  if(!patientName || isNaN(hour12)){
+    el('quickBookStatus').textContent = 'Enter a patient name and time first.';
     return;
   }
-  const [hh, mm] = timeVal.split(':').map(Number);
-  const start = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), hh, mm);
+  let hh = hour12 % 12;
+  if(quickBookPeriod === 'PM') hh += 12;
+  const start = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), hh, minute);
   const end = new Date(start.getTime() + 30*60000);
-  el('scheduleStatus').textContent = 'Booking…';
+  el('quickBookStatus').textContent = 'Booking…';
   const selectedEmail = el('quickBookDoctorSelect').value;
   const selectedDoctor = selectedEmail ? quickBookDoctorsByEmail[selectedEmail] : null;
   try{
@@ -4461,14 +4565,12 @@ async function quickBookAppointment(){
       const errText = await res.text();
       throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
     }
-    el('quickBookPatientInput').value = '';
-    el('quickBookPhoneInput').value = '';
-    el('quickBookTimeInput').value = '';
+    el('quickBookOverlay').style.display = 'none';
     el('scheduleStatus').textContent = 'Booked.';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
-    el('scheduleStatus').textContent = 'Booking failed: ' + (e.message || e);
+    el('quickBookStatus').textContent = 'Booking failed: ' + (e.message || e);
   }
 }
 
@@ -5564,6 +5666,25 @@ el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documen
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
+function toggleMainNav(forceState){
+  const isOpen = typeof forceState === 'boolean' ? forceState : !el('mainNavBar').classList.contains('open');
+  el('mainNavBar').classList.toggle('open', isOpen);
+  el('mainNavBackdrop').classList.toggle('open', isOpen);
+  el('mainNavBackdrop').style.display = isOpen ? 'block' : 'none';
+}
+el('mainNavToggleBtn').addEventListener('click', ()=> toggleMainNav());
+el('mainNavBackdrop').addEventListener('click', ()=> toggleMainNav(false));
+['navCalendarBtn','navDashboardBtn','navDocumentationBtn'].forEach(id=>{
+  el(id).addEventListener('click', ()=> toggleMainNav(false));
+});
+
+el('openQuickBookBtn').addEventListener('click', openQuickBookOverlay);
+el('quickBookCloseBtn').addEventListener('click', ()=>{
+  el('quickBookOverlay').style.display = 'none';
+});
+el('quickBookOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'quickBookOverlay') el('quickBookOverlay').style.display = 'none';
+});
 el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
