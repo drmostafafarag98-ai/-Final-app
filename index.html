@@ -4892,7 +4892,7 @@ async function loadTomorrowReminders(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    const items = await res.json();
+    const items = ((await res.json()) || []).filter(ev=> ev.status !== 'cancelled');
     tomorrowRemindersData = items || [];
     const dayLabel = day.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
     if(!items || items.length === 0){
