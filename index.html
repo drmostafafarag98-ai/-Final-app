@@ -4122,10 +4122,11 @@ let currentPaymentTarget = null;
 async function openPaymentOverlay(ev){
   currentPaymentTarget = ev;
   el('paymentPatientName').textContent = ev.patient_name || '(untitled)';
-  el('paymentAmountInput').value = '';
+  const requestedMatch = (ev.notes || []).map(n=> (n.text || '').match(/^payment requested:\s*([\d.,]+)\s*egp/i)).find(Boolean);
+  el('paymentAmountInput').value = requestedMatch ? requestedMatch[1] : '';
   el('paymentIsPackageCheckbox').checked = false;
   el('paymentPackageSessionsInput').value = '6';
-  el('paymentOverlayStatus').textContent = 'Loading unpaid sessions…';
+  el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : 'Loading unpaid sessions…';
   el('paymentAppointmentsList').innerHTML = '';
   el('paymentOverlay').style.display = 'flex';
   try{
@@ -4146,7 +4147,7 @@ async function openPaymentOverlay(ev){
         <span>${escapeHtml(dateLabel)} ${escapeHtml(timeLabel)}${String(i.id) === String(ev.id) ? ' (this session)' : ''}</span>
       </label>`;
     }).join('');
-    el('paymentOverlayStatus').textContent = '';
+    el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : '';
   }catch(err){
     console.error(err);
     el('paymentOverlayStatus').textContent = 'Could not load unpaid sessions: ' + (err.message || err);
@@ -4937,6 +4938,13 @@ function buildReminderMessage(ev, templateKey){
     if(amount && amount.trim()){
       const reason = prompt('For what? (e.g. Check-up / Session / Package)') || '';
       extra = { amount: amount.trim(), reason: reason.trim() };
+      // Remember this amount so marking the session "Paid" later can
+      // reuse it instead of asking again.
+      fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(ev.id)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ text: `Payment requested: ${extra.amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}` })
+      }).catch(e=> console.error('Could not save requested amount:', e));
     }
   }
   return template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn, extra);
