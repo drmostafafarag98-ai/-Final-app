@@ -975,6 +975,20 @@
         </div>
         <div id="exportStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
       </div>
+
+      <div class="section-title">🎁 Register an existing package</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For a patient who already started a package before this system existed — no need to remember dates, just how many sessions they've used so far.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="text" id="regPackagePatientInput" list="knownPatientsList" placeholder="Patient name" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="number" id="regPackageTotalInput" value="6" min="2" placeholder="Total" style="width:70px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.85rem;color:#5b6863;">total,</span>
+          <input type="number" id="regPackageUsedInput" value="0" min="0" placeholder="Used" style="width:70px;padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.85rem;color:#5b6863;">already used</span>
+          <button type="button" class="ghost" id="regPackageBtn">Save</button>
+        </div>
+        <div id="regPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
+      </div>
     </div>
 
     <div id="browserWarning" class="warn-box" style="display:none;">
@@ -3526,6 +3540,34 @@ async function loadDashboardStats(){
 // elsewhere in the app), using the same amount-parsing rule as the money
 // totals above (only the "primary" note per payment carries an amount,
 // so this doesn't double-count multi-session payments either).
+async function registerExistingPackage(){
+  const patientName = el('regPackagePatientInput').value.trim();
+  const total = parseInt(el('regPackageTotalInput').value, 10);
+  const used = parseInt(el('regPackageUsedInput').value, 10) || 0;
+  if(!patientName || !total || total < 2){
+    el('regPackageStatus').textContent = 'Enter a patient name and total sessions (at least 2).';
+    return;
+  }
+  el('regPackageStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ patientName, totalSessions: total, startingUsed: used })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    el('regPackageStatus').textContent = `Saved — ${patientName} now has ${used} of ${total} sessions used. The "🎁 Package" button will work for their remaining sessions.`;
+    el('regPackagePatientInput').value = '';
+    el('regPackageUsedInput').value = '0';
+  }catch(e){
+    console.error(e);
+    el('regPackageStatus').textContent = 'Could not save: ' + (e.message || e);
+  }
+}
+
 async function exportCsv(){
   const fromVal = el('exportFromDate').value;
   const toVal = el('exportToDate').value;
@@ -4757,8 +4799,12 @@ const WHATSAPP_TEMPLATES = {
   },
   instapay_payment: {
     label: 'InstaPay payment',
-    build: (name, timeStr, dateStr, elevatorCode) =>
-      `https://ipn.eg/S/empower98/instapay/3gPxRc\nClick the link to send money to\nempower98@instapay\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done.`
+    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn, extra) => {
+      const amountLine = extra && extra.amount
+        ? `Amount due: ${extra.amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n`
+        : '';
+      return `${amountLine}https://ipn.eg/S/empower98/instapay/3gPxRc\nClick the link to send money to\nempower98@instapay\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done.`;
+    }
   }
 };
 
@@ -4885,7 +4931,15 @@ function buildReminderMessage(ev, templateKey){
   const timeStrEn = ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}) : '';
   const dateStr = ev.start_time ? new Date(ev.start_time).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'}) : '';
   const dateStrEn = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'}) : '';
-  return template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn);
+  let extra = null;
+  if(templateKey === 'instapay_payment'){
+    const amount = prompt('Amount due (EGP)? Leave blank to send without an amount line.');
+    if(amount && amount.trim()){
+      const reason = prompt('For what? (e.g. Check-up / Session / Package)') || '';
+      extra = { amount: amount.trim(), reason: reason.trim() };
+    }
+  }
+  return template.build(ev.patient_name || '', timeStr, dateStr, currentElevatorCode, dateStrEn, timeStrEn, extra);
 }
 
 async function logReminderSentNote(appointmentId, templateKey){
@@ -5726,6 +5780,7 @@ function switchMainView(view){
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
 el('navDashboardBtn').addEventListener('click', ()=> switchMainView('dashboard'));
 el('exportCsvBtn').addEventListener('click', exportCsv);
+el('regPackageBtn').addEventListener('click', registerExistingPackage);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
