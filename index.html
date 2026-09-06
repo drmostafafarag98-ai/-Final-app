@@ -1726,7 +1726,7 @@ function patientSurgeryKey(name){
   return 'surgery_date:' + name.trim().toLowerCase();
 }
 
-async function loadPackageStatusForPatient(name){
+async function loadPackageStatusForPatient(name, logToChat){
   const badge = el('patientPackageStatus');
   if(!name || !name.trim() || !isApproved()){
     badge.textContent = '';
@@ -1742,6 +1742,25 @@ async function loadPackageStatusForPatient(name){
     }
     const remaining = pkg.total_sessions - pkg.used_sessions;
     badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>`;
+
+    if(logToChat){
+      const noteText = `Package: ${pkg.used_sessions} of ${pkg.total_sessions} used`;
+      const searchRes = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
+      if(searchRes.ok){
+        const matches = await searchRes.json();
+        const latestAppt = Array.isArray(matches) && matches[0];
+        if(latestAppt){
+          const alreadyLogged = (latestAppt.notes || []).some(n=> (n.text || '').trim() === noteText);
+          if(!alreadyLogged){
+            await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(latestAppt.id)}/notes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeader() },
+              body: JSON.stringify({ text: noteText })
+            });
+          }
+        }
+      }
+    }
   }catch(e){
     console.error('Package status lookup failed:', e);
     badge.textContent = '';
@@ -1994,7 +2013,7 @@ function loadSession(id){
   el('sessionDate').value = s.date || todayStr();
   setSessionType(s.sessionType || 'assessment');
   loadSurgeryDateForPatient(s.patientName || '');
-  loadPackageStatusForPatient(s.patientName || '');
+  loadPackageStatusForPatient(s.patientName || '', true);
   transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
   lastCorrectionLog = [];
   renderCorrectionLog();
@@ -4500,6 +4519,11 @@ async function markAppointmentNoShow(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
+    await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ text: 'No Show' })
+    });
     el('editAppointmentOverlay').style.display = 'none';
     await loadMonthAndDay();
 
@@ -4515,9 +4539,19 @@ async function markAppointmentNoShow(){
             const useRes = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
             if(useRes.ok){
               const updatedPkg = await useRes.json();
+              await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', ...authHeader() },
+                body: JSON.stringify({ text: `No-show penalty — 1 session deducted from package (${count} no-shows, package now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used)` })
+              });
               alert(`⚠️ ${patientName} has reached ${count} no-shows — one session was deducted from their package (now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used).`);
             }
           }else{
+            await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}/notes`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', ...authHeader() },
+              body: JSON.stringify({ text: `${count} no-shows reached — no active package to deduct from` })
+            });
             alert(`⚠️ ${patientName} has reached ${count} no-shows, but has no active package to deduct from.`);
           }
         }
