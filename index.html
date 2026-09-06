@@ -4291,7 +4291,7 @@ function renderScheduleList(events){
     const noteCount = (ev.notes && ev.notes.length) || 0;
     const isPaid = !!ev.paid;
     return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isMine && !isCancelled ? 'font-weight:600;' : ''}">
-      <span style="width:10px;height:10px;border-radius:50%;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
+      <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
@@ -5815,6 +5815,32 @@ el('mainNavToggleBtn').addEventListener('click', ()=> toggleMainNav());
 el('mainNavBackdrop').addEventListener('click', ()=> toggleMainNav(false));
 ['navCalendarBtn','navDashboardBtn','navDocumentationBtn'].forEach(id=>{
   el(id).addEventListener('click', ()=> toggleMainNav(false));
+});
+
+function goToDay(offsetDays){
+  const d = calSelectedDate;
+  calSelectedDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + offsetDays);
+  // Crossing into a different month needs fresh data for that month too.
+  if(calSelectedDate.getMonth() !== calViewMonth.getMonth() || calSelectedDate.getFullYear() !== calViewMonth.getFullYear()){
+    calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
+    loadMonthAndDay();
+  }else{
+    renderCalendarGrid();
+    renderScheduleList(monthEventsByDay[dayKey(calSelectedDate)] || []);
+  }
+}
+
+let dayScheduleTouchStartX = null;
+el('dayScheduleOverlay').addEventListener('touchstart', (e)=>{
+  dayScheduleTouchStartX = e.touches[0].clientX;
+}, { passive: true });
+el('dayScheduleOverlay').addEventListener('touchend', (e)=>{
+  if(dayScheduleTouchStartX === null) return;
+  const deltaX = e.changedTouches[0].clientX - dayScheduleTouchStartX;
+  dayScheduleTouchStartX = null;
+  if(Math.abs(deltaX) < 60) return; // too small — not an intentional swipe
+  if(deltaX < 0) goToDay(1);   // swiped left -> next day
+  else goToDay(-1);            // swiped right -> previous day
 });
 
 el('dayScheduleCloseBtn').addEventListener('click', ()=>{
