@@ -1162,6 +1162,7 @@
         <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
           <button type="button" class="primary" id="saveEditAppointmentBtn">Save changes</button>
           <button type="button" class="ghost" id="cancelAppointmentBtn" style="color:var(--danger);border-color:var(--danger);">Cancel appointment</button>
+          <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;">👻 Mark as No Show</button>
           <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
           <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;">🗑️ Delete permanently</button>
         </div>
@@ -1249,6 +1250,7 @@
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
     </div>
+    <div id="patientPackageStatus" style="font-size:0.78rem;color:#5b6863;margin:-4px 0 8px;"></div>
     <div class="patient-row" style="margin-top:-8px;">
       <button type="button" class="ghost" id="openPrescriptionBtn" style="flex:1;">🖨️ Prescription (روشتة)</button>
       <button type="button" class="ghost" id="openInvoiceBtn" style="flex:1;">🧾 Invoice</button>
@@ -1724,6 +1726,28 @@ function patientSurgeryKey(name){
   return 'surgery_date:' + name.trim().toLowerCase();
 }
 
+async function loadPackageStatusForPatient(name){
+  const badge = el('patientPackageStatus');
+  if(!name || !name.trim() || !isApproved()){
+    badge.textContent = '';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
+    if(!res.ok){ badge.textContent = ''; return; }
+    const pkg = await res.json();
+    if(!pkg){
+      badge.textContent = '';
+      return;
+    }
+    const remaining = pkg.total_sessions - pkg.used_sessions;
+    badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>`;
+  }catch(e){
+    console.error('Package status lookup failed:', e);
+    badge.textContent = '';
+  }
+}
+
 async function loadSurgeryDateForPatient(name){
   if(!name || !name.trim()){
     surgeryDate = '';
@@ -1970,6 +1994,7 @@ function loadSession(id){
   el('sessionDate').value = s.date || todayStr();
   setSessionType(s.sessionType || 'assessment');
   loadSurgeryDateForPatient(s.patientName || '');
+  loadPackageStatusForPatient(s.patientName || '');
   transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
   lastCorrectionLog = [];
   renderCorrectionLog();
@@ -4298,14 +4323,16 @@ function renderScheduleList(events){
       ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'})
       : 'All day';
     const isCancelled = ev.status === 'cancelled';
-    const colorHex = isCancelled ? '#a33d3d' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e');
+    const isNoShow = ev.status === 'no_show';
+    const colorHex = isCancelled ? '#a33d3d' : isNoShow ? '#b8894f' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e');
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const noteCount = (ev.notes && ev.notes.length) || 0;
     const isPaid = !!ev.paid;
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isMine && !isCancelled ? 'font-weight:600;' : ''}">
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
       <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-      <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
       <button type="button" class="ghost edit-appointment-btn" data-id="${ev.id}" style="font-size:0.72rem;padding:3px 8px;">✏️</button>
@@ -4382,9 +4409,13 @@ async function openEditAppointment(id){
   const currentMatch = Object.values(quickBookDoctorsByEmail).find(d=> d.name === ev.doctor_name);
   if(currentMatch) select.value = currentMatch.email;
   const isCancelled = ev.status === 'cancelled';
-  el('cancelAppointmentBtn').style.display = isCancelled ? 'none' : 'inline-block';
-  el('restoreAppointmentBtn').style.display = isCancelled ? 'inline-block' : 'none';
-  el('deleteAppointmentPermanentlyBtn').style.display = isCancelled ? 'inline-block' : 'none';
+  const isNoShow = ev.status === 'no_show';
+  const isInactive = isCancelled || isNoShow;
+  const wasConfirmed = (ev.notes || []).some(n=> (n.text || '').trim().toLowerCase() === 'confirmed');
+  el('cancelAppointmentBtn').style.display = isInactive ? 'none' : 'inline-block';
+  el('noShowAppointmentBtn').style.display = (!isInactive && wasConfirmed) ? 'inline-block' : 'none';
+  el('restoreAppointmentBtn').style.display = isInactive ? 'inline-block' : 'none';
+  el('deleteAppointmentPermanentlyBtn').style.display = isInactive ? 'inline-block' : 'none';
 }
 
 async function saveEditAppointment(){
@@ -4451,6 +4482,50 @@ async function cancelAppointment(){
   }catch(e){
     console.error(e);
     el('editAppointmentStatus').textContent = 'Could not cancel: ' + (e.message || e);
+  }
+}
+
+async function markAppointmentNoShow(){
+  if(!currentEditAppointment) return;
+  const patientName = currentEditAppointment.patient_name || '';
+  if(!confirm(`Mark this as a No Show for ${patientName}? Every 2 no-shows automatically deducts one session from their package (if they have one).`)) return;
+  el('editAppointmentStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'no_show' })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('editAppointmentOverlay').style.display = 'none';
+    await loadMonthAndDay();
+
+    // Every 2nd no-show (2, 4, 6…) auto-deducts one package session.
+    const countRes = await fetch(`${BACKEND_URL}/api/appointments/no-show-count?patientName=${encodeURIComponent(patientName)}`, { headers: authHeader() });
+    if(countRes.ok){
+      const { count } = await countRes.json();
+      if(count > 0 && count % 2 === 0){
+        const pkgRes = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(patientName)}`, { headers: authHeader() });
+        if(pkgRes.ok){
+          const pkg = await pkgRes.json();
+          if(pkg){
+            const useRes = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
+            if(useRes.ok){
+              const updatedPkg = await useRes.json();
+              alert(`⚠️ ${patientName} has reached ${count} no-shows — one session was deducted from their package (now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used).`);
+            }
+          }else{
+            alert(`⚠️ ${patientName} has reached ${count} no-shows, but has no active package to deduct from.`);
+          }
+        }
+      }
+    }
+  }catch(e){
+    console.error(e);
+    el('editAppointmentStatus').textContent = 'Could not save: ' + (e.message || e);
   }
 }
 
@@ -5993,6 +6068,7 @@ el('editAppointmentOverlay').addEventListener('click', (e)=>{
 });
 el('saveEditAppointmentBtn').addEventListener('click', saveEditAppointment);
 el('cancelAppointmentBtn').addEventListener('click', cancelAppointment);
+el('noShowAppointmentBtn').addEventListener('click', markAppointmentNoShow);
 el('restoreAppointmentBtn').addEventListener('click', restoreAppointment);
 el('deleteAppointmentPermanentlyBtn').addEventListener('click', deleteAppointmentPermanently);
 el('appointmentNoteSendBtn').addEventListener('click', sendAppointmentNote);
@@ -6151,6 +6227,7 @@ el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'))
 
 el('patientName').addEventListener('change', async (e)=>{
   loadSurgeryDateForPatient(e.target.value);
+  loadPackageStatusForPatient(e.target.value);
   if(activeSessionId && (transcriptLines.length > 0 || el('noteText').value)){
     await saveSession();
   }
