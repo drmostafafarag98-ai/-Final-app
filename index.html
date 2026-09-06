@@ -267,7 +267,7 @@
     height:100vh;
     width:280px;
     max-width:85vw;
-    z-index:50;
+    z-index:65;
     overflow-y:auto;
     transform:translateX(-100%);
     transition:transform 0.25s ease;
@@ -935,7 +935,8 @@
     <button id="sidebarCloseBtn" style="position:absolute;top:10px;right:10px;background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
     <h2 style="margin-right:30px;">Sessions</h2>
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
-    <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;">🔄 Sync from clinic server</button>
+    <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:10px;font-size:0.82rem;">🔄 Sync from clinic server</button>
+    <input type="text" id="sessionSearchInput" placeholder="🔍 Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:14px;">
     <div id="sessionList"></div>
   </div>
 
@@ -1002,6 +1003,10 @@
     </div>
 
     <div id="calendarView" style="display:none;">
+    <div style="position:relative;margin-bottom:12px;">
+      <input type="text" id="calendarSearchInput" placeholder="🔍 Find a patient's appointment…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <div id="calendarSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-top:4px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
+    </div>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1822,9 +1827,13 @@ async function mergeSessionDoctorGroup(fromName, toName){
 
 function renderSessionList(){
   const container = el('sessionList');
-  const ids = Object.keys(sessions);
+  const searchQuery = (el('sessionSearchInput').value || '').trim().toLowerCase();
+  let ids = Object.keys(sessions);
+  if(searchQuery){
+    ids = ids.filter(id => (sessions[id].patientName || '').toLowerCase().includes(searchQuery));
+  }
   if(ids.length === 0){
-    container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No sessions yet.</div>';
+    container.innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">${searchQuery ? 'No patients match "' + escapeHtml(searchQuery) + '".' : 'No sessions yet.'}</div>`;
     return;
   }
   // Top tier: group by doctor. Second tier (inside each doctor, when
@@ -1842,9 +1851,11 @@ function renderSessionList(){
     return bLatest - aLatest;
   });
   // Auto-expand whichever doctor (and within it, patient) contains the
-  // currently active session.
+  // currently active session — or, while searching, expand every group
+  // that has a match so results are visible without extra taps.
   doctorNames.forEach(doctorName=>{
     if(doctorGroups[doctorName].includes(activeSessionId)) expandedDoctors.add(doctorName);
+    if(searchQuery) expandedDoctors.add(doctorName);
   });
 
   container.innerHTML = '';
@@ -1895,6 +1906,7 @@ function renderSessionList(){
     });
     patientNames.forEach(patientName=>{
       if(patientGroups[patientName].includes(activeSessionId)) expandedPatients.add(patientName);
+      if(searchQuery) expandedPatients.add(patientName);
     });
 
     patientNames.forEach(patientName=>{
@@ -5817,6 +5829,64 @@ el('mainNavBackdrop').addEventListener('click', ()=> toggleMainNav(false));
   el(id).addEventListener('click', ()=> toggleMainNav(false));
 });
 
+let calendarSearchDebounce = null;
+async function runCalendarSearch(){
+  const q = el('calendarSearchInput').value.trim();
+  const resultsBox = el('calendarSearchResults');
+  if(q.length < 2){
+    resultsBox.style.display = 'none';
+    resultsBox.innerHTML = '';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(q)}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = await res.json();
+    if(!Array.isArray(items) || items.length === 0){
+      resultsBox.innerHTML = '<div style="padding:12px;font-size:0.82rem;color:#8a938e;">No matching appointments.</div>';
+      resultsBox.style.display = 'block';
+      return;
+    }
+    resultsBox.innerHTML = items.map(it=>{
+      const d = it.start_time ? new Date(it.start_time) : null;
+      const label = d ? d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'}) + ' — ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : 'No date';
+      const cancelledTag = it.status === 'cancelled' ? ' <span style="color:var(--danger);font-size:0.72rem;">(cancelled)</span>' : '';
+      return `<div class="cal-search-result" data-date="${it.start_time || ''}" style="padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;">
+        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(it.patient_name || '(untitled)')}${cancelledTag}</div>
+        <div style="font-size:0.78rem;color:#5b6863;">${label}</div>
+      </div>`;
+    }).join('');
+    resultsBox.style.display = 'block';
+    resultsBox.querySelectorAll('.cal-search-result').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const dateVal = row.getAttribute('data-date');
+        if(!dateVal) return;
+        const d = new Date(dateVal);
+        calSelectedDate = d;
+        calViewMonth = new Date(d.getFullYear(), d.getMonth(), 1);
+        resultsBox.style.display = 'none';
+        el('calendarSearchInput').value = '';
+        loadMonthAndDay().then(()=>{
+          el('dayScheduleOverlay').style.display = 'flex';
+        });
+      });
+    });
+  }catch(e){
+    console.error(e);
+    resultsBox.innerHTML = `<div style="padding:12px;font-size:0.82rem;color:var(--danger);">Search failed: ${escapeHtml(e.message || String(e))}</div>`;
+    resultsBox.style.display = 'block';
+  }
+}
+el('calendarSearchInput').addEventListener('input', ()=>{
+  clearTimeout(calendarSearchDebounce);
+  calendarSearchDebounce = setTimeout(runCalendarSearch, 350);
+});
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#calendarSearchInput') && !e.target.closest('#calendarSearchResults')){
+    el('calendarSearchResults').style.display = 'none';
+  }
+});
+
 function goToDay(offsetDays){
   const d = calSelectedDate;
   calSelectedDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + offsetDays);
@@ -6074,6 +6144,7 @@ el('settingsToggleBtn').addEventListener('click', ()=>{
 });
 
 el('newSessionBtn').addEventListener('click', startNewSession);
+el('sessionSearchInput').addEventListener('input', renderSessionList);
 el('syncSessionsBtn').addEventListener('click', loadSessionsFromServer);
 el('typeAssessmentBtn').addEventListener('click', ()=> setSessionType('assessment'));
 el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'));
