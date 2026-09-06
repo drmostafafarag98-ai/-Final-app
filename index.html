@@ -949,7 +949,10 @@
       </button>
     </div>
 
-    <div class="section-title" id="statsRow_todayInline_label" style="margin-top:8px;">📊 Today</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <div class="section-title" id="statsRow_todayInline_label" style="margin-top:0;">📊 Today</div>
+      <input type="date" id="statsInlineDatePicker" style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.82rem;">
+    </div>
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
 
     <div id="dashboardStatsView" style="display:none;">
@@ -3770,6 +3773,8 @@ function refreshInlineStatsRow(){
     const isToday = sameDay(d, new Date());
     label.textContent = isToday ? '📊 Today' : `📊 ${d.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'})}`;
   }
+  const pad2 = n=> String(n).padStart(2,'0');
+  el('statsInlineDatePicker').value = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   fetchStatsForRange(dayStart, dayEnd).then(stats=> renderStatsRow('todayInline', stats));
 }
 
@@ -5919,6 +5924,12 @@ function switchMainView(view){
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
 el('navDashboardBtn').addEventListener('click', ()=> switchMainView('dashboard'));
+el('statsInlineDatePicker').addEventListener('change', (e)=>{
+  if(!e.target.value) return;
+  const [y, m, d] = e.target.value.split('-').map(Number);
+  calSelectedDate = new Date(y, m-1, d);
+  refreshInlineStatsRow();
+});
 el('exportCsvBtn').addEventListener('click', exportCsv);
 el('regPackageBtn').addEventListener('click', registerExistingPackage);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
