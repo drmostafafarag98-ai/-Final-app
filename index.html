@@ -1154,7 +1154,16 @@
           <input type="tel" id="editAppointmentPhoneInput" placeholder="Phone" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <div style="display:flex;gap:8px;">
             <input type="date" id="editAppointmentDateInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-            <input type="time" id="editAppointmentTimeInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          </div>
+          <label style="font-size:0.78rem;color:#5b6863;">Time</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="editAppointmentHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+            <span style="font-weight:700;color:var(--maroon);">:</span>
+            <select id="editAppointmentMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+            <div id="editAppointmentAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
+              <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
+              <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
+            </div>
           </div>
           <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
           <select id="editAppointmentDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
@@ -4424,7 +4433,13 @@ async function openEditAppointment(id){
   const start = ev.start_time ? new Date(ev.start_time) : new Date();
   const pad = n => String(n).padStart(2,'0');
   el('editAppointmentDateInput').value = `${start.getFullYear()}-${pad(start.getMonth()+1)}-${pad(start.getDate())}`;
-  el('editAppointmentTimeInput').value = `${pad(start.getHours())}:${pad(start.getMinutes())}`;
+  populateHourMinuteSelects(el('editAppointmentHourSelect'), el('editAppointmentMinuteSelect'), 9);
+  const hour24 = start.getHours();
+  editAppointmentPeriod = hour24 >= 12 ? 'PM' : 'AM';
+  setAmPmToggle(el('editAppointmentAmPmToggle'), editAppointmentPeriod);
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  el('editAppointmentHourSelect').value = String(hour12);
+  el('editAppointmentMinuteSelect').value = String(Math.round(start.getMinutes()/5)*5 % 60);
   await loadQuickBookDoctorOptions();
   const select = el('editAppointmentDoctorSelect');
   const doctorOptions = Object.values(quickBookDoctorsByEmail)
@@ -4447,14 +4462,16 @@ async function saveEditAppointment(){
   const patientName = el('editAppointmentPatientInput').value.trim();
   const patientPhone = el('editAppointmentPhoneInput').value.trim();
   const dateVal = el('editAppointmentDateInput').value;
-  const timeVal = el('editAppointmentTimeInput').value;
-  if(!patientName || !dateVal || !timeVal){
+  const hour12 = parseInt(el('editAppointmentHourSelect').value, 10);
+  const minute = parseInt(el('editAppointmentMinuteSelect').value, 10);
+  if(!patientName || !dateVal || isNaN(hour12)){
     el('editAppointmentStatus').textContent = 'Fill in patient name, date, and time.';
     return;
   }
   const [yyyy, mo, dd] = dateVal.split('-').map(Number);
-  const [hh, mm] = timeVal.split(':').map(Number);
-  const start = new Date(yyyy, mo-1, dd, hh, mm);
+  let hh = hour12 % 12;
+  if(editAppointmentPeriod === 'PM') hh += 12;
+  const start = new Date(yyyy, mo-1, dd, hh, minute);
   const end = new Date(start.getTime() + 30*60000);
   const selectedEmail = el('editAppointmentDoctorSelect').value;
   const selectedDoctor = selectedEmail ? quickBookDoctorsByEmail[selectedEmail] : null;
@@ -4732,10 +4749,9 @@ function goToNextMonth(){
 }
 
 let quickBookPeriod = 'AM';
+let editAppointmentPeriod = 'AM';
 
-function populateQuickBookTimeSelects(){
-  const hourSelect = el('quickBookHourSelect');
-  const minuteSelect = el('quickBookMinuteSelect');
+function populateHourMinuteSelects(hourSelect, minuteSelect, defaultHour){
   if(hourSelect.options.length === 0){
     for(let h=1; h<=12; h++){
       const opt = document.createElement('option');
@@ -4743,7 +4759,7 @@ function populateQuickBookTimeSelects(){
       opt.textContent = String(h);
       hourSelect.appendChild(opt);
     }
-    hourSelect.value = '9';
+    hourSelect.value = String(defaultHour || 9);
   }
   if(minuteSelect.options.length === 0){
     for(let m=0; m<60; m+=5){
@@ -4753,6 +4769,19 @@ function populateQuickBookTimeSelects(){
       minuteSelect.appendChild(opt);
     }
   }
+}
+
+function populateQuickBookTimeSelects(){
+  populateHourMinuteSelects(el('quickBookHourSelect'), el('quickBookMinuteSelect'), 9);
+}
+
+function setAmPmToggle(toggleEl, period){
+  toggleEl.querySelectorAll('.ampm-btn').forEach(b=>{
+    const active = b.getAttribute('data-period') === period;
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.color = active ? '#fff' : 'var(--ink)';
+  });
 }
 
 function openQuickBookOverlay(){
@@ -4768,12 +4797,13 @@ function openQuickBookOverlay(){
 el('quickBookAmPmToggle').querySelectorAll('.ampm-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     quickBookPeriod = btn.getAttribute('data-period');
-    el('quickBookAmPmToggle').querySelectorAll('.ampm-btn').forEach(b=>{
-      const active = b === btn;
-      b.classList.toggle('active', active);
-      b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
-      b.style.color = active ? '#fff' : 'var(--ink)';
-    });
+    setAmPmToggle(el('quickBookAmPmToggle'), quickBookPeriod);
+  });
+});
+el('editAppointmentAmPmToggle').querySelectorAll('.ampm-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    editAppointmentPeriod = btn.getAttribute('data-period');
+    setAmPmToggle(el('editAppointmentAmPmToggle'), editAppointmentPeriod);
   });
 });
 
