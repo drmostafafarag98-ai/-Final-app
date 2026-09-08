@@ -1263,6 +1263,8 @@
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
     </div>
     <div id="patientPackageStatus" style="font-size:0.78rem;color:#5b6863;margin:-4px 0 8px;"></div>
+    <div id="patientIntakeNotice" style="display:none;background:#eef6f3;border:1px solid var(--maroon);border-radius:var(--radius);padding:10px 12px;margin:-4px 0 12px;font-size:0.82rem;"></div>
+    <div id="patientHistoryStatus" style="font-size:0.78rem;color:#5b6863;margin:-4px 0 8px;"></div>
     <div class="patient-row" style="margin-top:-8px;">
       <button type="button" class="ghost" id="openPrescriptionBtn" style="flex:1;">🖨️ Prescription (روشتة)</button>
       <button type="button" class="ghost" id="openInvoiceBtn" style="flex:1;">🧾 Invoice</button>
@@ -1738,6 +1740,70 @@ function patientSurgeryKey(name){
   return 'surgery_date:' + name.trim().toLowerCase();
 }
 
+async function loadPatientHistoryStatus(name){
+  const badge = el('patientHistoryStatus');
+  if(!name || !name.trim() || !isApproved()){
+    badge.textContent = '';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
+    if(!res.ok){ badge.textContent = ''; return; }
+    const items = await res.json();
+    const active = (Array.isArray(items) ? items : []).filter(ev=> ev.status !== 'cancelled');
+    if(active.length === 0){ badge.textContent = ''; return; }
+    const byDoctor = {};
+    active.forEach(ev=>{
+      const doc = ev.doctor_name || 'Unassigned';
+      byDoctor[doc] = (byDoctor[doc] || 0) + 1;
+    });
+    const breakdown = Object.entries(byDoctor).map(([doc, count])=> `${count} مع ${doc}`).join('، ');
+    badge.innerHTML = `📅 <strong>${active.length}</strong> جلسة سابقة — ${breakdown}`;
+  }catch(e){
+    console.error('Patient history lookup failed:', e);
+    badge.textContent = '';
+  }
+}
+
+async function loadIntakeFormForPatient(name){
+  const notice = el('patientIntakeNotice');
+  if(!name || !name.trim() || !isApproved()){
+    notice.style.display = 'none';
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/intake/unmatched-by-name?name=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
+    if(!res.ok){ notice.style.display = 'none'; return; }
+    const form = await res.json();
+    if(!form){ notice.style.display = 'none'; return; }
+    notice.style.display = 'block';
+    notice.innerHTML = `
+      <div style="font-weight:600;color:var(--maroon);margin-bottom:4px;">📋 استمارة استقبال وصلت من ${escapeHtml(form.patient_name)}</div>
+      <div style="margin-bottom:4px;"><strong>التليفون:</strong> ${escapeHtml(form.patient_phone)}</div>
+      ${form.chief_complaint ? `<div style="margin-bottom:8px;"><strong>الشكوى:</strong> ${escapeHtml(form.chief_complaint)}</div>` : ''}
+      ${form.referral_source ? `<div style="margin-bottom:8px;"><strong>عرفنا إزاي:</strong> ${escapeHtml(form.referral_source)}</div>` : ''}
+      <div style="display:flex;gap:8px;">
+        <button type="button" class="ghost" id="useIntakeFormBtn" style="font-size:0.78rem;padding:5px 10px;">استخدم البيانات دي</button>
+        <button type="button" class="ghost" id="dismissIntakeFormBtn" style="font-size:0.78rem;padding:5px 10px;">لاحقًا</button>
+      </div>
+    `;
+    el('useIntakeFormBtn').addEventListener('click', async ()=>{
+      if(form.chief_complaint){
+        const noteField = el('noteText');
+        noteField.value = `Chief complaint (from intake form): ${form.chief_complaint}\n\n${noteField.value || ''}`;
+      }
+      await fetch(`${BACKEND_URL}/api/intake/${encodeURIComponent(form.id)}/mark-matched`, { method: 'POST', headers: authHeader() });
+      notice.style.display = 'none';
+    });
+    el('dismissIntakeFormBtn').addEventListener('click', ()=>{
+      notice.style.display = 'none';
+    });
+  }catch(e){
+    console.error('Intake form lookup failed:', e);
+    notice.style.display = 'none';
+  }
+}
+
 async function loadPackageStatusForPatient(name, logToChat){
   const badge = el('patientPackageStatus');
   if(!name || !name.trim() || !isApproved()){
@@ -2026,6 +2092,8 @@ function loadSession(id){
   setSessionType(s.sessionType || 'assessment');
   loadSurgeryDateForPatient(s.patientName || '');
   loadPackageStatusForPatient(s.patientName || '', true);
+  loadIntakeFormForPatient(s.patientName || '');
+  loadPatientHistoryStatus(s.patientName || '');
   transcriptLines = s.transcriptLines ? JSON.parse(JSON.stringify(s.transcriptLines)) : [];
   lastCorrectionLog = [];
   renderCorrectionLog();
@@ -4973,6 +5041,11 @@ const WHATSAPP_TEMPLATES = {
         : '';
       return `${amountLine}https://ipn.eg/S/empower98/instapay/3gPxRc\nClick the link to send money to\nempower98@instapay\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done.`;
     }
+  },
+  intake_form: {
+    label: 'Patient intake form',
+    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
+      `مرحبًا بيك في عيادة Empower!\n\nقبل ميعادك يوم ${dateStrEn} الساعة ${timeStrEn}، ممكن تملى الاستمارة القصيرة دي عشان نجهزلك الكشف؟ هتاخد أقل من دقيقة:\n\nhttps://drmostafafarag98-ai.github.io/-Final-app/intake.html\n\nشكرًا ليك، ونشوفك قريب 🌿`
   }
 };
 
@@ -6303,6 +6376,8 @@ el('typeFollowupBtn').addEventListener('click', ()=> setSessionType('followup'))
 el('patientName').addEventListener('change', async (e)=>{
   loadSurgeryDateForPatient(e.target.value);
   loadPackageStatusForPatient(e.target.value);
+  loadIntakeFormForPatient(e.target.value);
+  loadPatientHistoryStatus(e.target.value);
   if(activeSessionId && (transcriptLines.length > 0 || el('noteText').value)){
     await saveSession();
   }
