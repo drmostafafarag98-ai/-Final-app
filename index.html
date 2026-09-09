@@ -1034,6 +1034,10 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="manualDoctorNameInput" placeholder="Doctor's name" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
           <input type="email" id="manualDoctorEmailInput" placeholder="Email (if known — lets them sign in right away)" style="flex:1;min-width:200px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+          <select id="manualDoctorRoleSelect" style="padding:9px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+            <option value="doctor">Doctor</option>
+            <option value="secretary">Secretary (calendar only)</option>
+          </select>
           <div id="manualDoctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           <button type="button" class="ghost" id="addManualDoctorBtn">Add doctor</button>
         </div>
@@ -4001,7 +4005,10 @@ function renderDoctorsRoster(items){
                  <button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','secretary')">Approve as Secretary (calendar only)</button>
                  <button type="button" class="ghost" onclick="rejectDoctorRequest('${d.email}')">Reject</button>`;
     } else if(d.status === 'approved'){
-      actions = `<button type="button" class="ghost" style="color:var(--danger);border-color:var(--danger);" onclick="rejectDoctorRequest('${d.email}')">Remove access</button>`;
+      const otherRole = d.role === 'secretary' ? 'doctor' : 'secretary';
+      const otherRoleLabel = otherRole === 'secretary' ? 'Secretary (calendar only)' : 'Doctor';
+      actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','${otherRole}')">Change to ${otherRoleLabel}</button>
+                 <button type="button" class="ghost" style="color:var(--danger);border-color:var(--danger);" onclick="rejectDoctorRequest('${d.email}')">Remove access</button>`;
     } else {
       actions = `<button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','doctor')">Re-approve as Doctor</button>
                  <button type="button" class="ghost" onclick="approveDoctorRequest('${d.email}','secretary')">Re-approve as Secretary</button>`;
@@ -5089,6 +5096,7 @@ function renderManualDoctorColorSwatches(){
 async function addManualDoctor(){
   const name = el('manualDoctorNameInput').value.trim();
   const email = el('manualDoctorEmailInput').value.trim();
+  const role = el('manualDoctorRoleSelect').value;
   if(!name){
     el('manualDoctorStatus').textContent = 'Enter the doctor\'s name first.';
     return;
@@ -5098,7 +5106,7 @@ async function addManualDoctor(){
     const res = await fetch(`${BACKEND_URL}/api/doctors/manual`, {
       method: 'POST',
       headers: { ...authHeader(), 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, color: manualDoctorColorId, email: email || undefined })
+      body: JSON.stringify({ name, color: manualDoctorColorId, email: email || undefined, role })
     });
     if(!res.ok){
       const errBody = await res.json().catch(()=>({}));
