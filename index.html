@@ -1205,6 +1205,7 @@
             <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
           </div>
           <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
+          <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
           <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
         </div>
       </div>
@@ -4458,6 +4459,24 @@ function renderCalendarGrid(){
 
 let cancelledGroupExpanded = false;
 
+async function justMarkPaid(){
+  if(!currentPaymentTarget) return;
+  if(!confirm(`Mark this as paid with no new charge and no package change? Only use this if it was already properly accounted for before (e.g. you accidentally un-marked it).`)) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paid: true })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('paymentOverlay').style.display = 'none';
+    await loadMonthAndDay();
+  }catch(err){
+    console.error(err);
+    el('paymentOverlayStatus').textContent = 'Could not save: ' + (err.message || err);
+  }
+}
+
 async function markAppointmentPaid(id, method, amount){
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
@@ -6601,6 +6620,7 @@ el('paymentOverlay').addEventListener('click', (e)=>{
 el('paymentMethodCashBtn').addEventListener('click', ()=> submitPayment('Cash'));
 el('paymentMethodInstaPayBtn').addEventListener('click', ()=> submitPayment('InstaPay'));
 el('paymentMethodPackageBtn').addEventListener('click', ()=> submitPayment('Package'));
+el('justMarkPaidBtn').addEventListener('click', justMarkPaid);
 el('editAppointmentCloseBtn').addEventListener('click', ()=>{
   el('editAppointmentOverlay').style.display = 'none';
 });
