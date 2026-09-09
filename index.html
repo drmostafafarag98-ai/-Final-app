@@ -1103,6 +1103,16 @@
       </div>
     </div>
 
+    <div id="patientHistoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:78;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);" id="patientHistoryTitle">History</span>
+          <button type="button" id="patientHistoryCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div id="patientHistoryBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
+      </div>
+    </div>
+
     <div id="unpaidListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
@@ -3791,6 +3801,41 @@ function renderStatsRow(prefix, stats){
   });
 }
 
+async function openPatientHistoryPopup(name){
+  if(!name) return;
+  el('patientHistoryTitle').textContent = `📋 ${name} — history`;
+  el('patientHistoryOverlay').style.display = 'flex';
+  el('patientHistoryBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name)}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = await res.json();
+    if(!Array.isArray(items) || items.length === 0){
+      el('patientHistoryBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">No appointment history found.</div>';
+      return;
+    }
+    const sorted = [...items].sort((a,b)=> new Date(b.start_time||0) - new Date(a.start_time||0));
+    el('patientHistoryBody').innerHTML = sorted.map(ev=>{
+      const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'}) + ' · ' + new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+      const isCancelled = ev.status === 'cancelled';
+      const isNoShow = ev.status === 'no_show';
+      const isCheckup = ev.visit_type === 'checkup';
+      const statusTag = isCancelled ? '<span style="color:#a33d3d;font-weight:700;">❌ Cancelled</span>'
+        : isNoShow ? '<span style="color:#b8894f;font-weight:700;">👻 No show</span>'
+        : ev.paid ? '<span style="color:#0b8043;font-weight:700;">💰 Paid</span>'
+        : '<span style="color:#a33d3d;font-weight:700;">💸 Unpaid</span>';
+      return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
+        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(dateLabel)}</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin:2px 0;">${escapeHtml(ev.doctor_name || 'Unassigned')}${isCheckup ? ' · 🩺 Check-up' : ''}</div>
+        <div style="font-size:0.78rem;">${statusTag}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    el('patientHistoryBody').innerHTML = `<div style="font-size:0.85rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
 function openPatientListPopup(items, title, emptyMessage){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
   el('unpaidListTitle').textContent = title;
@@ -4677,7 +4722,7 @@ function renderScheduleList(events){
     return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
       <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-      <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      <span class="patient-name-link" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.85rem;flex:1;text-decoration:underline;cursor:pointer;${isCancelled ? 'text-decoration-color:#a33d3d;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
       ${isCheckup ? '<span style="font-size:0.68rem;color:var(--maroon);font-weight:700;border:1px solid var(--maroon);border-radius:4px;padding:1px 5px;">🩺 Check-up</span>' : ''}
       ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
@@ -4708,7 +4753,7 @@ function renderScheduleList(events){
 
   container.querySelectorAll('.appointment-row').forEach(row=>{
     row.addEventListener('click', (e)=>{
-      if(e.target.closest('.edit-appointment-btn') || e.target.closest('.paid-toggle-btn')) return;
+      if(e.target.closest('.edit-appointment-btn') || e.target.closest('.paid-toggle-btn') || e.target.closest('.patient-name-link')) return;
       openAppointmentNotes(row.getAttribute('data-id'));
     });
   });
@@ -4729,6 +4774,12 @@ function renderScheduleList(events){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       openEditAppointment(btn.getAttribute('data-id'));
+    });
+  });
+  container.querySelectorAll('.patient-name-link').forEach(span=>{
+    span.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      openPatientHistoryPopup(span.getAttribute('data-name'));
     });
   });
 }
@@ -6540,6 +6591,12 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('patientHistoryCloseBtn').addEventListener('click', ()=>{
+  el('patientHistoryOverlay').style.display = 'none';
+});
+el('patientHistoryOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'patientHistoryOverlay') el('patientHistoryOverlay').style.display = 'none';
+});
 el('unpaidListCloseBtn').addEventListener('click', ()=>{
   el('unpaidListOverlay').style.display = 'none';
 });
