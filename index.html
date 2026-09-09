@@ -1166,6 +1166,12 @@
             </div>
           </div>
 
+          <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
+          <div id="quickBookVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
+            <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
+            <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
+          </div>
+
           <div id="quickBookStatus" style="font-size:0.78rem;color:#8a938e;"></div>
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
@@ -1230,6 +1236,11 @@
           <select id="editAppointmentDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
             <option value="">— keep current —</option>
           </select>
+          <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
+          <div id="editAppointmentVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
+            <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
+            <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
+          </div>
           <div id="editAppointmentStatus" style="font-size:0.78rem;color:#8a938e;"></div>
         </div>
         <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
@@ -4558,7 +4569,13 @@ async function submitPayment(method){
       el('paymentOverlay').style.display = 'none';
       await loadMonthAndDay();
       if(updatedPkg.used_sessions >= updatedPkg.total_sessions){
-        alert(`🎉 ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}. They'll need a new package or per-session payment from here.`);
+        const phone = currentPaymentTarget && currentPaymentTarget.patient_phone;
+        if(phone && confirm(`🎉 ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}.\n\nSend them a quick "hope you're feeling better" message now?`)){
+          const message = WHATSAPP_TEMPLATES.package_last_session.build(patientName);
+          location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(message)}`;
+        }else if(!phone){
+          alert(`🎉 ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}. No phone number on file to send a message — they'll need a new package or per-session payment from here.`);
+        }
       }else{
         el('scheduleStatus').textContent = `${patientName}: session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used.`;
       }
@@ -4637,10 +4654,12 @@ function renderScheduleList(events){
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const noteCount = (ev.notes && ev.notes.length) || 0;
     const isPaid = !!ev.paid;
+    const isCheckup = ev.visit_type === 'checkup';
     return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
       <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <span style="font-size:0.85rem;flex:1;${isCancelled ? 'text-decoration:line-through;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      ${isCheckup ? '<span style="font-size:0.68rem;color:var(--maroon);font-weight:700;border:1px solid var(--maroon);border-radius:4px;padding:1px 5px;">🩺 Check-up</span>' : ''}
       ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
@@ -4716,6 +4735,8 @@ async function openEditAppointment(id){
   const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
   el('editAppointmentHourSelect').value = String(hour12);
   el('editAppointmentMinuteSelect').value = String(Math.round(start.getMinutes()/5)*5 % 60);
+  editAppointmentVisitType = ev.visit_type === 'checkup' ? 'checkup' : 'session';
+  setVisitTypeToggle(el('editAppointmentVisitTypeToggle'), editAppointmentVisitType);
   await loadQuickBookDoctorOptions();
   const select = el('editAppointmentDoctorSelect');
   const doctorOptions = Object.values(quickBookDoctorsByEmail)
@@ -4758,6 +4779,7 @@ async function saveEditAppointment(){
       patientPhone: patientPhone || null,
       startTime: start.toISOString(),
       endTime: end.toISOString(),
+      visitType: editAppointmentVisitType,
     };
     if(selectedDoctor){
       body.doctorColor = selectedDoctor.color || null;
@@ -5025,7 +5047,9 @@ function goToNextMonth(){
 }
 
 let quickBookPeriod = 'AM';
+let quickBookVisitType = 'session';
 let editAppointmentPeriod = 'AM';
+let editAppointmentVisitType = 'session';
 
 function populateHourMinuteSelects(hourSelect, minuteSelect, defaultHour){
   if(hourSelect.options.length === 0){
@@ -5066,9 +5090,28 @@ function openQuickBookOverlay(){
   el('quickBookPatientInput').value = '';
   el('quickBookPhoneInput').value = '';
   el('quickBookStatus').textContent = '';
+  quickBookVisitType = 'session';
+  el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(b=>{
+    const active = b.getAttribute('data-type') === 'session';
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.color = active ? '#fff' : 'var(--ink)';
+  });
   el('quickBookOverlay').style.display = 'flex';
   loadQuickBookDoctorOptions();
 }
+
+el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    quickBookVisitType = btn.getAttribute('data-type');
+    el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(b=>{
+      const active = b === btn;
+      b.classList.toggle('active', active);
+      b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+      b.style.color = active ? '#fff' : 'var(--ink)';
+    });
+  });
+});
 
 el('quickBookAmPmToggle').querySelectorAll('.ampm-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -5080,6 +5123,21 @@ el('editAppointmentAmPmToggle').querySelectorAll('.ampm-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     editAppointmentPeriod = btn.getAttribute('data-period');
     setAmPmToggle(el('editAppointmentAmPmToggle'), editAppointmentPeriod);
+  });
+});
+
+function setVisitTypeToggle(toggleEl, type){
+  toggleEl.querySelectorAll('.visit-type-btn').forEach(b=>{
+    const active = b.getAttribute('data-type') === type;
+    b.classList.toggle('active', active);
+    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+el('editAppointmentVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    editAppointmentVisitType = btn.getAttribute('data-type');
+    setVisitTypeToggle(el('editAppointmentVisitTypeToggle'), editAppointmentVisitType);
   });
 });
 
@@ -5114,7 +5172,8 @@ async function quickBookAppointment(){
         startTime: start.toISOString(),
         endTime: end.toISOString(),
         doctorColor: selectedDoctor ? (selectedDoctor.color || null) : (doctorColorId || null),
-        doctorName: selectedDoctor ? selectedDoctor.name : (clinicianName || null)
+        doctorName: selectedDoctor ? selectedDoctor.name : (clinicianName || null),
+        visitType: quickBookVisitType
       })
     });
     if(!res.ok){
@@ -5261,6 +5320,11 @@ const WHATSAPP_TEMPLATES = {
     label: 'Patient intake form',
     build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
       `مرحبًا بيك في عيادة Empower!\n\nقبل ميعادك يوم ${dateStrEn} الساعة ${timeStrEn}، ممكن تملى الاستمارة القصيرة دي عشان نجهزلك الكشف؟ هتاخد أقل من دقيقة:\n\nhttps://drmostafafarag98-ai.github.io/-Final-app/intake.html\n\nشكرًا ليك، ونشوفك قريب 🌿`
+  },
+  package_last_session: {
+    label: 'Last session in package',
+    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
+      `Hi ${name},\n\nThis was your last session in your current package. We hope you're feeling much better! 🌿\n\nTake care,\nEmpower Physiotherapy Clinic`
   }
 };
 
