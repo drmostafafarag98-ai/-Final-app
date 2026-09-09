@@ -5320,7 +5320,7 @@ el('tomorrowRemindersList').addEventListener('click', (e)=>{
   const select = el('tomorrowRemindersList').querySelector(`.reminder-template-select[data-idx="${idx}"]`);
   const templateKey = select ? select.value : 'confirmation';
   const message = buildReminderMessage(ev, templateKey);
-  const waLink = `whatsapp://send?phone=${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}&text=${encodeURIComponent(message)}`;
+  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
   location.href = waLink;
   logReminderSentNote(ev.id, templateKey);
 });
@@ -5398,7 +5398,7 @@ function sendNextInReminderQueue(){
   if(reminderQueueIndex >= reminderQueue.length) return;
   const ev = reminderQueue[reminderQueueIndex];
   const message = buildReminderMessage(ev, reminderQueueTemplateKey);
-  const waLink = `whatsapp://send?phone=${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}&text=${encodeURIComponent(message)}`;
+  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
   location.href = waLink;
   logReminderSentNote(ev.id, reminderQueueTemplateKey);
   reminderQueueIndex++;
