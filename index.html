@@ -975,11 +975,16 @@
       </div>
       <div class="dashboard-stats-row" id="statsRow_custom"></div>
 
-      <div class="section-title">📤 Send confirmations manually</div>
+      <div class="section-title">📤 Send manually</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Sends the "appointment_confirmation" WhatsApp template to everyone booked on the chosen day (the automated midnight version is currently off) — press this whenever you want it sent instead.</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Sends a Meta-approved WhatsApp template to everyone booked on the chosen day (the automated midnight version is currently off) — press this whenever you want it sent instead.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="date" id="manualSendDateInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <select id="manualSendTemplateSelect" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+            <option value="appointment_confirmation">Confirmation (needs name/date/time)</option>
+            <option value="package_policy">Package policy (no variables)</option>
+            <option value="recovery_session_policy">Recovery session policy (no variables)</option>
+          </select>
           <button type="button" class="ghost" id="manualSendConfirmationsBtn">📤 Send now</button>
         </div>
         <div id="manualSendStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
@@ -6294,16 +6299,18 @@ el('statsInlineDatePicker').addEventListener('change', (e)=>{
 });
 el('manualSendConfirmationsBtn').addEventListener('click', async ()=>{
   const dateVal = el('manualSendDateInput').value;
+  const templateName = el('manualSendTemplateSelect').value;
+  const templateLabel = el('manualSendTemplateSelect').selectedOptions[0].textContent;
   const btn = el('manualSendConfirmationsBtn');
   const label = dateVal ? dateVal : 'tomorrow';
-  if(!confirm(`Send "appointment_confirmation" via WhatsApp to everyone booked on ${label}?`)) return;
+  if(!confirm(`Send "${templateLabel}" via WhatsApp to everyone booked on ${label}?`)) return;
   btn.disabled = true;
   el('manualSendStatus').textContent = 'Sending… this can take a while (about 1 second per patient).';
   try{
     const res = await fetch(`${BACKEND_URL}/api/whatsapp/send-confirmations-now`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ date: dateVal || undefined })
+      body: JSON.stringify({ date: dateVal || undefined, templateName })
     });
     const data = await res.json().catch(()=>({}));
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
