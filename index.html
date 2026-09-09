@@ -4033,14 +4033,55 @@ function renderDoctorsRoster(items){
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
         <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;">📋 Copy</button>
       </div>
-      ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);align-items:center;">
+      ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;align-items:center;">
         <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
           📊 Can view Dashboard (payment/confirmation stats)
         </label>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
+        <div style="font-size:0.72rem;color:#8a938e;margin-bottom:6px;">🔐 Detailed permissions:</div>
+        <div class="permissions-checklist" data-email="${d.email}" style="display:flex;flex-direction:column;gap:5px;">
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="view_payments" ${d.permissions?.view_payments ? 'checked' : ''}>
+            💰 See/record payments
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="manage_other_appointments" ${d.permissions?.manage_other_appointments ? 'checked' : ''}>
+            📅 Book/edit other doctors' appointments
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="send_whatsapp" ${d.permissions?.send_whatsapp ? 'checked' : ''}>
+            📱 Send WhatsApp messages
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="view_other_patients" ${d.permissions?.view_other_patients ? 'checked' : ''}>
+            📋 See other doctors' patient notes/history
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="edit_cancel_appointments" ${d.permissions?.edit_cancel_appointments ? 'checked' : ''}>
+            ✏️ Edit/cancel appointments
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="manage_team" ${d.permissions?.manage_team ? 'checked' : ''}>
+            👥 Add/remove doctors from the team
+          </label>
+        </div>
       </div>` : ''}
     </div>`;
   }).join('');
+  container.querySelectorAll('.permissions-checklist').forEach(list=>{
+    list.querySelectorAll('.perm-checkbox').forEach(cb=>{
+      cb.addEventListener('change', ()=>{
+        const email = list.getAttribute('data-email');
+        const permissions = {};
+        list.querySelectorAll('.perm-checkbox').forEach(c=>{
+          permissions[c.getAttribute('data-key')] = c.checked;
+        });
+        setDoctorPermissions(email, permissions);
+      });
+    });
+  });
   container.querySelectorAll('.dashboard-access-checkbox').forEach(cb=>{
     cb.addEventListener('change', ()=>{
       setDashboardAccess(cb.getAttribute('data-email'), cb.checked);
@@ -4081,6 +4122,22 @@ function renderDoctorsRoster(items){
       mergeDoctors(keepEmail, removeEmail);
     });
   });
+}
+
+async function setDoctorPermissions(email, permissions){
+  el('doctorsStatus').textContent = 'Updating permissions…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/permissions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ permissions })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('doctorsStatus').textContent = `Permissions updated for ${email}.`;
+  }catch(e){
+    console.error(e);
+    el('doctorsStatus').textContent = 'Could not update permissions: ' + (e.message || e);
+  }
 }
 
 async function setDashboardAccess(email, canView){
