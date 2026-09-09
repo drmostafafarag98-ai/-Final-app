@@ -975,6 +975,16 @@
       </div>
       <div class="dashboard-stats-row" id="statsRow_custom"></div>
 
+      <div class="section-title">📤 Send confirmations manually</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Sends the "appointment_confirmation" WhatsApp template to everyone booked on the chosen day (the automated midnight version is currently off) — press this whenever you want it sent instead.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="date" id="manualSendDateInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="manualSendConfirmationsBtn">📤 Send now</button>
+        </div>
+        <div id="manualSendStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
+      </div>
+
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
@@ -3806,6 +3816,11 @@ async function loadDashboardStats(){
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
     el('exportToDate').value = `${todayEnd.getFullYear()}-${pad2(todayEnd.getMonth()+1)}-${pad2(todayEnd.getDate())}`;
   }
+  if(!el('manualSendDateInput').value){
+    const pad2 = n=> String(n).padStart(2,'0');
+    const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate()+1);
+    el('manualSendDateInput').value = `${tomorrow.getFullYear()}-${pad2(tomorrow.getMonth()+1)}-${pad2(tomorrow.getDate())}`;
+  }
 }
 
 // Per-doctor breakdown for the current calendar month: how many sessions
@@ -6276,6 +6291,32 @@ el('statsInlineDatePicker').addEventListener('change', (e)=>{
   const [y, m, d] = e.target.value.split('-').map(Number);
   calSelectedDate = new Date(y, m-1, d);
   refreshInlineStatsRow();
+});
+el('manualSendConfirmationsBtn').addEventListener('click', async ()=>{
+  const dateVal = el('manualSendDateInput').value;
+  const btn = el('manualSendConfirmationsBtn');
+  const label = dateVal ? dateVal : 'tomorrow';
+  if(!confirm(`Send "appointment_confirmation" via WhatsApp to everyone booked on ${label}?`)) return;
+  btn.disabled = true;
+  el('manualSendStatus').textContent = 'Sending… this can take a while (about 1 second per patient).';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/whatsapp/send-confirmations-now`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ date: dateVal || undefined })
+    });
+    const data = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    let msg = `Done — ${data.sent} of ${data.total} sent`;
+    if(data.skippedNoPhone) msg += `, ${data.skippedNoPhone} skipped (no phone on file)`;
+    if(data.failed && data.failed.length > 0) msg += `, ${data.failed.length} failed`;
+    el('manualSendStatus').textContent = msg + '.';
+  }catch(e){
+    console.error(e);
+    el('manualSendStatus').textContent = 'Failed: ' + (e.message || e);
+  }finally{
+    btn.disabled = false;
+  }
 });
 el('statsRangeGoBtn').addEventListener('click', async ()=>{
   const fromVal = el('statsRangeFromInput').value;
