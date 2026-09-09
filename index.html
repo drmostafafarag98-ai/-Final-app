@@ -1036,7 +1036,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTodayBtn" data-offset="0" style="font-size:0.75rem;padding:5px 10px;">Today</button>
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTomorrowBtn" data-offset="1" style="font-size:0.75rem;padding:5px 10px;">Tomorrow</button>
-            <input type="date" id="remindersCustomDateInput" style="font-size:0.75rem;padding:4px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);">
+            <button type="button" class="ghost" id="remindersCustomDateBtn" style="font-size:0.75rem;padding:5px 10px;">📅 <span id="remindersCustomDateLabel">Pick date</span></button>
           </div>
         </div>
         <div id="tomorrowRemindersElevatorCode" style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;"></div>
@@ -1071,6 +1071,18 @@
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
         </div>
+      </div>
+    </div>
+
+    <div id="miniDatePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:340px;width:100%;padding:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <button type="button" class="ghost" id="miniDatePrevMonthBtn" style="padding:5px 12px;">‹</button>
+          <span style="font-size:0.9rem;font-weight:700;color:var(--maroon);" id="miniDateMonthLabel"></span>
+          <button type="button" class="ghost" id="miniDateNextMonthBtn" style="padding:5px 12px;">›</button>
+        </div>
+        <div id="miniDateGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
+        <button type="button" class="ghost" id="miniDatePickerCloseBtn" style="width:100%;margin-top:14px;">Cancel</button>
       </div>
     </div>
 
@@ -5092,6 +5104,15 @@ async function saveElevatorCode(){
 
 function pad2(n){ return String(n).padStart(2,'0'); }
 
+function updateRemindersDateLabel(){
+  const isToday = sameDay(remindersTargetDate, new Date());
+  const tomorrow = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()+1);
+  const isTomorrow = sameDay(remindersTargetDate, tomorrow);
+  el('remindersCustomDateLabel').textContent = (isToday || isTomorrow)
+    ? 'Pick date'
+    : remindersTargetDate.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+}
+
 function setRemindersDay(offset){
   const now = new Date();
   remindersTargetDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
@@ -5099,19 +5120,59 @@ function setRemindersDay(offset){
   el('remindersDayTodayBtn').style.color = offset === 0 ? '#fff' : '';
   el('remindersDayTomorrowBtn').style.background = offset === 1 ? 'var(--maroon)' : '';
   el('remindersDayTomorrowBtn').style.color = offset === 1 ? '#fff' : '';
-  el('remindersCustomDateInput').value = `${remindersTargetDate.getFullYear()}-${pad2(remindersTargetDate.getMonth()+1)}-${pad2(remindersTargetDate.getDate())}`;
+  updateRemindersDateLabel();
   loadTomorrowReminders();
 }
 
-function setRemindersCustomDate(dateStr){
-  if(!dateStr) return;
-  const [y, m, d] = dateStr.split('-').map(Number);
-  remindersTargetDate = new Date(y, m-1, d);
+function setRemindersCustomDate(d){
+  remindersTargetDate = d;
   el('remindersDayTodayBtn').style.background = '';
   el('remindersDayTodayBtn').style.color = '';
   el('remindersDayTomorrowBtn').style.background = '';
   el('remindersDayTomorrowBtn').style.color = '';
+  updateRemindersDateLabel();
   loadTomorrowReminders();
+}
+
+// ---- Mini date picker (custom-styled, replaces the browser's native
+// <input type="date"> widget so it matches the rest of the app) ----
+let miniDateViewMonth = new Date();
+
+function renderMiniDateGrid(){
+  el('miniDateMonthLabel').textContent = miniDateViewMonth.toLocaleDateString(undefined, {month:'long', year:'numeric'});
+  const grid = el('miniDateGrid');
+  grid.innerHTML = '';
+  ['S','M','T','W','T','F','S'].forEach(d=>{
+    const head = document.createElement('div');
+    head.textContent = d;
+    head.style.cssText = 'text-align:center;font-size:0.72rem;color:#8a938e;font-weight:700;padding:4px 0;';
+    grid.appendChild(head);
+  });
+  const year = miniDateViewMonth.getFullYear();
+  const month = miniDateViewMonth.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month+1, 0).getDate();
+  for(let i=0; i<firstDay; i++){
+    grid.appendChild(document.createElement('div'));
+  }
+  for(let day=1; day<=daysInMonth; day++){
+    const d = new Date(year, month, day);
+    const cell = document.createElement('div');
+    cell.textContent = String(day);
+    const isSelected = sameDay(d, remindersTargetDate);
+    cell.style.cssText = `text-align:center;padding:8px 0;border-radius:8px;cursor:pointer;font-size:0.85rem;${isSelected ? 'background:var(--maroon);color:#fff;font-weight:700;' : ''}`;
+    cell.addEventListener('click', ()=>{
+      setRemindersCustomDate(d);
+      el('miniDatePickerOverlay').style.display = 'none';
+    });
+    grid.appendChild(cell);
+  }
+}
+
+function openMiniDatePicker(){
+  miniDateViewMonth = new Date(remindersTargetDate.getFullYear(), remindersTargetDate.getMonth(), 1);
+  renderMiniDateGrid();
+  el('miniDatePickerOverlay').style.display = 'flex';
 }
 
 async function loadTomorrowReminders(){
@@ -5210,7 +5271,7 @@ el('tomorrowRemindersList').addEventListener('click', (e)=>{
   const select = el('tomorrowRemindersList').querySelector(`.reminder-template-select[data-idx="${idx}"]`);
   const templateKey = select ? select.value : 'confirmation';
   const message = buildReminderMessage(ev, templateKey);
-  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
+  const waLink = `whatsapp://send?phone=${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}&text=${encodeURIComponent(message)}`;
   location.href = waLink;
   logReminderSentNote(ev.id, templateKey);
 });
@@ -5288,7 +5349,7 @@ function sendNextInReminderQueue(){
   if(reminderQueueIndex >= reminderQueue.length) return;
   const ev = reminderQueue[reminderQueueIndex];
   const message = buildReminderMessage(ev, reminderQueueTemplateKey);
-  const waLink = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}?text=${encodeURIComponent(message)}`;
+  const waLink = `whatsapp://send?phone=${normalizeEgyptPhoneForWhatsApp(ev.patient_phone)}&text=${encodeURIComponent(message)}`;
   location.href = waLink;
   logReminderSentNote(ev.id, reminderQueueTemplateKey);
   reminderQueueIndex++;
@@ -6153,7 +6214,21 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
-el('remindersCustomDateInput').addEventListener('change', (e)=> setRemindersCustomDate(e.target.value));
+el('remindersCustomDateBtn').addEventListener('click', openMiniDatePicker);
+el('miniDatePickerCloseBtn').addEventListener('click', ()=>{
+  el('miniDatePickerOverlay').style.display = 'none';
+});
+el('miniDatePickerOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'miniDatePickerOverlay') el('miniDatePickerOverlay').style.display = 'none';
+});
+el('miniDatePrevMonthBtn').addEventListener('click', ()=>{
+  miniDateViewMonth = new Date(miniDateViewMonth.getFullYear(), miniDateViewMonth.getMonth()-1, 1);
+  renderMiniDateGrid();
+});
+el('miniDateNextMonthBtn').addEventListener('click', ()=>{
+  miniDateViewMonth = new Date(miniDateViewMonth.getFullYear(), miniDateViewMonth.getMonth()+1, 1);
+  renderMiniDateGrid();
+});
 el('sendAllRemindersBtn').addEventListener('click', sendAllReminders);
 el('reminderQueueNextBtn').addEventListener('click', sendNextInReminderQueue);
 el('reminderQueueStopBtn').addEventListener('click', stopReminderQueue);
@@ -6475,7 +6550,7 @@ function hideSplashScreen(){
   }, wait);
 }
 el('sessionDate').value = todayStr();
-el('remindersCustomDateInput').value = `${remindersTargetDate.getFullYear()}-${pad2(remindersTargetDate.getMonth()+1)}-${pad2(remindersTargetDate.getDate())}`;
+updateRemindersDateLabel();
 // Pre-warm the Google sign-in client in the background rather than only
 // initializing it lazily on first click — the closer requestAccessToken()
 // fires to the actual click, the less likely a browser is to silently
