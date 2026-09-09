@@ -1091,7 +1091,7 @@
     <div id="unpaidListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--danger);">💸 Not paid yet</span>
+          <span id="unpaidListTitle" style="font-weight:700;color:var(--danger);">💸 Not paid yet</span>
           <button type="button" id="unpaidListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="unpaidListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
@@ -3701,6 +3701,7 @@ async function fetchStatsForRange(start, end){
     // the amount on just one appointment per payment, so this never
     // double-counts a single payment across several covered sessions).
     let cashTotal = 0, instapayTotal = 0;
+    const cashItems = [], instapayItems = [];
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
     items.forEach(ev=>{
       (ev.notes || []).forEach(n=>{
@@ -3708,12 +3709,17 @@ async function fetchStatsForRange(start, end){
         if(!m) return;
         const amt = parseFloat(m[1].replace(/,/g, ''));
         if(isNaN(amt)) return;
-        if(m[2].toLowerCase() === 'cash') cashTotal += amt;
-        else instapayTotal += amt;
+        if(m[2].toLowerCase() === 'cash'){
+          cashTotal += amt;
+          cashItems.push({ ...ev, _amount: amt });
+        }else{
+          instapayTotal += amt;
+          instapayItems.push({ ...ev, _amount: amt });
+        }
       });
     });
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, moneyTotal: cashTotal + instapayTotal };
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -3733,7 +3739,7 @@ function renderStatsRow(prefix, stats){
     { label: 'Confirmation sent', num: stats.sentCount, color: '#b8894f' },
     { label: 'Confirmed', num: stats.confirmedCount, color: '#0b8043' },
     { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
-    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d', clickable: true },
+    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d', clickKey: 'unpaid' },
     { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
   ];
   // Money figures only belong on the dedicated Dashboard view (its own
@@ -3742,25 +3748,28 @@ function renderStatsRow(prefix, stats){
   if(prefix !== 'todayInline'){
     cards.push(
       { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), color: 'var(--gold)' },
-      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043' },
-      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043' },
+      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043', clickKey: 'cash' },
+      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043', clickKey: 'instapay' },
     );
   }
-  row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};${c.clickable ? 'cursor:pointer;' : 'cursor:default;'}" ${c.clickable ? 'data-unpaid-card="1"' : ''}>
+  row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" style="border-left-color:${c.color};${c.clickKey ? 'cursor:pointer;' : 'cursor:default;'}" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''}>
     <div class="dashboard-card-num">${c.num}</div>
     <div class="dashboard-card-label">${c.label}</div>
   </div>`).join('');
-  const unpaidCard = row.querySelector('[data-unpaid-card]');
-  if(unpaidCard){
-    unpaidCard.addEventListener('click', ()=> openUnpaidListPopup(stats.unpaidItems || []));
-  }
+  row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
+    const key = cardEl.getAttribute('data-click-key');
+    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '💸 Not paid yet', 'Nobody unpaid in this range 🎉'));
+    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '💵 Paid by Cash', 'No cash payments in this range.'));
+    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '🔵 Paid by InstaPay', 'No InstaPay payments in this range.'));
+  });
 }
 
-function openUnpaidListPopup(items){
+function openPatientListPopup(items, title, emptyMessage){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
+  el('unpaidListTitle').textContent = title;
   el('unpaidListOverlay').style.display = 'flex';
   if(items.length === 0){
-    el('unpaidListBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Nobody unpaid in this range 🎉</div>';
+    el('unpaidListBody').innerHTML = `<div style="font-size:0.85rem;color:#8a938e;">${escapeHtml(emptyMessage)}</div>`;
     return;
   }
   const sorted = [...items].sort((a,b)=> new Date(a.start_time||0) - new Date(b.start_time||0));
@@ -3771,6 +3780,7 @@ function openUnpaidListPopup(items){
         <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(ev.patient_name || '(untitled)')}</div>
         <div style="font-size:0.76rem;color:#5b6863;">${escapeHtml(ev.doctor_name || '')} · ${dateLabel}</div>
       </div>
+      ${ev._amount ? `<div style="font-weight:700;color:#0b8043;font-size:0.85rem;white-space:nowrap;">${ev._amount.toLocaleString()} EGP</div>` : ''}
     </div>`;
   }).join('');
 }
