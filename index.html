@@ -966,6 +966,15 @@
       <div class="section-title">🗓️ This year</div>
       <div class="dashboard-stats-row" id="statsRow_year"></div>
 
+      <div class="section-title">🔎 Custom range</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <input type="date" id="statsRangeFromInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <span style="font-size:0.85rem;color:#5b6863;">to</span>
+        <input type="date" id="statsRangeToInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <button type="button" class="ghost" id="statsRangeGoBtn">Show</button>
+      </div>
+      <div class="dashboard-stats-row" id="statsRow_custom"></div>
+
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
@@ -1072,6 +1081,16 @@
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
         </div>
+      </div>
+    </div>
+
+    <div id="unpaidListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--danger);">💸 Not paid yet</span>
+          <button type="button" id="unpaidListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div id="unpaidListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -2006,6 +2025,14 @@ async function mergeSessionDoctorGroup(fromName, toName){
   }
 }
 
+function hexToRgba(hex, alpha){
+  const clean = (hex || '#8a938e').replace('#','');
+  const r = parseInt(clean.substring(0,2), 16) || 138;
+  const g = parseInt(clean.substring(2,4), 16) || 147;
+  const b = parseInt(clean.substring(4,6), 16) || 142;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function renderSessionList(){
   const container = el('sessionList');
   const searchQuery = (el('sessionSearchInput').value || '').trim().toLowerCase();
@@ -2042,8 +2069,9 @@ function renderSessionList(){
   container.innerHTML = '';
   doctorNames.forEach(doctorName=>{
     const doctorIsOpen = expandedDoctors.has(doctorName);
+    const doctorColorHex = doctorNameToColorHex[doctorName] || '#c9b48c';
     const doctorHeader = document.createElement('div');
-    doctorHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:6px;margin:16px 0 8px;padding:8px 10px;border-radius:6px;background:#f0e6d2;cursor:pointer;';
+    doctorHeader.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:6px;margin:16px 0 8px;padding:8px 10px;border-radius:6px;border-left:4px solid ${doctorColorHex};background:${hexToRgba(doctorColorHex, 0.14)};cursor:pointer;`;
     const doctorNameSpan = document.createElement('span');
     doctorNameSpan.style.cssText = 'font-size:0.82rem;font-weight:700;color:var(--maroon);letter-spacing:0.02em;';
     doctorNameSpan.textContent = (doctorIsOpen ? '▾ ' : '▸ ') + '👤 ' + doctorName;
@@ -2093,7 +2121,7 @@ function renderSessionList(){
     patientNames.forEach(patientName=>{
       const isOpen = expandedPatients.has(patientName);
       const groupHeader = document.createElement('div');
-      groupHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:6px;margin:10px 0 6px;padding-top:8px;border-top:1px solid var(--line);cursor:pointer;';
+      groupHeader.style.cssText = `display:flex;justify-content:space-between;align-items:center;gap:6px;margin:10px 0 6px;padding:6px 8px;border-radius:6px;background:${hexToRgba(doctorColorHex, 0.07)};cursor:pointer;`;
       const nameSpan = document.createElement('span');
       nameSpan.style.cssText = 'font-size:0.78rem;font-weight:700;color:#5b6863;letter-spacing:0.03em;';
       nameSpan.textContent = (isOpen ? '▾ ' : '▸ ') + patientName;
@@ -3391,6 +3419,7 @@ function applyLoginResult(doctor){
     loadDashboardSummary();
     loadElevatorCode();
     loadIntakeFormsBadge();
+    loadQuickBookDoctorOptions();
   }
 }
 
@@ -3660,7 +3689,8 @@ async function fetchStatsForRange(start, end){
     const sentCount = active.filter(ev => hasNote(ev, 'confirmation sent')).length;
     const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
     const paidCount = active.filter(ev => !!ev.paid).length;
-    const unpaidCount = active.length - paidCount;
+    const unpaidItems = active.filter(ev => !ev.paid);
+    const unpaidCount = unpaidItems.length;
 
     // Money totals: only notes matching "Paid <amount> EGP (Method)"
     // carry a number (the multi-session payment flow deliberately puts
@@ -3679,7 +3709,7 @@ async function fetchStatsForRange(start, end){
       });
     });
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, cancelledCount, cashTotal, instapayTotal, moneyTotal: cashTotal + instapayTotal };
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, moneyTotal: cashTotal + instapayTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -3699,7 +3729,7 @@ function renderStatsRow(prefix, stats){
     { label: 'Confirmation sent', num: stats.sentCount, color: '#b8894f' },
     { label: 'Confirmed', num: stats.confirmedCount, color: '#0b8043' },
     { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
-    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d' },
+    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d', clickable: true },
     { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
   ];
   // Money figures only belong on the dedicated Dashboard view (its own
@@ -3712,10 +3742,33 @@ function renderStatsRow(prefix, stats){
       { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043' },
     );
   }
-  row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};cursor:default;">
+  row.innerHTML = cards.map(c=> `<div class="dashboard-card" style="border-left-color:${c.color};${c.clickable ? 'cursor:pointer;' : 'cursor:default;'}" ${c.clickable ? 'data-unpaid-card="1"' : ''}>
     <div class="dashboard-card-num">${c.num}</div>
     <div class="dashboard-card-label">${c.label}</div>
   </div>`).join('');
+  const unpaidCard = row.querySelector('[data-unpaid-card]');
+  if(unpaidCard){
+    unpaidCard.addEventListener('click', ()=> openUnpaidListPopup(stats.unpaidItems || []));
+  }
+}
+
+function openUnpaidListPopup(items){
+  el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
+  el('unpaidListOverlay').style.display = 'flex';
+  if(items.length === 0){
+    el('unpaidListBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Nobody unpaid in this range 🎉</div>';
+    return;
+  }
+  const sorted = [...items].sort((a,b)=> new Date(a.start_time||0) - new Date(b.start_time||0));
+  el('unpaidListBody').innerHTML = sorted.map(ev=>{
+    const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+    return `<div style="border-bottom:1px solid var(--line);padding:9px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+      <div>
+        <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(ev.patient_name || '(untitled)')}</div>
+        <div style="font-size:0.76rem;color:#5b6863;">${escapeHtml(ev.doctor_name || '')} · ${dateLabel}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function loadDashboardStats(){
@@ -4990,6 +5043,7 @@ async function quickBookAppointment(){
 // don't have access to the roster endpoint, which is fine — they're
 // almost always booking for themselves anyway).
 let quickBookDoctorsByEmail = {};
+let doctorNameToColorHex = {};
 async function loadQuickBookDoctorOptions(){
   if(!isApproved()) return;
   try{
@@ -4997,12 +5051,17 @@ async function loadQuickBookDoctorOptions(){
     if(!res.ok) return;
     const items = await res.json();
     quickBookDoctorsByEmail = {};
-    (items || []).forEach(d=>{ quickBookDoctorsByEmail[d.email] = d; });
+    doctorNameToColorHex = {};
+    (items || []).forEach(d=>{
+      quickBookDoctorsByEmail[d.email] = d;
+      if(d.name) doctorNameToColorHex[d.name] = CALENDAR_COLOR_HEX[d.color] || '#8a938e';
+    });
     const select = el('quickBookDoctorSelect');
     const current = select.value;
     select.innerHTML = '<option value="">For me (my own color)</option>' +
       (items || []).map(d=> `<option value="${escapeHtml(d.email)}">${escapeHtml(d.name || d.email)}</option>`).join('');
     if(current && quickBookDoctorsByEmail[current]) select.value = current;
+    renderSessionList(); // re-tint the sidebar now that colors are known
   }catch(e){
     console.error(e);
   }
@@ -6143,6 +6202,18 @@ el('statsInlineDatePicker').addEventListener('change', (e)=>{
   calSelectedDate = new Date(y, m-1, d);
   refreshInlineStatsRow();
 });
+el('statsRangeGoBtn').addEventListener('click', async ()=>{
+  const fromVal = el('statsRangeFromInput').value;
+  const toVal = el('statsRangeToInput').value;
+  if(!fromVal || !toVal) return;
+  const [fy, fm, fd] = fromVal.split('-').map(Number);
+  const [ty, tm, td] = toVal.split('-').map(Number);
+  const start = new Date(fy, fm-1, fd, 0,0,0);
+  const end = new Date(ty, tm-1, td, 23,59,59);
+  el('statsRow_custom').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  const stats = await fetchStatsForRange(start, end);
+  renderStatsRow('custom', stats);
+});
 el('exportCsvBtn').addEventListener('click', exportCsv);
 el('regPackageBtn').addEventListener('click', registerExistingPackage);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
@@ -6263,6 +6334,12 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('unpaidListCloseBtn').addEventListener('click', ()=>{
+  el('unpaidListOverlay').style.display = 'none';
+});
+el('unpaidListOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'unpaidListOverlay') el('unpaidListOverlay').style.display = 'none';
+});
 el('openIntakeListBtn').addEventListener('click', openIntakeList);
 el('intakeListCloseBtn').addEventListener('click', ()=>{
   el('intakeListOverlay').style.display = 'none';
