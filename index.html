@@ -936,7 +936,8 @@
     <h2 style="margin-right:30px;">Sessions</h2>
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
     <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:10px;font-size:0.82rem;">🔄 Sync from clinic server</button>
-    <input type="text" id="sessionSearchInput" placeholder="🔍 Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:14px;">
+    <input type="text" id="sessionSearchInput" placeholder="🔍 Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:10px;">
+    <button type="button" class="ghost" id="openIntakeListBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;">📋 Intake forms <span id="intakeFormsBadge"></span></button>
     <div id="sessionList"></div>
   </div>
 
@@ -1071,6 +1072,16 @@
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
         </div>
+      </div>
+    </div>
+
+    <div id="intakeListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);">📋 Intake forms</span>
+          <button type="button" id="intakeListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div id="intakeListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
       </div>
     </div>
 
@@ -1774,6 +1785,43 @@ async function loadPatientHistoryStatus(name){
   }catch(e){
     console.error('Patient history lookup failed:', e);
     badge.textContent = '';
+  }
+}
+
+async function loadIntakeFormsBadge(){
+  if(!isApproved()) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/intake/all-unmatched`, { headers: authHeader() });
+    if(!res.ok) return;
+    const items = await res.json();
+    const count = Array.isArray(items) ? items.length : 0;
+    el('intakeFormsBadge').textContent = count > 0 ? `(${count})` : '';
+  }catch(e){ console.error('Intake badge load failed:', e); }
+}
+
+async function openIntakeList(){
+  el('intakeListOverlay').style.display = 'flex';
+  el('intakeListBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/intake/all-unmatched`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = await res.json();
+    if(!Array.isArray(items) || items.length === 0){
+      el('intakeListBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">No new intake forms.</div>';
+      return;
+    }
+    el('intakeListBody').innerHTML = items.map(form=>{
+      const dateLabel = form.submitted_at ? new Date(form.submitted_at).toLocaleDateString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+      return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
+        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(form.patient_name)}</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:4px;">${escapeHtml(form.patient_phone)} · ${dateLabel}</div>
+        ${form.chief_complaint ? `<div style="font-size:0.82rem;margin-bottom:2px;"><strong>الشكوى:</strong> ${escapeHtml(form.chief_complaint)}</div>` : ''}
+        ${form.referral_source ? `<div style="font-size:0.82rem;color:#5b6863;"><strong>عرفنا إزاي:</strong> ${escapeHtml(form.referral_source)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    el('intakeListBody').innerHTML = `<div style="font-size:0.85rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -3342,6 +3390,7 @@ function applyLoginResult(doctor){
     loadSessionsFromServer();
     loadDashboardSummary();
     loadElevatorCode();
+    loadIntakeFormsBadge();
   }
 }
 
@@ -6214,6 +6263,13 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('openIntakeListBtn').addEventListener('click', openIntakeList);
+el('intakeListCloseBtn').addEventListener('click', ()=>{
+  el('intakeListOverlay').style.display = 'none';
+});
+el('intakeListOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'intakeListOverlay') el('intakeListOverlay').style.display = 'none';
+});
 el('remindersCustomDateBtn').addEventListener('click', openMiniDatePicker);
 el('miniDatePickerCloseBtn').addEventListener('click', ()=>{
   el('miniDatePickerOverlay').style.display = 'none';
