@@ -1095,12 +1095,24 @@
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
           <div id="scheduleList" style="margin-bottom:8px;"></div>
-          <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+          <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
+          <div style="border-top:1px dashed var(--line);padding-top:10px;">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">🚫 Mark a doctor unavailable this day</div>
+            <div id="dayUnavailabilityList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          </div>
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
         </div>
       </div>
+    </div>
+
+    <div id="doctorPatientsGridOverlay" style="display:none;position:fixed;inset:0;background:var(--paper);z-index:80;flex-direction:column;">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:var(--panel);">
+        <span style="font-weight:700;color:var(--maroon);font-size:1.05rem;" id="doctorPatientsGridTitle">Doctor</span>
+        <button type="button" id="doctorPatientsGridCloseBtn" style="background:transparent;border:none;font-size:1.4rem;cursor:pointer;color:var(--maroon);">×</button>
+      </div>
+      <div id="doctorPatientsGrid" style="flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-content:start;"></div>
     </div>
 
     <div id="patientHistoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:78;align-items:center;justify-content:center;padding:16px;">
@@ -1180,6 +1192,7 @@
           <div id="quickBookVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
             <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
             <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
+            <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
           </div>
 
           <div id="quickBookStatus" style="font-size:0.78rem;color:#8a938e;"></div>
@@ -1251,6 +1264,7 @@
           <div id="editAppointmentVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
             <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
             <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
+            <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
           </div>
           <div id="editAppointmentStatus" style="font-size:0.78rem;color:#8a938e;"></div>
         </div>
@@ -2126,83 +2140,77 @@ function renderSessionList(){
       mergeBtn.onclick = (e)=>{ e.stopPropagation(); promptMergeSessionDoctorGroup(doctorName, doctorNames.filter(n=> n !== doctorName)); };
       doctorHeader.appendChild(mergeBtn);
     }
-    doctorHeader.addEventListener('click', ()=>{
-      if(expandedDoctors.has(doctorName)) expandedDoctors.delete(doctorName);
-      else expandedDoctors.add(doctorName);
-      renderSessionList();
-    });
+    doctorHeader.addEventListener('click', ()=> openDoctorPatientsGrid(doctorName));
     container.appendChild(doctorHeader);
-    if(!doctorIsOpen) return;
-
-    const doctorContainer = document.createElement('div');
-    doctorContainer.style.cssText = 'margin-right:6px;padding-right:6px;border-right:2px solid var(--line);';
-
-    // Group this doctor's sessions by patient name so a patient's
-    // assessment and all follow-ups sit together, most recent first.
-    const patientGroups = {};
-    doctorGroups[doctorName].forEach(id=>{
-      const s = sessions[id];
-      const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
-      if(!patientGroups[key]) patientGroups[key] = [];
-      patientGroups[key].push(id);
-    });
-    Object.keys(patientGroups).forEach(key=>{
-      patientGroups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
-    });
-    const patientNames = Object.keys(patientGroups).sort((a,b)=>{
-      const aLatest = Math.max(...patientGroups[a].map(id=> sessions[id].createdAt||0));
-      const bLatest = Math.max(...patientGroups[b].map(id=> sessions[id].createdAt||0));
-      return bLatest - aLatest;
-    });
-    patientNames.forEach(patientName=>{
-      if(patientGroups[patientName].includes(activeSessionId)) expandedPatients.add(patientName);
-      if(searchQuery) expandedPatients.add(patientName);
-    });
-
-    patientNames.forEach(patientName=>{
-      const isOpen = expandedPatients.has(patientName);
-      const groupHeader = document.createElement('div');
-      groupHeader.style.cssText = `display:flex;justify-content:space-between;align-items:center;gap:6px;margin:10px 0 6px;padding:6px 8px;border-radius:6px;background:${hexToRgba(doctorColorHex, 0.07)};cursor:pointer;`;
-      const nameSpan = document.createElement('span');
-      nameSpan.style.cssText = 'font-size:0.78rem;font-weight:700;color:#5b6863;letter-spacing:0.03em;';
-      nameSpan.textContent = (isOpen ? '▾ ' : '▸ ') + patientName;
-      const followupBtn = document.createElement('button');
-      followupBtn.type = 'button';
-      followupBtn.textContent = '+ Follow-up';
-      followupBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
-      followupBtn.onclick = (e)=>{ e.stopPropagation(); startFollowupForPatient(patientName); };
-      const summaryBtn = document.createElement('button');
-      summaryBtn.type = 'button';
-      summaryBtn.textContent = '📋 Summary';
-      summaryBtn.style.cssText = 'font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;white-space:nowrap;';
-      summaryBtn.onclick = (e)=>{ e.stopPropagation(); generatePatientSummary(patientName); };
-      groupHeader.appendChild(nameSpan);
-      if(patientName !== 'Unnamed patient'){
-        const btnRow = document.createElement('div');
-        btnRow.style.cssText = 'display:flex;gap:6px;';
-        btnRow.appendChild(followupBtn);
-        btnRow.appendChild(summaryBtn);
-        groupHeader.appendChild(btnRow);
-      }
-      groupHeader.addEventListener('click', ()=>{
-        if(expandedPatients.has(patientName)) expandedPatients.delete(patientName);
-        else expandedPatients.add(patientName);
-        renderSessionList();
-      });
-      doctorContainer.appendChild(groupHeader);
-      if(isOpen){
-        patientGroups[patientName].forEach(id=>{
-          const s = sessions[id];
-          const div = document.createElement('div');
-          div.className = 'session-item' + (id === activeSessionId ? ' active' : '');
-          div.innerHTML = `<div class="name">${s.date}</div><div class="date">${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</div>`;
-          div.onclick = () => loadSession(id);
-          doctorContainer.appendChild(div);
-        });
-      }
-    });
-    container.appendChild(doctorContainer);
   });
+}
+
+// ---- Keep-style patient card grid (opens when a doctor is tapped) ----
+function openDoctorPatientsGrid(doctorName){
+  const doctorColorHex = doctorNameToColorHex[doctorName] || '#c9b48c';
+  const ids = Object.keys(sessions).filter(id=> ((sessions[id].doctorName || 'Unassigned').trim() || 'Unassigned') === doctorName);
+
+  const patientGroups = {};
+  ids.forEach(id=>{
+    const s = sessions[id];
+    const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
+    if(!patientGroups[key]) patientGroups[key] = [];
+    patientGroups[key].push(id);
+  });
+  Object.keys(patientGroups).forEach(key=>{
+    patientGroups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
+  });
+  const patientNames = Object.keys(patientGroups).sort((a,b)=>{
+    const aLatest = Math.max(...patientGroups[a].map(id=> sessions[id].createdAt||0));
+    const bLatest = Math.max(...patientGroups[b].map(id=> sessions[id].createdAt||0));
+    return bLatest - aLatest;
+  });
+
+  el('doctorPatientsGridTitle').textContent = `👤 ${doctorName}`;
+  const grid = el('doctorPatientsGrid');
+  if(patientNames.length === 0){
+    grid.innerHTML = '<div style="font-size:0.85rem;color:#8a938e;padding:20px;">No patients yet.</div>';
+  }else{
+    grid.innerHTML = patientNames.map(patientName=>{
+      const latestId = patientGroups[patientName][0];
+      const latest = sessions[latestId];
+      const previewSource = (latest.note || (latest.transcriptLines||[]).map(l=>l.text).join(' ') || '').trim();
+      const preview = previewSource ? escapeHtml(previewSource.slice(0,140)) + (previewSource.length > 140 ? '…' : '') : '<span style="color:#8a938e;">No notes yet</span>';
+      return `<div class="keep-card" data-patient="${escapeHtml(patientName)}" data-latest-id="${latestId}" style="background:${hexToRgba(doctorColorHex,0.16)};border:1px solid ${hexToRgba(doctorColorHex,0.4)};border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-weight:700;font-size:0.88rem;color:var(--ink);">${escapeHtml(patientName)}</div>
+        <div style="font-size:0.78rem;color:#4a4a4a;line-height:1.4;flex:1;">${preview}</div>
+        <div style="font-size:0.68rem;color:#5b6863;">${escapeHtml(latest.date || '')} · ${patientGroups[patientName].length} session${patientGroups[patientName].length>1?'s':''}</div>
+        <span style="display:inline-block;width:fit-content;font-size:0.68rem;padding:2px 8px;border-radius:10px;background:${doctorColorHex};color:#fff;">${escapeHtml(doctorName)}</span>
+        ${patientName !== 'Unnamed patient' ? `<div style="display:flex;gap:6px;margin-top:2px;">
+          <button type="button" class="keep-card-followup-btn" data-patient="${escapeHtml(patientName)}" style="font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;">+ Follow-up</button>
+          <button type="button" class="keep-card-summary-btn" data-patient="${escapeHtml(patientName)}" style="font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;">📋 Summary</button>
+        </div>` : ''}
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('.keep-card').forEach(card=>{
+      card.addEventListener('click', (e)=>{
+        if(e.target.closest('.keep-card-followup-btn') || e.target.closest('.keep-card-summary-btn')) return;
+        loadSession(card.getAttribute('data-latest-id'));
+        el('doctorPatientsGridOverlay').style.display = 'none';
+        el('sidebarPanel').classList.remove('open');
+        el('sidebarBackdrop').style.display = 'none';
+      });
+    });
+    grid.querySelectorAll('.keep-card-followup-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        startFollowupForPatient(btn.getAttribute('data-patient'));
+        el('doctorPatientsGridOverlay').style.display = 'none';
+      });
+    });
+    grid.querySelectorAll('.keep-card-summary-btn').forEach(btn=>{
+      btn.addEventListener('click', (e)=>{
+        e.stopPropagation();
+        generatePatientSummary(btn.getAttribute('data-patient'));
+      });
+    });
+  }
+  el('doctorPatientsGridOverlay').style.display = 'flex';
 }
 
 function setSessionType(type){
@@ -4425,6 +4433,8 @@ function sameDay(a, b){
   return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 }
 
+let unavailabilityByDay = {};
+
 async function loadMonthAndDay(){
   if(!isApproved()){
     el('scheduleStatus').textContent = 'Sign in with Google and get approved first (in Settings).';
@@ -4437,7 +4447,11 @@ async function loadMonthAndDay(){
     const monthStart = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth(), 1, 0,0,0);
     const monthEnd = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 0, 23,59,59);
     const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`;
-    const res = await fetch(url, { headers: authHeader() });
+    const unavailUrl = `${BACKEND_URL}/api/doctor-unavailability?start=${dayKey(monthStart)}&end=${dayKey(monthEnd)}`;
+    const [res, unavailRes] = await Promise.all([
+      fetch(url, { headers: authHeader() }),
+      fetch(unavailUrl, { headers: authHeader() }),
+    ]);
     if(!res.ok){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
@@ -4451,8 +4465,17 @@ async function loadMonthAndDay(){
       if(!monthEventsByDay[key]) monthEventsByDay[key] = [];
       monthEventsByDay[key].push(ev);
     });
+    unavailabilityByDay = {};
+    if(unavailRes.ok){
+      const unavailItems = await unavailRes.json();
+      (unavailItems || []).forEach(u=>{
+        if(!unavailabilityByDay[u.date]) unavailabilityByDay[u.date] = [];
+        unavailabilityByDay[u.date].push(u);
+      });
+    }
     renderCalendarGrid();
     renderScheduleList(monthEventsByDay[dayKey(calSelectedDate)] || []);
+    renderDayUnavailabilityList();
     el('scheduleStatus').textContent = '';
   }catch(e){
     console.error(e);
@@ -4484,22 +4507,63 @@ function renderCalendarGrid(){
     const events = monthEventsByDay[key] || [];
     const isToday = sameDay(d, today);
     const isSelected = sameDay(d, calSelectedDate);
+    const hasUnavailability = (unavailabilityByDay[key] || []).length > 0;
     const cell = document.createElement('div');
     cell.style.cssText = `text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:0.8rem;
+      ${hasUnavailability ? 'border:2px solid #b8894f;' : ''}
       ${isSelected ? 'background:var(--maroon);color:#fff;' : isToday ? 'background:#f0e6d2;color:var(--maroon);font-weight:700;' : 'color:var(--ink);'}`;
     const dotsHtml = events.slice(0,3).map(ev=>{
       const hex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
       return `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${isSelected ? '#fff' : hex};margin:0 1px;"></span>`;
     }).join('');
-    cell.innerHTML = `<div>${day}</div><div style="height:8px;">${dotsHtml}</div>`;
+    cell.innerHTML = `<div>${hasUnavailability ? '🚫 ' : ''}${day}</div><div style="height:8px;">${dotsHtml}</div>`;
     cell.addEventListener('click', ()=>{
       calSelectedDate = d;
       renderCalendarGrid();
       renderScheduleList(monthEventsByDay[dayKey(d)] || []);
+      renderDayUnavailabilityList();
       el('dayScheduleOverlay').style.display = 'flex';
     });
     grid.appendChild(cell);
   }
+}
+
+function renderDayUnavailabilityList(){
+  const container = el('dayUnavailabilityList');
+  if(!container) return;
+  const key = dayKey(calSelectedDate);
+  const marked = unavailabilityByDay[key] || [];
+  const markedNames = new Set(marked.map(u=> u.doctor_name));
+  const allDoctorNames = Object.keys(doctorNameToColorHex);
+  if(allDoctorNames.length === 0){
+    container.innerHTML = '<div style="font-size:0.75rem;color:#8a938e;">No doctors on file yet.</div>';
+    return;
+  }
+  container.innerHTML = allDoctorNames.map(name=>{
+    const isMarked = markedNames.has(name);
+    return `<button type="button" class="doctor-unavail-btn" data-name="${escapeHtml(name)}" style="font-size:0.75rem;padding:5px 10px;border-radius:var(--radius);border:1px solid ${isMarked ? '#b8894f' : 'var(--line)'};background:${isMarked ? '#b8894f' : 'var(--panel)'};color:${isMarked ? '#fff' : 'var(--ink)'};cursor:pointer;">${isMarked ? '🚫 ' : ''}${escapeHtml(name)}</button>`;
+  }).join('');
+  container.querySelectorAll('.doctor-unavail-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const name = btn.getAttribute('data-name');
+      const existing = (unavailabilityByDay[key] || []).find(u=> u.doctor_name === name);
+      try{
+        if(existing){
+          await fetch(`${BACKEND_URL}/api/doctor-unavailability/${encodeURIComponent(existing.id)}`, { method: 'DELETE', headers: authHeader() });
+        }else{
+          await fetch(`${BACKEND_URL}/api/doctor-unavailability`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ doctorName: name, date: key })
+          });
+        }
+        await loadMonthAndDay();
+        renderDayUnavailabilityList();
+      }catch(e){
+        console.error(e);
+      }
+    });
+  });
 }
 
 let cancelledGroupExpanded = false;
@@ -4719,11 +4783,13 @@ function renderScheduleList(events){
     const noteCount = (ev.notes && ev.notes.length) || 0;
     const isPaid = !!ev.paid;
     const isCheckup = ev.visit_type === 'checkup';
+    const isRecovery = ev.visit_type === 'recovery';
     return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
       <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <span class="patient-name-link" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.85rem;flex:1;text-decoration:underline;cursor:pointer;${isCancelled ? 'text-decoration-color:#a33d3d;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
       ${isCheckup ? '<span style="font-size:0.68rem;color:var(--maroon);font-weight:700;border:1px solid var(--maroon);border-radius:4px;padding:1px 5px;">🩺 Check-up</span>' : ''}
+      ${isRecovery ? '<span style="font-size:0.68rem;color:#1f5c56;font-weight:700;border:1px solid #1f5c56;border-radius:4px;padding:1px 5px;">🌀 Recovery</span>' : ''}
       ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
       <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
       <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
@@ -5253,6 +5319,14 @@ async function quickBookAppointment(){
     el('quickBookOverlay').style.display = 'none';
     el('scheduleStatus').textContent = 'Booked.';
     await loadMonthAndDay();
+    if(quickBookVisitType === 'recovery'){
+      if(patientPhone && confirm(`This is a Recovery session — send ${patientName} the Recovery Session Policy message now?`)){
+        const message = WHATSAPP_TEMPLATES.recovery_session_policy.build();
+        location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(patientPhone)}?text=${encodeURIComponent(message)}`;
+      }else if(!patientPhone){
+        el('scheduleStatus').textContent = 'Booked. (No phone on file — send the Recovery policy from the reminders list once you have one.)';
+      }
+    }
   }catch(e){
     console.error(e);
     el('quickBookStatus').textContent = 'Booking failed: ' + (e.message || e);
@@ -6591,6 +6665,9 @@ el('quickBookBtn').addEventListener('click', quickBookAppointment);
 el('addManualDoctorBtn').addEventListener('click', addManualDoctor);
 el('remindersDayTodayBtn').addEventListener('click', ()=> setRemindersDay(0));
 el('remindersDayTomorrowBtn').addEventListener('click', ()=> setRemindersDay(1));
+el('doctorPatientsGridCloseBtn').addEventListener('click', ()=>{
+  el('doctorPatientsGridOverlay').style.display = 'none';
+});
 el('patientHistoryCloseBtn').addEventListener('click', ()=>{
   el('patientHistoryOverlay').style.display = 'none';
 });
