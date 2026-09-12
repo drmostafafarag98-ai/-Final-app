@@ -1125,6 +1125,7 @@
           <button type="button" id="noteExpandCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="noteExpandBody" style="padding:16px;flex:1;overflow-y:auto;font-size:0.88rem;line-height:1.6;white-space:pre-wrap;"></div>
+        <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
         <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;">
           <button type="button" class="ghost" id="noteExpandFollowupBtn" style="flex:1;">+ Follow-up</button>
           <button type="button" class="ghost" id="noteExpandSummaryBtn" style="flex:1;">📋 Summary</button>
@@ -2245,13 +2246,16 @@ function renderDoctorPatientsGrid(){
 }
 
 let noteExpandCurrentPatient = '';
+let noteExpandCurrentLatestId = '';
 
 function openNoteExpand(patientName, latestId){
   noteExpandCurrentPatient = patientName;
+  noteExpandCurrentLatestId = latestId;
   const s = sessions[latestId];
   el('noteExpandTitle').textContent = patientName;
   const fullText = (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '').trim();
   el('noteExpandBody').textContent = fullText || 'No notes yet.';
+  el('noteExpandGenerateBtn').style.display = (!s.note && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
   el('noteExpandOverlay').style.display = 'flex';
 }
 
@@ -6716,6 +6720,12 @@ el('noteExpandCloseBtn').addEventListener('click', ()=>{
 });
 el('noteExpandOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'noteExpandOverlay') el('noteExpandOverlay').style.display = 'none';
+});
+el('noteExpandGenerateBtn').addEventListener('click', ()=>{
+  loadSession(noteExpandCurrentLatestId);
+  el('noteExpandOverlay').style.display = 'none';
+  el('doctorPatientsGridOverlay').style.display = 'none';
+  switchMainView('documentation');
 });
 el('noteExpandFollowupBtn').addEventListener('click', ()=>{
   startFollowupForPatient(noteExpandCurrentPatient);
