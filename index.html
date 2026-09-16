@@ -1005,6 +1005,7 @@
         <div id="exportStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
       </div>
 
+      <div id="regPackageSection">
       <div class="section-title">🎁 Register an existing package</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For a patient who already started a package before this system existed — no need to remember dates, just how many sessions they've used so far.</div>
@@ -1017,6 +1018,7 @@
           <button type="button" class="ghost" id="regPackageBtn">Save</button>
         </div>
         <div id="regPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
+      </div>
       </div>
     </div>
 
@@ -1248,6 +1250,16 @@
           <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
           <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
           <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+          <div id="inlineRegPackageBox" style="display:none;background:var(--paper);border:1px dashed var(--gold);border-radius:var(--radius);padding:10px;margin-top:4px;">
+            <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">No active package on file for this patient — register their existing one now?</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <input type="number" id="inlineRegTotalInput" value="6" min="2" placeholder="Total" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+              <span style="font-size:0.8rem;color:#5b6863;">total,</span>
+              <input type="number" id="inlineRegUsedInput" value="0" min="0" placeholder="Used" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+              <span style="font-size:0.8rem;color:#5b6863;">already used</span>
+              <button type="button" class="ghost" id="inlineRegPackageBtn" style="font-size:0.78rem;padding:5px 10px;">Register & continue</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -4091,9 +4103,16 @@ async function loadDoctorStatsThisMonth(){
   }
 }
 
+function hasClientPermission(key){
+  if(!signedInDoctor) return false;
+  if(signedInDoctor.role === 'owner') return true;
+  return !!(signedInDoctor.permissions && signedInDoctor.permissions[key] === true);
+}
+
 async function loadDashboardSummary(){
   if(!isApproved()) return;
   el('dashboardSummary').style.display = 'flex';
+  el('regPackageSection').style.display = hasClientPermission('register_packages') ? 'block' : 'none';
   refreshInlineStatsRow();
 
   if(signedInDoctor.role === 'owner'){
@@ -4221,6 +4240,10 @@ function renderDoctorsRoster(items){
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="manage_team" ${d.permissions?.manage_team ? 'checked' : ''}>
             👥 Add/remove doctors from the team
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="register_packages" ${d.permissions?.register_packages ? 'checked' : ''}>
+            🎁 Backfill an existing/old package
           </label>
         </div>
       </div>` : ''}
@@ -4684,6 +4707,7 @@ async function openPaymentOverlay(ev){
   el('paymentAmountInput').value = requestedMatch ? requestedMatch[1] : '';
   el('paymentIsPackageCheckbox').checked = false;
   el('paymentPackageSessionsInput').value = '6';
+  el('inlineRegPackageBox').style.display = 'none';
   el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : 'Loading unpaid sessions…';
   el('paymentAppointmentsList').innerHTML = '';
   el('paymentOverlay').style.display = 'flex';
@@ -4735,7 +4759,12 @@ async function submitPayment(method){
       if(!lookupRes.ok) throw new Error(`Server error ${lookupRes.status}`);
       const pkg = await lookupRes.json();
       if(!pkg){
-        el('paymentOverlayStatus').textContent = `${patientName} has no active package on file. Start one first: tick "starts a new package" when recording their next Cash/InstaPay payment.`;
+        if(hasClientPermission('register_packages')){
+          el('paymentOverlayStatus').textContent = `${patientName} has no active package on file.`;
+          el('inlineRegPackageBox').style.display = 'block';
+        }else{
+          el('paymentOverlayStatus').textContent = `${patientName} has no active package on file. Ask someone with package-registration permission to add their existing package first.`;
+        }
         return;
       }
       let updatedPkg = pkg;
@@ -5536,7 +5565,7 @@ const WHATSAPP_TEMPLATES = {
   intake_form: {
     label: 'Patient intake form',
     build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
-      `مرحبًا بيك في عيادة Empower!\n\nقبل ميعادك يوم ${dateStrEn} الساعة ${timeStrEn}، ممكن تملى الاستمارة القصيرة دي عشان نجهزلك الكشف؟ هتاخد أقل من دقيقة:\n\nhttps://drmostafafarag98-ai.github.io/-Final-app/intake.html\n\nشكرًا ليك، ونشوفك قريب 🌿`
+      `مرحبًا بيك في عيادة Empower!\n\nقبل ميعادك يوم ${dateStrEn} الساعة ${timeStrEn}، ممكن تملى الاستمارة القصيرة دي عشان نجهزلك الكشف؟ هتاخد أقل من دقيقة:\n\nhttps://tinyurl.com/empower-clinic\n\nشكرًا ليك، ونشوفك قريب 🌿`
   },
   package_last_session: {
     label: 'Last session in package',
@@ -5621,6 +5650,8 @@ function setRemindersCustomDate(d){
 // ---- Mini date picker (custom-styled, replaces the browser's native
 // <input type="date"> widget so it matches the rest of the app) ----
 let miniDateViewMonth = new Date();
+let miniDateSelectedDate = new Date();
+let miniDateOnSelect = null;
 
 function renderMiniDateGrid(){
   el('miniDateMonthLabel').textContent = miniDateViewMonth.toLocaleDateString(undefined, {month:'long', year:'numeric'});
@@ -5643,21 +5674,56 @@ function renderMiniDateGrid(){
     const d = new Date(year, month, day);
     const cell = document.createElement('div');
     cell.textContent = String(day);
-    const isSelected = sameDay(d, remindersTargetDate);
+    const isSelected = sameDay(d, miniDateSelectedDate);
     cell.style.cssText = `text-align:center;padding:8px 0;border-radius:8px;cursor:pointer;font-size:0.85rem;${isSelected ? 'background:var(--maroon);color:#fff;font-weight:700;' : ''}`;
     cell.addEventListener('click', ()=>{
-      setRemindersCustomDate(d);
+      miniDateSelectedDate = d;
+      if(miniDateOnSelect) miniDateOnSelect(d);
       el('miniDatePickerOverlay').style.display = 'none';
     });
     grid.appendChild(cell);
   }
 }
 
-function openMiniDatePicker(){
-  miniDateViewMonth = new Date(remindersTargetDate.getFullYear(), remindersTargetDate.getMonth(), 1);
+// Generic entry point: any part of the app can open the picker with a
+// starting date and a callback that receives the chosen Date.
+function openDatePickerFor(initialDate, onSelect){
+  miniDateSelectedDate = initialDate || new Date();
+  miniDateOnSelect = onSelect;
+  miniDateViewMonth = new Date(miniDateSelectedDate.getFullYear(), miniDateSelectedDate.getMonth(), 1);
   renderMiniDateGrid();
   el('miniDatePickerOverlay').style.display = 'flex';
 }
+
+// Backward-compatible wrapper for the reminders panel's own date button.
+function openMiniDatePicker(){
+  openDatePickerFor(remindersTargetDate, (d)=> setRemindersCustomDate(d));
+}
+
+// Turns any native <input type="date"> into a trigger for the custom
+// picker instead — the field stays readonly (so no native calendar UI
+// appears) but keeps working exactly like before for any code reading
+// .value, since we still write "YYYY-MM-DD" into it and fire 'change'.
+function makeDateInputCustom(inputId){
+  const input = el(inputId);
+  if(!input) return;
+  input.readOnly = true;
+  input.style.cursor = 'pointer';
+  input.style.background = input.style.background || 'var(--panel)';
+  input.addEventListener('click', ()=>{
+    const pad2 = n=> String(n).padStart(2,'0');
+    let initial = new Date();
+    if(input.value){
+      const [y,m,d] = input.value.split('-').map(Number);
+      if(y && m && d) initial = new Date(y, m-1, d);
+    }
+    openDatePickerFor(initial, (d)=>{
+      input.value = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+  });
+}
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -6850,6 +6916,33 @@ el('paymentMethodCashBtn').addEventListener('click', ()=> submitPayment('Cash'))
 el('paymentMethodInstaPayBtn').addEventListener('click', ()=> submitPayment('InstaPay'));
 el('paymentMethodPackageBtn').addEventListener('click', ()=> submitPayment('Package'));
 el('justMarkPaidBtn').addEventListener('click', justMarkPaid);
+el('inlineRegPackageBtn').addEventListener('click', async ()=>{
+  const patientName = currentPaymentTarget ? currentPaymentTarget.patient_name : '';
+  const total = parseInt(el('inlineRegTotalInput').value, 10);
+  const used = parseInt(el('inlineRegUsedInput').value, 10) || 0;
+  if(!patientName || !total || total < 2){
+    el('paymentOverlayStatus').textContent = 'Enter a valid total sessions count (at least 2).';
+    return;
+  }
+  el('paymentOverlayStatus').textContent = 'Registering package…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ patientName, totalSessions: total, startingUsed: used })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    el('inlineRegPackageBox').style.display = 'none';
+    el('paymentOverlayStatus').textContent = `Package registered (${used} of ${total} used) — continuing…`;
+    submitPayment('Package');
+  }catch(e){
+    console.error(e);
+    el('paymentOverlayStatus').textContent = 'Could not register: ' + (e.message || e);
+  }
+});
 el('editAppointmentCloseBtn').addEventListener('click', ()=>{
   el('editAppointmentOverlay').style.display = 'none';
 });
