@@ -3849,9 +3849,9 @@ function renderStatsRow(prefix, stats){
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
-    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '💸 Not paid yet', 'Nobody unpaid in this range 🎉'));
-    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '💵 Paid by Cash', 'No cash payments in this range.'));
-    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '🔵 Paid by InstaPay', 'No InstaPay payments in this range.'));
+    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '💸 Not paid yet', 'Nobody unpaid in this range 🎉', '#a33d3d'));
+    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '💵 Paid by Cash', 'No cash payments in this range.', '#0b8043'));
+    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '🔵 Paid by InstaPay', 'No InstaPay payments in this range.', '#0b8043'));
   });
 }
 
@@ -3890,9 +3890,10 @@ async function openPatientHistoryPopup(name){
   }
 }
 
-function openPatientListPopup(items, title, emptyMessage){
+function openPatientListPopup(items, title, emptyMessage, titleColor){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
   el('unpaidListTitle').textContent = title;
+  el('unpaidListTitle').style.color = titleColor || '#a33d3d';
   el('unpaidListOverlay').style.display = 'flex';
   if(items.length === 0){
     el('unpaidListBody').innerHTML = `<div style="font-size:0.85rem;color:#8a938e;">${escapeHtml(emptyMessage)}</div>`;
@@ -4028,6 +4029,8 @@ async function exportCsv(){
   }
 }
 
+let doctorPaidAppointmentsByName = {};
+
 async function loadDoctorStatsThisMonth(){
   const table = el('doctorStatsTable');
   table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">Loading…</div>';
@@ -4041,6 +4044,7 @@ async function loadDoctorStatsThisMonth(){
     const active = items.filter(ev => ev.status !== 'cancelled');
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
     const byDoctor = {};
+    doctorPaidAppointmentsByName = {};
     active.forEach(ev=>{
       const name = ev.doctor_name || 'Unassigned';
       if(!byDoctor[name]) byDoctor[name] = { count: 0, money: 0 };
@@ -4049,7 +4053,11 @@ async function loadDoctorStatsThisMonth(){
         const m = (n.text || '').trim().match(paidNoteRe);
         if(m){
           const amt = parseFloat(m[1].replace(/,/g, ''));
-          if(!isNaN(amt)) byDoctor[name].money += amt;
+          if(!isNaN(amt)){
+            byDoctor[name].money += amt;
+            if(!doctorPaidAppointmentsByName[name]) doctorPaidAppointmentsByName[name] = [];
+            doctorPaidAppointmentsByName[name].push({ ...ev, _amount: amt });
+          }
         }
       });
     });
@@ -4065,11 +4073,18 @@ async function loadDoctorStatsThisMonth(){
         <th style="text-align:right;padding:10px 14px;font-size:0.78rem;color:#5b6863;">Collected (EGP)</th>
       </tr>
       ${rows.map(([name, d])=> `<tr style="border-top:1px solid var(--line);">
-        <td style="padding:9px 14px;font-size:0.85rem;">${escapeHtml(name)}</td>
+        <td style="padding:9px 14px;font-size:0.85rem;${d.money>0 ? 'text-decoration:underline;cursor:pointer;color:var(--maroon);' : ''}" ${d.money>0 ? `class="doctor-paid-link" data-name="${escapeHtml(name)}"` : ''}>${escapeHtml(name)}</td>
         <td style="padding:9px 14px;font-size:0.85rem;text-align:right;">${d.count}</td>
         <td style="padding:9px 14px;font-size:0.85rem;text-align:right;font-weight:600;color:#0b8043;">${d.money.toLocaleString()}</td>
       </tr>`).join('')}
     </table>`;
+    table.querySelectorAll('.doctor-paid-link').forEach(el2=>{
+      el2.addEventListener('click', ()=>{
+        const name = el2.getAttribute('data-name');
+        openPatientListPopup(doctorPaidAppointmentsByName[name] || [], `💰 Paid — ${name} (this month)`, 'Nobody paid yet.', '#0b8043');
+        el('unpaidListTitle').style.color = '#0b8043';
+      });
+    });
   }catch(e){
     console.error(e);
     table.innerHTML = `<div style="padding:14px;font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
