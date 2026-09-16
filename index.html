@@ -4676,6 +4676,7 @@ async function markAppointmentPaid(id, method, amount){
 // which ones this payment covers.
 let currentPaymentTarget = null;
 
+let paymentOverlayItems = [];
 async function openPaymentOverlay(ev){
   currentPaymentTarget = ev;
   el('paymentPatientName').textContent = ev.patient_name || '(untitled)';
@@ -4705,6 +4706,7 @@ async function openPaymentOverlay(ev){
       </label>`;
     }).join('');
     el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : '';
+    paymentOverlayItems = items;
   }catch(err){
     console.error(err);
     el('paymentOverlayStatus').textContent = 'Could not load unpaid sessions: ' + (err.message || err);
@@ -4737,12 +4739,22 @@ async function submitPayment(method){
         return;
       }
       let updatedPkg = pkg;
+      let skippedAlreadyCovered = 0;
       for(const id of checkedIds){
         await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(id)}`, {
           method: 'PATCH',
           headers: { ...authHeader(), 'Content-Type': 'application/json' },
           body: JSON.stringify({ paid: true })
         });
+        // Idempotency guard: if this exact appointment was already counted
+        // against a package before (e.g. it got toggled unpaid then paid
+        // again by mistake), don't consume a second session for it.
+        const existingItem = paymentOverlayItems.find(i=> String(i.id) === String(id));
+        const alreadyCovered = existingItem && (existingItem.notes || []).some(n=> /^covered by package/i.test((n.text || '').trim()));
+        if(alreadyCovered){
+          skippedAlreadyCovered++;
+          continue;
+        }
         const useRes = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(updatedPkg.id)}/use-session`, {
           method: 'POST',
           headers: authHeader()
