@@ -37,9 +37,9 @@
     --card-shadow:0 1px 3px rgba(27,43,43,0.08), 0 1px 2px rgba(27,43,43,0.05);
   }
   .pill-badge{
-    display:inline-flex; align-items:center; gap:5px;
-    padding:6px 13px; border-radius:999px;
-    font-size:0.82rem; font-weight:600; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:4px;
+    padding:5px 11px; border-radius:999px;
+    font-size:0.78rem; font-weight:600; white-space:nowrap;
   }
   *{box-sizing:border-box;}
   body{
@@ -4946,9 +4946,9 @@ function renderScheduleList(events){
     // Visit-type pill: checkup→Assessment (blue), recovery→Recovery (teal); plain sessions get no pill at all
     let visitPill = '';
     if(ev.visit_type === 'checkup'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);"><span style="font-size:0.8em;">👤</span> Assessment</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);"><span style="font-size:0.65em;">👤</span> Assessment</span>`;
     }else if(ev.visit_type === 'recovery'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.8em;">🌀</span> Recovery</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.65em;">🌀</span> Recovery</span>`;
     }
 
     // Status pill: cancelled → red X, no-show → gold ghost, else paid/unpaid
@@ -4956,7 +4956,7 @@ function renderScheduleList(events){
     if(isCancelled){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">✕ Cancelled</span>`;
     }else if(isNoShow){
-      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;"><span style="font-size:0.8em;">👻</span> No Show</span>`;
+      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;"><span style="font-size:0.65em;">👻</span> No Show</span>`;
     }else if(isPaid){
       statusPill = `<span class="pill-badge" style="background:var(--badge-green-bg);color:var(--badge-green-fg);">✓ Paid</span>`;
     }else{
