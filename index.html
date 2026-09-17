@@ -4943,14 +4943,12 @@ function renderScheduleList(events){
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const isPaid = !!ev.paid;
 
-    // Visit-type pill: session→Treatment (purple), checkup→Assessment (blue), recovery→Recovery (teal)
+    // Visit-type pill: checkup→Assessment (blue), recovery→Recovery (teal); plain sessions get no pill at all
     let visitPill = '';
     if(ev.visit_type === 'checkup'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);">👤 Assessment</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);"><span style="font-size:0.8em;">👤</span> Assessment</span>`;
     }else if(ev.visit_type === 'recovery'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);">🌀 Recovery</span>`;
-    }else{
-      visitPill = `<span class="pill-badge" style="background:var(--badge-purple-bg);color:var(--badge-purple-fg);">🤚 Treatment</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.8em;">🌀</span> Recovery</span>`;
     }
 
     // Status pill: cancelled → red X, no-show → gold ghost, else paid/unpaid
@@ -4958,7 +4956,7 @@ function renderScheduleList(events){
     if(isCancelled){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">✕ Cancelled</span>`;
     }else if(isNoShow){
-      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;">👻 No Show</span>`;
+      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;"><span style="font-size:0.8em;">👻</span> No Show</span>`;
     }else if(isPaid){
       statusPill = `<span class="pill-badge" style="background:var(--badge-green-bg);color:var(--badge-green-fg);">✓ Paid</span>`;
     }else{
