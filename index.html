@@ -37,9 +37,9 @@
     --card-shadow:0 1px 3px rgba(27,43,43,0.08), 0 1px 2px rgba(27,43,43,0.05);
   }
   .pill-badge{
-    display:inline-flex; align-items:center; gap:4px;
-    padding:5px 11px; border-radius:999px;
-    font-size:0.78rem; font-weight:600; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:3px;
+    padding:3px 8px; border-radius:999px;
+    font-size:0.68rem; font-weight:600; white-space:nowrap;
   }
   *{box-sizing:border-box;}
   body{
@@ -1006,6 +1006,19 @@
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
+      <div class="section-title">💸 Expenses</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="expenseDescInput" placeholder="What was it for?" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="number" id="expenseAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="date" id="expenseDateInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="addExpenseBtn">Add</button>
+        </div>
+        <div id="expenseStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
+        <div style="font-size:0.85rem;font-weight:700;color:var(--danger);margin-bottom:8px;" id="expenseMonthTotal"></div>
+        <div id="expenseList"></div>
+      </div>
+
       <div class="section-title">📥 Export</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Downloads a CSV file (date, patient, doctor, payment method, amount) for the range you pick below — open it in Excel, or upload/paste it into Google Sheets.</div>
@@ -1142,6 +1155,15 @@
         </div>
         <div id="noteExpandBody" style="padding:16px;flex:1;overflow-y:auto;font-size:0.88rem;line-height:1.6;white-space:pre-wrap;"></div>
         <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
+        <div id="noteExpandMergeBox" style="display:none;padding:0 16px 12px;">
+          <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
+          <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Merge into this file</button>
+        </div>
+        <div style="padding:0 16px 12px;display:flex;gap:8px;">
+          <button type="button" id="noteExpandMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;">🔀 Merge with another file</button>
+          <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;">🗑️ Delete this file</button>
+        </div>
+        <div id="noteExpandActionStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px 8px;"></div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;">
           <button type="button" class="ghost" id="noteExpandFollowupBtn" style="flex:1;">+ Follow-up</button>
           <button type="button" class="ghost" id="noteExpandSummaryBtn" style="flex:1;">📋 Summary</button>
@@ -1188,6 +1210,7 @@
               <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
             </div>
             <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
+            <button type="button" class="ghost" id="markFreeBtn" style="color:#2563a8;border-color:#2563a8;">🆓 Mark this session as free (no charge)</button>
             <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
             <button type="button" id="markUnpaidBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;text-align:left;">❌ Mark as unpaid (correct a mistake)</button>
             <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
@@ -2298,6 +2321,10 @@ function openNoteExpand(patientName, latestId){
   const fullText = (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '').trim();
   el('noteExpandBody').textContent = fullText || 'No notes yet.';
   el('noteExpandGenerateBtn').style.display = (!s.note && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
+  el('noteExpandMergeBox').style.display = 'none';
+  el('noteExpandActionStatus').textContent = '';
+  const otherSessionIds = (currentGridPatientGroups[patientName] || []).filter(id=> id !== latestId);
+  el('noteExpandMergeBtn').style.display = otherSessionIds.length > 0 ? 'block' : 'none';
   el('noteExpandOverlay').style.display = 'flex';
 }
 
@@ -3260,6 +3287,76 @@ async function syncSessionToServer(){
   }
 }
 
+async function deleteSessionFromCard(id){
+  if(!id) return;
+  if(!confirm('Delete this file? This removes the notes and transcript permanently.')) return;
+  el('noteExpandActionStatus').textContent = 'Deleting…';
+  try{
+    const isOwner = signedInDoctor && signedInDoctor.role === 'owner';
+    const endpoint = isOwner ? 'approve-delete' : 'request-delete';
+    const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(id)}/${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ requestedBy: clinicianName || 'unknown' })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    el('noteExpandOverlay').style.display = 'none';
+    delete sessions[id];
+    renderSessionList();
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+    el('syncStatus').textContent = isOwner ? 'File deleted.' : 'Delete requested — waiting for owner approval.';
+  }catch(e){
+    console.error(e);
+    el('noteExpandActionStatus').textContent = 'Could not delete: ' + (e.message || e);
+  }
+}
+
+function showMergeOptions(){
+  const otherIds = (currentGridPatientGroups[noteExpandCurrentPatient] || []).filter(id=> id !== noteExpandCurrentLatestId);
+  if(otherIds.length === 0) return;
+  const select = el('noteExpandMergeSelect');
+  select.innerHTML = otherIds.map(id=>{
+    const s = sessions[id];
+    return `<option value="${id}">${escapeHtml(s.date || '')} — ${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}</option>`;
+  }).join('');
+  el('noteExpandMergeBox').style.display = 'block';
+}
+
+async function confirmMergeSessions(){
+  const removeId = el('noteExpandMergeSelect').value;
+  if(!removeId) return;
+  if(!confirm('Merge that file into this one? The other file\'s notes will be appended here, then it will be deleted.')) return;
+  el('noteExpandActionStatus').textContent = 'Merging…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ keepId: noteExpandCurrentLatestId, removeId })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+    }
+    const merged = await res.json();
+    if(sessions[noteExpandCurrentLatestId]){
+      sessions[noteExpandCurrentLatestId].note = merged.note;
+      sessions[noteExpandCurrentLatestId].transcriptLines = merged.transcript || [];
+    }
+    delete sessions[removeId];
+    el('noteExpandMergeBox').style.display = 'none';
+    el('noteExpandActionStatus').textContent = 'Merged.';
+    openNoteExpand(noteExpandCurrentPatient, noteExpandCurrentLatestId);
+    renderSessionList();
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+  }catch(e){
+    console.error(e);
+    el('noteExpandActionStatus').textContent = 'Could not merge: ' + (e.message || e);
+  }
+}
+
 async function requestDeleteCurrentSession(){
   if(!activeSessionId){
     el('syncStatus').textContent = 'No active session.';
@@ -3998,6 +4095,7 @@ async function loadDashboardStats(){
   renderStatsRow('month', monthStats);
   renderStatsRow('year', yearStats);
   loadDoctorStatsThisMonth();
+  loadExpenses();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -4100,6 +4198,71 @@ async function exportCsv(){
 }
 
 let doctorPaidAppointmentsByName = {};
+
+async function loadExpenses(){
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  el('expenseList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/expenses?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    el('expenseMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP spent`;
+    if(items.length === 0){
+      el('expenseList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No expenses logged this month.</div>';
+      return;
+    }
+    el('expenseList').innerHTML = items.map(e=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
+        <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+      </div>
+    </div>`).join('');
+    el('expenseList').querySelectorAll('.expense-delete-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Delete this expense?')) return;
+        await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+        loadExpenses();
+      });
+    });
+  }catch(e){
+    console.error(e);
+    el('expenseList').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function addExpense(){
+  const description = el('expenseDescInput').value.trim();
+  const amount = parseFloat(el('expenseAmountInput').value);
+  const expenseDate = el('expenseDateInput').value || new Date().toISOString().slice(0,10);
+  if(!description || !amount){
+    el('expenseStatus').textContent = 'Enter a description and amount first.';
+    return;
+  }
+  el('expenseStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ description, amount, expenseDate })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('expenseDescInput').value = '';
+    el('expenseAmountInput').value = '';
+    el('expenseStatus').textContent = '';
+    loadExpenses();
+  }catch(e){
+    console.error(e);
+    el('expenseStatus').textContent = 'Could not save: ' + (e.message || e);
+  }
+}
 
 async function loadDoctorStatsThisMonth(){
   const table = el('doctorStatsTable');
@@ -4710,6 +4873,24 @@ function renderDayUnavailabilityList(){
 
 let cancelledGroupExpanded = false;
 
+async function markAsFree(){
+  if(!currentPaymentTarget) return;
+  if(!confirm(`Mark this session as free (no charge) for ${currentPaymentTarget.patient_name || 'this patient'}?`)) return;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}`, {
+      method: 'PATCH',
+      headers: { ...authHeader(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFree: true })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('patientDetailOverlay').style.display = 'none';
+    await loadMonthAndDay();
+  }catch(err){
+    console.error(err);
+    el('paymentOverlayStatus').textContent = 'Could not save: ' + (err.message || err);
+  }
+}
+
 async function justMarkPaid(){
   if(!currentPaymentTarget) return;
   if(!confirm(`Mark this as paid with no new charge and no package change? Only use this if it was already properly accounted for before (e.g. you accidentally un-marked it).`)) return;
@@ -4946,29 +5127,31 @@ function renderScheduleList(events){
     // Visit-type pill: checkup→Assessment (blue), recovery→Recovery (teal); plain sessions get no pill at all
     let visitPill = '';
     if(ev.visit_type === 'checkup'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);"><span style="font-size:0.65em;">👤</span> Assessment</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);"><span style="font-size:0.55em;">👤</span> Assessment</span>`;
     }else if(ev.visit_type === 'recovery'){
-      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.65em;">🌀</span> Recovery</span>`;
+      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.55em;">🌀</span> Recovery</span>`;
     }
 
-    // Status pill: cancelled → red X, no-show → gold ghost, else paid/unpaid
+    // Status pill: cancelled → red X, no-show → gold ghost, free → blue, else paid/unpaid
     let statusPill;
     if(isCancelled){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">✕ Cancelled</span>`;
     }else if(isNoShow){
-      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;"><span style="font-size:0.65em;">👻</span> No Show</span>`;
+      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;"><span style="font-size:0.55em;">👻</span> No Show</span>`;
+    }else if(ev.is_free){
+      statusPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);">🆓 Free</span>`;
     }else if(isPaid){
       statusPill = `<span class="pill-badge" style="background:var(--badge-green-bg);color:var(--badge-green-fg);">✓ Paid</span>`;
     }else{
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">! Unpaid</span>`;
     }
 
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border-radius:10px;background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:4px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
-      <span style="font-size:0.72rem;color:#5b6863;min-width:52px;flex-shrink:0;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-      <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.86rem;font-weight:700;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:6px;padding:6px 9px;margin-bottom:4px;border-radius:9px;background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:3px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
+      <span style="font-size:0.66rem;color:#5b6863;min-width:42px;flex-shrink:0;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
+      <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.82rem;font-weight:700;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
       ${visitPill}
       ${statusPill}
-      <span style="color:#a9b3ae;font-size:1rem;flex-shrink:0;">›</span>
+      <span style="color:#a9b3ae;font-size:0.9rem;flex-shrink:0;">›</span>
     </div>`;
   }
 
@@ -5846,7 +6029,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -6809,6 +6992,7 @@ el('statsRangeGoBtn').addEventListener('click', async ()=>{
 });
 el('exportCsvBtn').addEventListener('click', exportCsv);
 el('regPackageBtn').addEventListener('click', registerExistingPackage);
+el('addExpenseBtn').addEventListener('click', addExpense);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
@@ -6943,6 +7127,9 @@ el('noteExpandGenerateBtn').addEventListener('click', ()=>{
   el('doctorPatientsGridOverlay').style.display = 'none';
   switchMainView('documentation');
 });
+el('noteExpandDeleteBtn').addEventListener('click', ()=> deleteSessionFromCard(noteExpandCurrentLatestId));
+el('noteExpandMergeBtn').addEventListener('click', showMergeOptions);
+el('noteExpandMergeConfirmBtn').addEventListener('click', confirmMergeSessions);
 el('noteExpandFollowupBtn').addEventListener('click', ()=>{
   startFollowupForPatient(noteExpandCurrentPatient);
   el('noteExpandOverlay').style.display = 'none';
@@ -7036,6 +7223,7 @@ el('waTestSendBtn').addEventListener('click', async ()=>{
 el('paymentMethodCashBtn').addEventListener('click', ()=> submitPayment('Cash'));
 el('paymentMethodInstaPayBtn').addEventListener('click', ()=> submitPayment('InstaPay'));
 el('paymentMethodPackageBtn').addEventListener('click', ()=> submitPayment('Package'));
+el('markFreeBtn').addEventListener('click', markAsFree);
 el('justMarkPaidBtn').addEventListener('click', justMarkPaid);
 el('markUnpaidBtn').addEventListener('click', async ()=>{
   if(!currentPaymentTarget) return;
