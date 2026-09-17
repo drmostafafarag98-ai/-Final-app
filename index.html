@@ -27,6 +27,19 @@
     --patient:#7a5c3e;
     --danger:#a33d3d;
     --radius:12px;
+    /* Modern pill-badge palette (day-list redesign) */
+    --badge-purple-bg:#efe7fb; --badge-purple-fg:#6b46c1;
+    --badge-blue-bg:#e6f0fd;   --badge-blue-fg:#2563a8;
+    --badge-teal-bg:#e1f5f2;   --badge-teal-fg:#0f8a7a;
+    --badge-green-bg:#e3f6ea;  --badge-green-fg:#1b8a4a;
+    --badge-red-bg:#fce8e8;    --badge-red-fg:#c0392b;
+    --card-radius:16px;
+    --card-shadow:0 1px 3px rgba(27,43,43,0.08), 0 1px 2px rgba(27,43,43,0.05);
+  }
+  .pill-badge{
+    display:inline-flex; align-items:center; gap:5px;
+    padding:6px 13px; border-radius:999px;
+    font-size:0.82rem; font-weight:600; white-space:nowrap;
   }
   *{box-sizing:border-box;}
   body{
@@ -4926,20 +4939,40 @@ function renderScheduleList(events){
       : 'All day';
     const isCancelled = ev.status === 'cancelled';
     const isNoShow = ev.status === 'no_show';
-    const colorHex = isCancelled ? '#a33d3d' : isNoShow ? '#b8894f' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e');
+    const colorHex = isCancelled ? '#c0392b' : isNoShow ? '#b8894f' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#0f8a7a');
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
-    const noteCount = (ev.notes && ev.notes.length) || 0;
     const isPaid = !!ev.paid;
-    const isCheckup = ev.visit_type === 'checkup';
-    const isRecovery = ev.visit_type === 'recovery';
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
-      <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
-      <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-      <span class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.85rem;flex:1;text-decoration:underline;cursor:pointer;${isCancelled ? 'text-decoration-color:#a33d3d;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
-      ${isCheckup ? '<span style="font-size:0.68rem;color:var(--maroon);font-weight:700;border:1px solid var(--maroon);border-radius:4px;padding:1px 5px;">🩺 Check-up</span>' : ''}
-      ${isRecovery ? '<span style="font-size:0.68rem;color:#1f5c56;font-weight:700;border:1px solid #1f5c56;border-radius:4px;padding:1px 5px;">🌀 Recovery</span>' : ''}
-      ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
-      <span style="font-size:0.75rem;padding:2px 7px;border-radius:6px;border:1px solid ${isPaid ? '#0b8043' : '#a33d3d'};color:${isPaid ? '#0b8043' : '#a33d3d'};">${isPaid ? '💰 Paid' : '💸 Unpaid'}</span>
+
+    // Visit-type pill: session→Treatment (purple), checkup→Assessment (blue), recovery→Recovery (teal)
+    let visitPill = '';
+    if(ev.visit_type === 'checkup'){
+      visitPill = `<span class="pill-badge" style="background:var(--badge-blue-bg);color:var(--badge-blue-fg);">👤 Assessment</span>`;
+    }else if(ev.visit_type === 'recovery'){
+      visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);">🌀 Recovery</span>`;
+    }else{
+      visitPill = `<span class="pill-badge" style="background:var(--badge-purple-bg);color:var(--badge-purple-fg);">🤚 Treatment</span>`;
+    }
+
+    // Status pill: cancelled → red X, no-show → gold ghost, else paid/unpaid
+    let statusPill;
+    if(isCancelled){
+      statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">✕ Cancelled</span>`;
+    }else if(isNoShow){
+      statusPill = `<span class="pill-badge" style="background:#fbf3e6;color:#b8894f;">👻 No Show</span>`;
+    }else if(isPaid){
+      statusPill = `<span class="pill-badge" style="background:var(--badge-green-bg);color:var(--badge-green-fg);">✓ Paid</span>`;
+    }else{
+      statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">! Unpaid</span>`;
+    }
+
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;border-radius:var(--card-radius);background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:4px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:2px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</div>
+        <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.95rem;font-weight:700;cursor:pointer;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
+      </div>
+      ${visitPill}
+      ${statusPill}
+      <span style="color:#a9b3ae;font-size:1.1rem;flex-shrink:0;">›</span>
     </div>`;
   }
 
@@ -4963,10 +4996,10 @@ function renderScheduleList(events){
     });
   }
 
-  container.querySelectorAll('.patient-name-link').forEach(span=>{
-    span.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id = span.getAttribute('data-id');
+  container.querySelectorAll('.appointment-row').forEach(row=>{
+    row.style.cursor = 'pointer';
+    row.addEventListener('click', ()=>{
+      const id = row.getAttribute('data-id');
       const ev = events.find(x=> String(x.id) === String(id));
       if(ev) openPatientDetail(ev);
     });
