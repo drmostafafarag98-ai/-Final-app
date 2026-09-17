@@ -4963,14 +4963,12 @@ function renderScheduleList(events){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">! Unpaid</span>`;
     }
 
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:12px;padding:14px 16px;margin-bottom:10px;border-radius:var(--card-radius);background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:4px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:2px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</div>
-        <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.95rem;font-weight:700;cursor:pointer;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
-      </div>
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:6px;border-radius:10px;background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:4px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
+      <span style="font-size:0.72rem;color:#5b6863;min-width:52px;flex-shrink:0;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
+      <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.86rem;font-weight:700;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
       ${visitPill}
       ${statusPill}
-      <span style="color:#a9b3ae;font-size:1.1rem;flex-shrink:0;">›</span>
+      <span style="color:#a9b3ae;font-size:1rem;flex-shrink:0;">›</span>
     </div>`;
   }
 
