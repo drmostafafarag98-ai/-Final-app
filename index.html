@@ -26,7 +26,7 @@
     --doctor:#1f5c56;
     --patient:#7a5c3e;
     --danger:#a33d3d;
-    --radius:12px;
+    --radius:14px;
     /* Modern pill-badge palette (day-list redesign) */
     --badge-purple-bg:#efe7fb; --badge-purple-fg:#6b46c1;
     --badge-blue-bg:#e6f0fd;   --badge-blue-fg:#2563a8;
@@ -88,7 +88,7 @@
     cursor:pointer;
     font-family:inherit;
   }
-  .main-nav-icon{ font-size:1.4rem; }
+  .main-nav-icon{ display:flex; align-items:center; justify-content:center; }
   .main-nav-label{ font-size:0.62rem; letter-spacing:0.02em; }
   .main-nav-btn.active{
     background:rgba(184,137,79,0.22);
@@ -789,15 +789,15 @@
 
 <div id="mainNavBar">
   <button type="button" class="main-nav-btn" id="navCalendarBtn" title="Calendar">
-    <span class="main-nav-icon">📅</span>
+    <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg></span>
     <span class="main-nav-label">Calendar</span>
   </button>
   <button type="button" class="main-nav-btn" id="navDashboardBtn" title="Dashboard" style="display:none;">
-    <span class="main-nav-icon">📊</span>
+    <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg></span>
     <span class="main-nav-label">Stats</span>
   </button>
   <button type="button" class="main-nav-btn active" id="navDocumentationBtn" title="Documentation">
-    <span class="main-nav-icon">📝</span>
+    <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
     <span class="main-nav-label">Docs</span>
   </button>
 </div>
@@ -1249,9 +1249,9 @@
               <select id="editAppointmentHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
               <span style="font-weight:700;color:var(--maroon);">:</span>
               <select id="editAppointmentMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
-              <div id="editAppointmentAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
-                <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
-                <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
+              <div id="editAppointmentAmPmToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;flex-shrink:0;">
+                <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:9px 14px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;border-radius:999px;">AM</button>
+                <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:9px 14px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">PM</button>
               </div>
             </div>
             <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
@@ -1259,10 +1259,10 @@
               <option value="">— keep current —</option>
             </select>
             <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
-            <div id="editAppointmentVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
-              <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
-              <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
-              <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
+            <div id="editAppointmentVisitTypeToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+              <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;border-radius:999px;">Session</button>
+              <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">🩺 Check-up</button>
+              <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">🌀 Recovery</button>
             </div>
             <div id="editAppointmentStatus" style="font-size:0.78rem;color:#8a938e;"></div>
           </div>
@@ -1365,17 +1365,17 @@
             <select id="quickBookHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
             <span style="font-weight:700;color:var(--maroon);">:</span>
             <select id="quickBookMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
-            <div id="quickBookAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
-              <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
-              <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
+            <div id="quickBookAmPmToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;flex-shrink:0;">
+              <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:9px 14px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;border-radius:999px;">AM</button>
+              <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:9px 14px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">PM</button>
             </div>
           </div>
 
           <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
-          <div id="quickBookVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
-            <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
-            <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
-            <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
+          <div id="quickBookVisitTypeToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;border-radius:999px;">Session</button>
+            <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">🩺 Check-up</button>
+            <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:9px 8px;font-size:0.85rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">🌀 Recovery</button>
           </div>
 
           <div id="quickBookStatus" style="font-size:0.78rem;color:#8a938e;"></div>
@@ -5602,7 +5602,7 @@ function setAmPmToggle(toggleEl, period){
   toggleEl.querySelectorAll('.ampm-btn').forEach(b=>{
     const active = b.getAttribute('data-period') === period;
     b.classList.toggle('active', active);
-    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.background = active ? 'var(--maroon)' : 'transparent';
     b.style.color = active ? '#fff' : 'var(--ink)';
   });
 }
@@ -5617,7 +5617,7 @@ function openQuickBookOverlay(){
   el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(b=>{
     const active = b.getAttribute('data-type') === 'session';
     b.classList.toggle('active', active);
-    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.background = active ? 'var(--maroon)' : 'transparent';
     b.style.color = active ? '#fff' : 'var(--ink)';
   });
   el('quickBookOverlay').style.display = 'flex';
@@ -5630,7 +5630,7 @@ el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(btn=>
     el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(b=>{
       const active = b === btn;
       b.classList.toggle('active', active);
-      b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+      b.style.background = active ? 'var(--maroon)' : 'transparent';
       b.style.color = active ? '#fff' : 'var(--ink)';
     });
   });
@@ -5653,7 +5653,7 @@ function setVisitTypeToggle(toggleEl, type){
   toggleEl.querySelectorAll('.visit-type-btn').forEach(b=>{
     const active = b.getAttribute('data-type') === type;
     b.classList.toggle('active', active);
-    b.style.background = active ? 'var(--maroon)' : 'var(--panel)';
+    b.style.background = active ? 'var(--maroon)' : 'transparent';
     b.style.color = active ? '#fff' : 'var(--ink)';
   });
 }
