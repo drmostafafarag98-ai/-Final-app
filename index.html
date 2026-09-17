@@ -342,25 +342,30 @@
   }
   .dashboard-card{
     display:flex;
-    flex-direction:column;
-    align-items:flex-start;
-    gap:4px;
+    align-items:center;
+    gap:12px;
     background:var(--panel);
-    border:1px solid var(--line);
-    border-left:3px solid var(--maroon);
-    border-radius:var(--radius);
-    padding:12px 18px;
+    border:none;
+    border-radius:var(--card-radius);
+    padding:14px 16px;
     min-width:150px;
     cursor:pointer;
     font-family:inherit;
     text-align:left;
-    box-shadow:0 2px 6px rgba(0,0,0,0.07);
-    transition:transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s ease;
+    box-shadow:var(--card-shadow);
+    transition:transform 0.12s ease, box-shadow 0.12s ease;
   }
-  .dashboard-card:hover{ border-left-color:var(--gold); box-shadow:0 4px 12px rgba(0,0,0,0.12); transform:translateY(-2px); }
+  .dashboard-card:hover{ box-shadow:0 4px 12px rgba(0,0,0,0.12); transform:translateY(-2px); }
   .dashboard-card:active{ transform:translateY(0); }
-  .dashboard-card-num{ font-size:1.6rem; font-weight:700; color:var(--maroon); line-height:1; }
-  .dashboard-card-label{ font-size:0.75rem; color:#5b6863; }
+  .dashboard-card-icon{
+    width:40px; height:40px; border-radius:50%; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.05rem;
+  }
+  .dashboard-card-body{ flex:1; min-width:0; }
+  .dashboard-card-num{ font-size:1.35rem; font-weight:700; color:var(--ink); line-height:1.2; }
+  .dashboard-card-label{ font-size:0.76rem; color:#5b6863; }
+  .dashboard-card-chevron{ color:#a9b3ae; font-size:1.1rem; flex-shrink:0; }
   .sidebar h2{
     font-size:0.78rem;
     letter-spacing:0.03em;
@@ -1159,9 +1164,14 @@
           <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
           <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Merge into this file</button>
         </div>
-        <div style="padding:0 16px 12px;display:flex;gap:8px;">
-          <button type="button" id="noteExpandMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;">🔀 Merge with another file</button>
-          <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;">🗑️ Delete this file</button>
+        <div id="noteExpandNameMergeBox" style="display:none;padding:0 16px 12px;">
+          <input type="text" id="noteExpandNameMergeInput" list="knownPatientsList" placeholder="The misspelled name (e.g. how it was typed wrong)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;">
+          <button type="button" class="ghost" id="noteExpandNameMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Bring their sessions in here</button>
+        </div>
+        <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" id="noteExpandNameMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;">🔀 Merge in a misspelled name</button>
+          <button type="button" id="noteExpandMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;">🔀 Merge with another file</button>
+          <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:100px;">🗑️ Delete this file</button>
         </div>
         <div id="noteExpandActionStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px 8px;"></div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;">
@@ -2322,6 +2332,7 @@ function openNoteExpand(patientName, latestId){
   el('noteExpandBody').textContent = fullText || 'No notes yet.';
   el('noteExpandGenerateBtn').style.display = (!s.note && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
   el('noteExpandMergeBox').style.display = 'none';
+  el('noteExpandNameMergeBox').style.display = 'none';
   el('noteExpandActionStatus').textContent = '';
   const otherSessionIds = (currentGridPatientGroups[patientName] || []).filter(id=> id !== latestId);
   el('noteExpandMergeBtn').style.display = otherSessionIds.length > 0 ? 'block' : 'none';
@@ -3314,6 +3325,43 @@ async function deleteSessionFromCard(id){
   }
 }
 
+function showNameMergeBox(){
+  el('noteExpandNameMergeInput').value = '';
+  el('noteExpandNameMergeBox').style.display = 'block';
+}
+
+async function confirmNameMerge(){
+  const fromName = el('noteExpandNameMergeInput').value.trim();
+  const toName = noteExpandCurrentPatient;
+  if(!fromName){
+    el('noteExpandActionStatus').textContent = 'Type the misspelled name first.';
+    return;
+  }
+  if(fromName.toLowerCase() === (toName || '').toLowerCase()){
+    el('noteExpandActionStatus').textContent = 'That\'s the same name — nothing to merge.';
+    return;
+  }
+  if(!confirm(`Bring every session filed under "${fromName}" into "${toName}"? This can't be undone.`)) return;
+  el('noteExpandActionStatus').textContent = 'Merging…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions/rename-patient`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ fromName, toName })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    el('noteExpandNameMergeBox').style.display = 'none';
+    el('noteExpandActionStatus').textContent = `Merged ${data.count} session(s) from "${fromName}" into "${toName}".`;
+    await loadSessionsFromServer();
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+    renderSessionList();
+  }catch(e){
+    console.error(e);
+    el('noteExpandActionStatus').textContent = 'Could not merge: ' + (e.message || e);
+  }
+}
+
 function showMergeOptions(){
   const otherIds = (currentGridPatientGroups[noteExpandCurrentPatient] || []).filter(id=> id !== noteExpandCurrentLatestId);
   if(otherIds.length === 0) return;
@@ -3965,26 +4013,30 @@ function renderStatsRow(prefix, stats){
   }
   const fmt = n => (n || 0).toLocaleString();
   const cards = [
-    { label: 'Appointments', num: stats.total, color: 'var(--maroon)' },
-    { label: 'Confirmation sent', num: stats.sentCount, color: '#b8894f' },
-    { label: 'Confirmed', num: stats.confirmedCount, color: '#0b8043' },
-    { label: 'Paid', num: stats.paidCount, color: '#0b8043' },
-    { label: 'Not paid yet', num: stats.unpaidCount, color: '#a33d3d', clickKey: 'unpaid' },
-    { label: 'Cancelled', num: stats.cancelledCount, color: '#a33d3d' },
+    { label: 'Appointments', num: stats.total, icon: '📅', bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)' },
+    { label: 'Confirmation sent', num: stats.sentCount, icon: '➤', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)' },
+    { label: 'Confirmed', num: stats.confirmedCount, icon: '✓', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' },
+    { label: 'Paid', num: stats.paidCount, icon: '💳', bg: 'var(--badge-purple-bg)', fg: 'var(--badge-purple-fg)' },
+    { label: 'Not paid yet', num: stats.unpaidCount, icon: '!', bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)', clickKey: 'unpaid' },
+    { label: 'Cancelled', num: stats.cancelledCount, icon: '✕', bg: '#eceeed', fg: '#6b7573' },
   ];
   // Money figures only belong on the dedicated Dashboard view (its own
   // access-gated page) — not on the main page's quick-glance row, which
   // more people might casually see.
   if(prefix !== 'todayInline'){
     cards.push(
-      { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), color: 'var(--gold)' },
-      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), color: '#0b8043', clickKey: 'cash' },
-      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), color: '#0b8043', clickKey: 'instapay' },
+      { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: '💰', bg: '#fbf0e0', fg: '#b8894f' },
+      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), icon: '💵', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
+      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: '🔵', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
     );
   }
-  row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" style="border-left-color:${c.color};${c.clickKey ? 'cursor:pointer;' : 'cursor:default;'}" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''}>
-    <div class="dashboard-card-num">${c.num}</div>
-    <div class="dashboard-card-label">${c.label}</div>
+  row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''} style="${c.clickKey ? '' : 'cursor:default;'}">
+    <div class="dashboard-card-icon" style="background:${c.bg};color:${c.fg};">${c.icon}</div>
+    <div class="dashboard-card-body">
+      <div class="dashboard-card-num">${c.num}</div>
+      <div class="dashboard-card-label">${c.label}</div>
+    </div>
+    ${c.clickKey ? '<span class="dashboard-card-chevron">›</span>' : ''}
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
@@ -4816,7 +4868,7 @@ function renderCalendarGrid(){
     const cell = document.createElement('div');
     cell.style.cssText = `text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:0.8rem;
       ${hasUnavailability ? 'border:2px solid #b8894f;' : ''}
-      ${isSelected ? 'background:var(--maroon);color:#fff;' : isToday ? 'background:#f0e6d2;color:var(--maroon);font-weight:700;' : 'color:var(--ink);'}`;
+      ${isSelected ? 'background:var(--maroon);color:#fff;' : isToday ? 'background:var(--maroon-deep);color:#fff;font-weight:700;' : 'color:var(--ink);'}`;
     const dotsHtml = events.slice(0,3).map(ev=>{
       const hex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
       return `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${isSelected ? '#fff' : hex};margin:0 1px;"></span>`;
@@ -7128,6 +7180,8 @@ el('noteExpandGenerateBtn').addEventListener('click', ()=>{
   switchMainView('documentation');
 });
 el('noteExpandDeleteBtn').addEventListener('click', ()=> deleteSessionFromCard(noteExpandCurrentLatestId));
+el('noteExpandNameMergeBtn').addEventListener('click', showNameMergeBox);
+el('noteExpandNameMergeConfirmBtn').addEventListener('click', confirmNameMerge);
 el('noteExpandMergeBtn').addEventListener('click', showMergeOptions);
 el('noteExpandMergeConfirmBtn').addEventListener('click', confirmMergeSessions);
 el('noteExpandFollowupBtn').addEventListener('click', ()=>{
