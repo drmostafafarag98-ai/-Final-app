@@ -1136,13 +1136,108 @@
       </div>
     </div>
 
-    <div id="patientHistoryOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:78;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div id="patientDetailOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:78;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);" id="patientHistoryTitle">History</span>
-          <button type="button" id="patientHistoryCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+          <span style="font-weight:700;color:var(--maroon);" id="pdTitle">Patient</span>
+          <button type="button" id="pdCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
-        <div id="patientHistoryBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
+        <div style="display:flex;border-bottom:1px solid var(--line);">
+          <button type="button" class="pd-tab-btn active" data-tab="history" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid var(--maroon);color:var(--maroon);font-weight:700;cursor:pointer;">📅 History</button>
+          <button type="button" class="pd-tab-btn" data-tab="payment" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">💰 Payment</button>
+          <button type="button" class="pd-tab-btn" data-tab="edit" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">✏️ Edit</button>
+          <button type="button" class="pd-tab-btn" data-tab="chat" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">💬 Chat</button>
+        </div>
+
+        <div id="pdPanelHistory" class="pd-panel" style="flex:1;overflow-y:auto;padding:14px 16px;">
+          <span id="patientHistoryTitle" style="display:none;"></span>
+          <div id="patientHistoryBody"></div>
+        </div>
+
+        <div id="pdPanelPayment" class="pd-panel" style="display:none;flex:1;overflow-y:auto;flex-direction:column;">
+          <span id="paymentPatientName" style="display:none;"></span>
+          <div style="padding:14px 16px;">
+            <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Tick every session this payment covers (unpaid sessions for this patient are listed below — untick any that aren't included).</div>
+            <div id="paymentAppointmentsList"></div>
+          </div>
+          <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="number" id="paymentAmountInput" placeholder="Total amount (EGP) — for Cash/InstaPay only" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#5b6863;cursor:pointer;">
+              <input type="checkbox" id="paymentIsPackageCheckbox">
+              This payment starts a new package of
+              <input type="number" id="paymentPackageSessionsInput" value="6" min="2" style="width:48px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
+              sessions
+            </label>
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="ghost" id="paymentMethodCashBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
+              <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
+            </div>
+            <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
+            <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
+            <button type="button" id="markUnpaidBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;text-align:left;">❌ Mark as unpaid (correct a mistake)</button>
+            <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+            <div id="inlineRegPackageBox" style="display:none;background:var(--paper);border:1px dashed var(--gold);border-radius:var(--radius);padding:10px;margin-top:4px;">
+              <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">No active package on file for this patient — register their existing one now?</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+                <input type="number" id="inlineRegTotalInput" value="6" min="2" placeholder="Total" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+                <span style="font-size:0.8rem;color:#5b6863;">total,</span>
+                <input type="number" id="inlineRegUsedInput" value="0" min="0" placeholder="Used" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+                <span style="font-size:0.8rem;color:#5b6863;">already used</span>
+                <button type="button" class="ghost" id="inlineRegPackageBtn" style="font-size:0.78rem;padding:5px 10px;">Register & continue</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="pdPanelEdit" class="pd-panel" style="display:none;flex:1;overflow-y:auto;flex-direction:column;">
+          <div style="padding:14px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
+            <input type="text" id="editAppointmentPatientInput" list="knownPatientsList" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+            <input type="tel" id="editAppointmentPhoneInput" placeholder="Phone" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+            <div style="display:flex;gap:8px;">
+              <input type="date" id="editAppointmentDateInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+            </div>
+            <label style="font-size:0.78rem;color:#5b6863;">Time</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <select id="editAppointmentHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+              <span style="font-weight:700;color:var(--maroon);">:</span>
+              <select id="editAppointmentMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
+              <div id="editAppointmentAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
+                <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
+                <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
+              </div>
+            </div>
+            <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
+            <select id="editAppointmentDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+              <option value="">— keep current —</option>
+            </select>
+            <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
+            <div id="editAppointmentVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
+              <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
+              <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
+              <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
+            </div>
+            <div id="editAppointmentStatus" style="font-size:0.78rem;color:#8a938e;"></div>
+          </div>
+          <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
+            <button type="button" class="primary" id="saveEditAppointmentBtn">Save changes</button>
+            <button type="button" class="ghost" id="cancelAppointmentBtn" style="color:var(--danger);border-color:var(--danger);">Cancel appointment</button>
+            <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;">👻 Mark as No Show</button>
+            <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
+            <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;">🗑️ Delete permanently</button>
+          </div>
+        </div>
+
+        <div id="pdPanelChat" class="pd-panel" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+          <span id="appointmentNotesTitle" style="display:none;"></span>
+          <div id="appointmentNotesMessages" style="flex:1;overflow-y:auto;padding:14px 16px;min-height:120px;"></div>
+          <div id="appointmentNotesStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px;"></div>
+          <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);">
+            <input type="text" id="appointmentNoteInput" placeholder="Write a note…" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+            <button type="button" class="ghost" id="appointmentNoteSendBtn">Send</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1241,106 +1336,6 @@
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="quickBookBtn" style="width:100%;">Book appointment</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="paymentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">Record payment — <span id="paymentPatientName"></span></span>
-          <button type="button" id="paymentOverlayCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
-        </div>
-        <div style="padding:14px 16px;flex:1;overflow-y:auto;">
-          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Tick every session this payment covers (unpaid sessions for this patient are listed below — untick any that aren't included).</div>
-          <div id="paymentAppointmentsList"></div>
-        </div>
-        <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;gap:8px;align-items:center;">
-            <input type="number" id="paymentAmountInput" placeholder="Total amount (EGP) — for Cash/InstaPay only" style="flex:1;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-          </div>
-          <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#5b6863;cursor:pointer;">
-            <input type="checkbox" id="paymentIsPackageCheckbox">
-            This payment starts a new package of
-            <input type="number" id="paymentPackageSessionsInput" value="6" min="2" style="width:48px;padding:4px 6px;border:1px solid var(--line);border-radius:4px;">
-            sessions
-          </label>
-          <div style="display:flex;gap:8px;">
-            <button type="button" class="ghost" id="paymentMethodCashBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
-            <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
-          </div>
-          <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
-          <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
-          <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
-          <div id="inlineRegPackageBox" style="display:none;background:var(--paper);border:1px dashed var(--gold);border-radius:var(--radius);padding:10px;margin-top:4px;">
-            <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">No active package on file for this patient — register their existing one now?</div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
-              <input type="number" id="inlineRegTotalInput" value="6" min="2" placeholder="Total" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
-              <span style="font-size:0.8rem;color:#5b6863;">total,</span>
-              <input type="number" id="inlineRegUsedInput" value="0" min="0" placeholder="Used" style="width:60px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
-              <span style="font-size:0.8rem;color:#5b6863;">already used</span>
-              <button type="button" class="ghost" id="inlineRegPackageBtn" style="font-size:0.78rem;padding:5px 10px;">Register & continue</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div id="editAppointmentOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">Edit appointment</span>
-          <button type="button" id="editAppointmentCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
-        </div>
-        <div style="padding:14px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
-          <input type="text" id="editAppointmentPatientInput" list="knownPatientsList" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-          <input type="tel" id="editAppointmentPhoneInput" placeholder="Phone" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-          <div style="display:flex;gap:8px;">
-            <input type="date" id="editAppointmentDateInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-          </div>
-          <label style="font-size:0.78rem;color:#5b6863;">Time</label>
-          <div style="display:flex;gap:8px;align-items:center;">
-            <select id="editAppointmentHourSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
-            <span style="font-weight:700;color:var(--maroon);">:</span>
-            <select id="editAppointmentMinuteSelect" style="flex:1;padding:10px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.95rem;text-align:center;"></select>
-            <div id="editAppointmentAmPmToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;flex-shrink:0;">
-              <button type="button" class="ampm-btn active" data-period="AM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">AM</button>
-              <button type="button" class="ampm-btn" data-period="PM" style="border:none;padding:10px 12px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">PM</button>
-            </div>
-          </div>
-          <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
-          <select id="editAppointmentDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-            <option value="">— keep current —</option>
-          </select>
-          <label style="font-size:0.78rem;color:#5b6863;">Visit type</label>
-          <div id="editAppointmentVisitTypeToggle" style="display:flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;">
-            <button type="button" class="visit-type-btn active" data-type="session" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--maroon);color:#fff;">Session</button>
-            <button type="button" class="visit-type-btn" data-type="checkup" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🩺 Check-up</button>
-            <button type="button" class="visit-type-btn" data-type="recovery" style="flex:1;border:none;padding:10px;font-size:0.85rem;cursor:pointer;background:var(--panel);color:var(--ink);">🌀 Recovery</button>
-          </div>
-          <div id="editAppointmentStatus" style="font-size:0.78rem;color:#8a938e;"></div>
-        </div>
-        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
-          <button type="button" class="primary" id="saveEditAppointmentBtn">Save changes</button>
-          <button type="button" class="ghost" id="cancelAppointmentBtn" style="color:var(--danger);border-color:var(--danger);">Cancel appointment</button>
-          <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;">👻 Mark as No Show</button>
-          <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
-          <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;">🗑️ Delete permanently</button>
-        </div>
-      </div>
-    </div>
-
-    <div id="appointmentNotesOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);" id="appointmentNotesTitle">Notes</span>
-          <button type="button" id="appointmentNotesCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
-        </div>
-        <div id="appointmentNotesMessages" style="flex:1;overflow-y:auto;padding:14px 16px;min-height:120px;"></div>
-        <div id="appointmentNotesStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px;"></div>
-        <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);">
-          <input type="text" id="appointmentNoteInput" placeholder="Write a note…" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
-          <button type="button" class="ghost" id="appointmentNoteSendBtn">Send</button>
         </div>
       </div>
     </div>
@@ -3889,10 +3884,38 @@ function renderStatsRow(prefix, stats){
   });
 }
 
+// ---- Unified patient-detail popup (History / Payment / Edit / Chat tabs) ----
+function switchPdTab(tabName){
+  document.querySelectorAll('.pd-tab-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-tab') === tabName;
+    btn.classList.toggle('active', active);
+    btn.style.borderBottomColor = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? 'var(--maroon)' : '#5b6863';
+    btn.style.fontWeight = active ? '700' : '400';
+  });
+  ['history','payment','edit','chat'].forEach(name=>{
+    const panel = el('pdPanel' + name.charAt(0).toUpperCase() + name.slice(1));
+    if(panel) panel.style.display = (name === tabName) ? 'flex' : 'none';
+  });
+}
+
+async function openPatientDetail(ev, startTab){
+  if(!ev) return;
+  el('pdTitle').textContent = ev.patient_name || '(untitled)';
+  el('patientDetailOverlay').style.display = 'flex';
+  switchPdTab(startTab || 'history');
+  // Load every tab's data up front so switching between them is instant.
+  openPatientHistoryPopup(ev.patient_name);
+  openPaymentOverlay(ev);
+  openEditAppointment(ev.id);
+  openAppointmentNotes(ev.id);
+  switchPdTab(startTab || 'history'); // each loader above shows its own tab — re-assert the one we actually want visible
+}
+
 async function openPatientHistoryPopup(name){
   if(!name) return;
   el('patientHistoryTitle').textContent = `📋 ${name} — history`;
-  el('patientHistoryOverlay').style.display = 'flex';
+  el('patientDetailOverlay').style.display = 'flex';
   el('patientHistoryBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name)}`, { headers: authHeader() });
@@ -4684,7 +4707,7 @@ async function justMarkPaid(){
       body: JSON.stringify({ paid: true })
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
-    el('paymentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(err){
     console.error(err);
@@ -4730,9 +4753,10 @@ async function openPaymentOverlay(ev){
   el('paymentIsPackageCheckbox').checked = false;
   el('paymentPackageSessionsInput').value = '6';
   el('inlineRegPackageBox').style.display = 'none';
+  el('markUnpaidBtn').style.display = ev.paid ? 'block' : 'none';
   el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : 'Loading unpaid sessions…';
   el('paymentAppointmentsList').innerHTML = '';
-  el('paymentOverlay').style.display = 'flex';
+  el('patientDetailOverlay').style.display = 'flex';
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/unpaid-by-patient?patientName=${encodeURIComponent(ev.patient_name || '')}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
@@ -4818,7 +4842,7 @@ async function submitPayment(method){
           body: JSON.stringify({ text: `Covered by package — session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}` })
         });
       }
-      el('paymentOverlay').style.display = 'none';
+      el('patientDetailOverlay').style.display = 'none';
       await loadMonthAndDay();
       if(updatedPkg.used_sessions >= updatedPkg.total_sessions){
         const phone = currentPaymentTarget && currentPaymentTarget.patient_phone;
@@ -4878,7 +4902,7 @@ async function submitPayment(method){
         await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
       }
     }
-    el('paymentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(err){
     console.error(err);
@@ -4908,16 +4932,14 @@ function renderScheduleList(events){
     const isPaid = !!ev.paid;
     const isCheckup = ev.visit_type === 'checkup';
     const isRecovery = ev.visit_type === 'recovery';
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);cursor:pointer;${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--line);${isCancelled ? 'background:#fbeaea;' : ''}${isNoShow ? 'background:#fbf3e6;' : ''}${isMine && !isCancelled && !isNoShow ? 'font-weight:600;' : ''}">
       <span style="width:5px;height:22px;border-radius:2px;background:${colorHex};flex-shrink:0;${isCancelled ? 'border:2px solid #a33d3d;background:#fff;' : ''}"></span>
       <span style="font-size:0.82rem;color:#5b6863;min-width:60px;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-      <span class="patient-name-link" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.85rem;flex:1;text-decoration:underline;cursor:pointer;${isCancelled ? 'text-decoration-color:#a33d3d;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+      <span class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.85rem;flex:1;text-decoration:underline;cursor:pointer;${isCancelled ? 'text-decoration-color:#a33d3d;color:#a33d3d;' : ''}${isNoShow ? 'color:#b8894f;' : ''}">${escapeHtml(ev.patient_name || '(untitled)')}</span>
       ${isCheckup ? '<span style="font-size:0.68rem;color:var(--maroon);font-weight:700;border:1px solid var(--maroon);border-radius:4px;padding:1px 5px;">🩺 Check-up</span>' : ''}
       ${isRecovery ? '<span style="font-size:0.68rem;color:#1f5c56;font-weight:700;border:1px solid #1f5c56;border-radius:4px;padding:1px 5px;">🌀 Recovery</span>' : ''}
       ${isNoShow ? '<span style="font-size:0.7rem;color:#b8894f;font-weight:700;border:1px solid #b8894f;border-radius:4px;padding:1px 6px;">👻 NO SHOW</span>' : ''}
-      <button type="button" class="ghost paid-toggle-btn" data-id="${ev.id}" data-paid="${isPaid}" title="${isPaid ? 'Paid — tap to mark unpaid' : 'Not paid — tap to mark paid'}" style="font-size:0.75rem;padding:2px 7px;${isPaid ? 'color:#0b8043;border-color:#0b8043;' : 'color:#a33d3d;border-color:#a33d3d;'}">${isPaid ? '💰 Paid' : '💸 Unpaid'}</button>
-      <span style="font-size:0.75rem;color:${noteCount > 0 ? 'var(--maroon)' : '#c9b48c'};">💬${noteCount > 0 ? ' ' + noteCount : ''}</span>
-      <button type="button" class="ghost edit-appointment-btn" data-id="${ev.id}" style="font-size:0.72rem;padding:3px 8px;">✏️</button>
+      <span style="font-size:0.75rem;padding:2px 7px;border-radius:6px;border:1px solid ${isPaid ? '#0b8043' : '#a33d3d'};color:${isPaid ? '#0b8043' : '#a33d3d'};">${isPaid ? '💰 Paid' : '💸 Unpaid'}</span>
     </div>`;
   }
 
@@ -4941,35 +4963,12 @@ function renderScheduleList(events){
     });
   }
 
-  container.querySelectorAll('.appointment-row').forEach(row=>{
-    row.addEventListener('click', (e)=>{
-      if(e.target.closest('.edit-appointment-btn') || e.target.closest('.paid-toggle-btn') || e.target.closest('.patient-name-link')) return;
-      openAppointmentNotes(row.getAttribute('data-id'));
-    });
-  });
-  container.querySelectorAll('.paid-toggle-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      const currentlyPaid = btn.getAttribute('data-paid') === 'true';
-      if(currentlyPaid){
-        markAppointmentPaid(id, null, null); // unmark, no method needed
-        return;
-      }
-      const ev = events.find(x=> String(x.id) === String(id));
-      if(ev) openPaymentOverlay(ev);
-    });
-  });
-  container.querySelectorAll('.edit-appointment-btn').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      openEditAppointment(btn.getAttribute('data-id'));
-    });
-  });
   container.querySelectorAll('.patient-name-link').forEach(span=>{
     span.addEventListener('click', (e)=>{
       e.stopPropagation();
-      openPatientHistoryPopup(span.getAttribute('data-name'));
+      const id = span.getAttribute('data-id');
+      const ev = events.find(x=> String(x.id) === String(id));
+      if(ev) openPatientDetail(ev);
     });
   });
 }
@@ -4981,7 +4980,7 @@ async function openEditAppointment(id){
   const ev = events.find(e=> String(e.id) === String(id));
   if(!ev) return;
   currentEditAppointment = ev;
-  el('editAppointmentOverlay').style.display = 'flex';
+  el('patientDetailOverlay').style.display = 'flex';
   el('editAppointmentStatus').textContent = '';
   el('editAppointmentPatientInput').value = ev.patient_name || '';
   el('editAppointmentPhoneInput').value = ev.patient_phone || '';
@@ -5054,7 +5053,7 @@ async function saveEditAppointment(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    el('editAppointmentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -5076,7 +5075,7 @@ async function cancelAppointment(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    el('editAppointmentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -5104,7 +5103,7 @@ async function markAppointmentNoShow(){
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ text: 'No Show' })
     });
-    el('editAppointmentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
 
     // Every 2nd no-show (2, 4, 6…) auto-deducts one package session.
@@ -5156,7 +5155,7 @@ async function restoreAppointment(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    el('editAppointmentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -5177,7 +5176,7 @@ async function deleteAppointmentPermanently(){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
     }
-    el('editAppointmentOverlay').style.display = 'none';
+    el('patientDetailOverlay').style.display = 'none';
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -5189,7 +5188,7 @@ let currentNotesAppointmentId = null;
 
 async function openAppointmentNotes(id){
   currentNotesAppointmentId = id;
-  el('appointmentNotesOverlay').style.display = 'flex';
+  el('patientDetailOverlay').style.display = 'flex';
   el('appointmentNotesMessages').innerHTML = '';
   el('appointmentNotesStatus').textContent = 'Loading…';
   el('appointmentNotesTitle').textContent = 'Notes';
@@ -6924,11 +6923,15 @@ el('noteExpandFollowupBtn').addEventListener('click', ()=>{
 el('noteExpandSummaryBtn').addEventListener('click', ()=>{
   generatePatientSummary(noteExpandCurrentPatient);
 });
-el('patientHistoryCloseBtn').addEventListener('click', ()=>{
-  el('patientHistoryOverlay').style.display = 'none';
+el('patientDetailOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'patientDetailOverlay') el('patientDetailOverlay').style.display = 'none';
 });
-el('patientHistoryOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'patientHistoryOverlay') el('patientHistoryOverlay').style.display = 'none';
+document.querySelectorAll('.pd-tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> switchPdTab(btn.getAttribute('data-tab')));
+});
+el('pdCloseBtn').addEventListener('click', ()=>{
+  el('patientDetailOverlay').style.display = 'none';
+  currentNotesAppointmentId = null;
 });
 el('unpaidListCloseBtn').addEventListener('click', ()=>{
   el('unpaidListOverlay').style.display = 'none';
@@ -7000,26 +7003,16 @@ el('waTestSendBtn').addEventListener('click', async ()=>{
   }
 });
 
-el('appointmentNotesCloseBtn').addEventListener('click', ()=>{
-  el('appointmentNotesOverlay').style.display = 'none';
-  currentNotesAppointmentId = null;
-});
-el('appointmentNotesOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'appointmentNotesOverlay'){
-    el('appointmentNotesOverlay').style.display = 'none';
-    currentNotesAppointmentId = null;
-  }
-});
-el('paymentOverlayCloseBtn').addEventListener('click', ()=>{
-  el('paymentOverlay').style.display = 'none';
-});
-el('paymentOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'paymentOverlay') el('paymentOverlay').style.display = 'none';
-});
+
 el('paymentMethodCashBtn').addEventListener('click', ()=> submitPayment('Cash'));
 el('paymentMethodInstaPayBtn').addEventListener('click', ()=> submitPayment('InstaPay'));
 el('paymentMethodPackageBtn').addEventListener('click', ()=> submitPayment('Package'));
 el('justMarkPaidBtn').addEventListener('click', justMarkPaid);
+el('markUnpaidBtn').addEventListener('click', async ()=>{
+  if(!currentPaymentTarget) return;
+  await markAppointmentPaid(currentPaymentTarget.id, null, null);
+  el('patientDetailOverlay').style.display = 'none';
+});
 el('inlineRegPackageBtn').addEventListener('click', async ()=>{
   const patientName = currentPaymentTarget ? currentPaymentTarget.patient_name : '';
   const total = parseInt(el('inlineRegTotalInput').value, 10);
@@ -7047,14 +7040,7 @@ el('inlineRegPackageBtn').addEventListener('click', async ()=>{
     el('paymentOverlayStatus').textContent = 'Could not register: ' + (e.message || e);
   }
 });
-el('editAppointmentCloseBtn').addEventListener('click', ()=>{
-  el('editAppointmentOverlay').style.display = 'none';
-});
-el('editAppointmentOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'editAppointmentOverlay'){
-    el('editAppointmentOverlay').style.display = 'none';
-  }
-});
+
 el('saveEditAppointmentBtn').addEventListener('click', saveEditAppointment);
 el('cancelAppointmentBtn').addEventListener('click', cancelAppointment);
 el('noShowAppointmentBtn').addEventListener('click', markAppointmentNoShow);
