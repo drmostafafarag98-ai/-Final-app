@@ -4074,6 +4074,19 @@ async function openPatientDetail(ev, startTab){
   switchPdTab(startTab || 'history'); // each loader above shows its own tab — re-assert the one we actually want visible
 }
 
+function extractPaymentDetail(ev){
+  const notes = ev.notes || [];
+  for(const n of notes){
+    const text = (n.text || '').trim();
+    const packageMatch = text.match(/^covered by package.*?session\s*(\d+)\s*of\s*(\d+)/i);
+    if(packageMatch) return `🎁 Package — session ${packageMatch[1]} of ${packageMatch[2]}`;
+    const cashMatch = text.match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
+    if(cashMatch) return `💰 ${cashMatch[1]} EGP (${cashMatch[2]})`;
+  }
+  if(ev.is_free) return '🆓 Free';
+  return null;
+}
+
 async function openPatientHistoryPopup(name){
   if(!name) return;
   el('patientHistoryTitle').textContent = `📋 ${name} — history`;
@@ -4093,9 +4106,10 @@ async function openPatientHistoryPopup(name){
       const isCancelled = ev.status === 'cancelled';
       const isNoShow = ev.status === 'no_show';
       const isCheckup = ev.visit_type === 'checkup';
+      const paymentDetail = extractPaymentDetail(ev);
       const statusTag = isCancelled ? '<span style="color:#a33d3d;font-weight:700;">❌ Cancelled</span>'
         : isNoShow ? '<span style="color:#b8894f;font-weight:700;">👻 No show</span>'
-        : ev.paid ? '<span style="color:#0b8043;font-weight:700;">💰 Paid</span>'
+        : ev.paid ? `<span style="color:#0b8043;font-weight:700;">${escapeHtml(paymentDetail || '💰 Paid')}</span>`
         : '<span style="color:#a33d3d;font-weight:700;">💸 Unpaid</span>';
       return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
         <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(dateLabel)}</div>
