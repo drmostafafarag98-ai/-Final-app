@@ -6145,6 +6145,21 @@ function findClosestKnownPatient(name){
   return null;
 }
 
+// Color → doctor mapping the user gave us from real TimeTree screenshots.
+// Green isn't a doctor at all — it means the event was cancelled.
+const TIMETREE_COLOR_KEYWORDS = {
+  pink: 'zeinab',
+  blue: 'omnia',
+  yellow: 'youssef',
+  purple: 'menna',
+  black: 'mostafa',
+  gray: 'marwa',
+};
+function findDoctorNameByKeyword(keyword){
+  const match = Object.values(quickBookDoctorsByEmail).find(d=> (d.name || '').toLowerCase().includes(keyword));
+  return match ? (match.name || match.email) : '';
+}
+
 function renderTimeTreeEventsList(){
   if(timeTreePreviewEvents.length === 0){
     el('timeTreeImportStatus').textContent = 'No events found in that calendar.';
@@ -6153,7 +6168,7 @@ function renderTimeTreeEventsList(){
   }
   const doctorOptions = Object.values(quickBookDoctorsByEmail)
     .map(d=> `<option value="${escapeHtml(d.name || d.email)}">${escapeHtml(d.name || d.email)}</option>`).join('');
-  el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Check each name and doctor, then tick the ones to bring in:`;
+  el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Doctor + cancelled status were guessed from color — double check them, then tick the ones to bring in:`;
   el('timeTreeEventsList').innerHTML = timeTreePreviewEvents.map((ev, i)=>{
     const label = ev.start ? new Date(ev.start).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '(no date read)';
     const typedName = ev.summary || '';
@@ -6166,12 +6181,23 @@ function renderTimeTreeEventsList(){
       nameFlag = `<span style="color:#c0392b;font-size:0.72rem;">⚠️ typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
       nameToUse = match.match; // default to the existing spelling; owner can still edit
     }
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:0.85rem;">
-      <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" checked style="margin-top:8px;">
+    const color = (ev.color || '').toLowerCase();
+    const isCancelledColor = color === 'green';
+    const guessedDoctorName = !isCancelledColor && TIMETREE_COLOR_KEYWORDS[color] ? findDoctorNameByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : '';
+    const colorTag = isCancelledColor
+      ? '<span style="color:#1b8a4a;font-size:0.7rem;">🟢 looked cancelled in TimeTree</span>'
+      : guessedDoctorName
+        ? `<span style="color:#5b6863;font-size:0.7rem;">🎨 color matched to ${escapeHtml(guessedDoctorName)}</span>`
+        : color && color !== 'unknown'
+          ? `<span style="color:#b8894f;font-size:0.7rem;">🎨 color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
+          : '';
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:0.85rem;${isCancelledColor ? 'opacity:0.6;' : ''}">
+      <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" ${isCancelledColor ? '' : 'checked'} style="margin-top:8px;">
       <div style="flex:1;min-width:0;">
         <input type="text" class="tt-event-name-input" data-idx="${i}" list="knownPatientsList" value="${escapeHtml(nameToUse)}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.85rem;margin-bottom:3px;">
         <div style="margin-bottom:3px;">${nameFlag}</div>
-        <div style="font-size:0.76rem;color:#5b6863;margin-bottom:4px;">${escapeHtml(label)}</div>
+        <div style="font-size:0.76rem;color:#5b6863;margin-bottom:2px;">${escapeHtml(label)}</div>
+        ${colorTag ? `<div style="margin-bottom:4px;">${colorTag}</div>` : ''}
         <select class="tt-event-doctor-select" data-idx="${i}" style="width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.8rem;">
           <option value="">— pick the doctor —</option>
           ${doctorOptions}
@@ -6179,6 +6205,15 @@ function renderTimeTreeEventsList(){
       </div>
     </div>`;
   }).join('');
+  timeTreePreviewEvents.forEach((ev, i)=>{
+    const color = (ev.color || '').toLowerCase();
+    if(color === 'green') return; // left unchecked, doctor doesn't matter
+    const guessedDoctorName = TIMETREE_COLOR_KEYWORDS[color] ? findDoctorNameByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : '';
+    if(guessedDoctorName){
+      const select = el('timeTreeEventsList').querySelector(`.tt-event-doctor-select[data-idx="${i}"]`);
+      if(select) select.value = guessedDoctorName;
+    }
+  });
   el('timeTreeImportFooter').style.display = 'block';
 }
 
