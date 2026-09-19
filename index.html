@@ -1322,11 +1322,14 @@
           <button type="button" id="timeTreeImportCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
-          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">TimeTree doesn't have a live share link, so export a .ics file using a tool like TimeTree-Exporter on your own computer (with your own TimeTree login — never entered here), then paste its content below. This only reads events — nothing gets added until you pick which ones further down.</div>
+          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Easiest: take a screenshot of your TimeTree calendar and upload it — Claude will read the appointments out of the picture. This only reads events — nothing gets added until you pick which ones further down.</div>
+          <input type="file" id="timeTreeScreenshotInput" accept="image/*" style="width:100%;margin-bottom:8px;font-size:0.82rem;">
+          <button type="button" class="ghost" id="timeTreeScreenshotBtn" style="width:100%;margin-bottom:14px;">📷 Read this screenshot</button>
+          <div style="text-align:center;font-size:0.75rem;color:#8a938e;margin-bottom:8px;">— or paste a .ics file's content —</div>
           <textarea id="timeTreeIcsTextInput" placeholder="Paste the .ics file content here…" style="width:100%;min-height:90px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.8rem;margin-bottom:8px;font-family:monospace;"></textarea>
           <div style="text-align:center;font-size:0.75rem;color:#8a938e;margin-bottom:8px;">— or, if you have a live link —</div>
           <input type="text" id="timeTreeUrlInput" placeholder="webcal://... or https://...ics" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:8px;">
-          <button type="button" class="ghost" id="timeTreePreviewBtn" style="width:100%;margin-bottom:10px;">Preview events</button>
+          <button type="button" class="ghost" id="timeTreePreviewBtn" style="width:100%;margin-bottom:10px;">Preview events (from text/link above)</button>
           <div id="timeTreeImportStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:8px;"></div>
           <div id="timeTreeEventsList"></div>
         </div>
@@ -5022,6 +5025,7 @@ function renderDayUnavailabilityList(){
 }
 
 let cancelledGroupExpanded = false;
+let lateCancelledGroupExpanded = false;
 
 async function markAsFree(){
   if(!currentPaymentTarget) return;
@@ -5259,8 +5263,17 @@ function renderScheduleList(events){
   const container = el('scheduleList');
   if(events.length === 0){ container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No events this day.</div>'; return; }
 
-  const cancelledEvents = events.filter(ev=> ev.status === 'cancelled')
+  const cancelledEventsAll = events.filter(ev=> ev.status === 'cancelled')
     .sort((a,b)=> new Date(a.start_time || 0) - new Date(b.start_time || 0));
+  const getCancellationNoticeHours = ev=>{
+    if(!ev.cancelled_at || !ev.start_time) return null;
+    return (new Date(ev.start_time) - new Date(ev.cancelled_at)) / 3600000;
+  };
+  const lateCancelledEvents = cancelledEventsAll.filter(ev=>{
+    const hrs = getCancellationNoticeHours(ev);
+    return hrs !== null && hrs < 6;
+  });
+  const cancelledEvents = cancelledEventsAll.filter(ev=> !lateCancelledEvents.includes(ev));
   const activeEvents = events.filter(ev=> ev.status !== 'cancelled')
     .sort((a,b)=> new Date(a.start_time || 0) - new Date(b.start_time || 0));
 
@@ -5306,9 +5319,17 @@ function renderScheduleList(events){
   }
 
   let html = '';
+  if(lateCancelledEvents.length > 0){
+    html += `<div id="lateCancelledGroupHeader" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-radius:6px;background:#fce0e0;cursor:pointer;margin-bottom:4px;">
+      <span style="font-size:0.8rem;font-weight:700;color:#c0392b;">${lateCancelledGroupExpanded ? '▾' : '▸'} 🔴 Late cancellation, &lt;6h notice (${lateCancelledEvents.length})</span>
+    </div>`;
+    if(lateCancelledGroupExpanded){
+      html += lateCancelledEvents.map(renderRow).join('');
+    }
+  }
   if(cancelledEvents.length > 0){
     html += `<div id="cancelledGroupHeader" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 6px;border-radius:6px;background:#fbeaea;cursor:pointer;margin-bottom:4px;">
-      <span style="font-size:0.8rem;font-weight:700;color:#a33d3d;">${cancelledGroupExpanded ? '▾' : '▸'} ❌ Cancelled (${cancelledEvents.length})</span>
+      <span style="font-size:0.8rem;font-weight:700;color:#a33d3d;">${cancelledGroupExpanded ? '▾' : '▸'} ❌ Cancelled, 6h+ notice (${cancelledEvents.length})</span>
     </div>`;
     if(cancelledGroupExpanded){
       html += cancelledEvents.map(renderRow).join('');
@@ -5317,6 +5338,13 @@ function renderScheduleList(events){
   html += activeEvents.map(renderRow).join('');
   container.innerHTML = html;
 
+  const lateHeaderEl = document.getElementById('lateCancelledGroupHeader');
+  if(lateHeaderEl){
+    lateHeaderEl.addEventListener('click', ()=>{
+      lateCancelledGroupExpanded = !lateCancelledGroupExpanded;
+      renderScheduleList(events);
+    });
+  }
   const headerEl = document.getElementById('cancelledGroupHeader');
   if(headerEl){
     headerEl.addEventListener('click', ()=>{
@@ -6076,10 +6104,28 @@ let timeTreePreviewEvents = [];
 function openTimeTreeImport(){
   el('timeTreeUrlInput').value = '';
   el('timeTreeIcsTextInput').value = '';
+  el('timeTreeScreenshotInput').value = '';
   el('timeTreeImportStatus').textContent = '';
   el('timeTreeEventsList').innerHTML = '';
   el('timeTreeImportFooter').style.display = 'none';
   el('timeTreeImportOverlay').style.display = 'flex';
+}
+
+function renderTimeTreeEventsList(){
+  if(timeTreePreviewEvents.length === 0){
+    el('timeTreeImportStatus').textContent = 'No events found in that calendar.';
+    el('timeTreeImportFooter').style.display = 'none';
+    return;
+  }
+  el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Tick the ones to bring in as appointments:`;
+  el('timeTreeEventsList').innerHTML = timeTreePreviewEvents.map((ev, i)=>{
+    const label = ev.start ? new Date(ev.start).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '(no date read)';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer;font-size:0.85rem;">
+      <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" checked>
+      <span><strong>${escapeHtml(ev.summary || '(untitled)')}</strong><br><span style="font-size:0.76rem;color:#5b6863;">${escapeHtml(label)}</span></span>
+    </label>`;
+  }).join('');
+  el('timeTreeImportFooter').style.display = 'block';
 }
 
 async function previewTimeTreeImport(){
@@ -6101,22 +6147,42 @@ async function previewTimeTreeImport(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
     timeTreePreviewEvents = data.events || [];
-    if(timeTreePreviewEvents.length === 0){
-      el('timeTreeImportStatus').textContent = 'No upcoming/recent events found in that calendar.';
-      return;
-    }
-    el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Tick the ones to bring in as appointments:`;
-    el('timeTreeEventsList').innerHTML = timeTreePreviewEvents.map((ev, i)=>{
-      const label = ev.start ? new Date(ev.start).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
-      return `<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer;font-size:0.85rem;">
-        <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" checked>
-        <span><strong>${escapeHtml(ev.summary || '(untitled)')}</strong><br><span style="font-size:0.76rem;color:#5b6863;">${escapeHtml(label)}</span></span>
-      </label>`;
-    }).join('');
-    el('timeTreeImportFooter').style.display = 'block';
+    renderTimeTreeEventsList();
   }catch(e){
     console.error(e);
     el('timeTreeImportStatus').textContent = 'Could not read that calendar: ' + (e.message || e);
+  }
+}
+
+async function readTimeTreeScreenshot(){
+  const fileInput = el('timeTreeScreenshotInput');
+  const file = fileInput.files && fileInput.files[0];
+  if(!file){
+    el('timeTreeImportStatus').textContent = 'Choose a screenshot first.';
+    return;
+  }
+  el('timeTreeImportStatus').textContent = 'Reading the screenshot… this can take a few seconds.';
+  el('timeTreeEventsList').innerHTML = '';
+  el('timeTreeImportFooter').style.display = 'none';
+  try{
+    const base64 = await new Promise((resolve, reject)=>{
+      const reader = new FileReader();
+      reader.onload = ()=> resolve(reader.result.split(',')[1]);
+      reader.onerror = ()=> reject(new Error('Could not read the image file.'));
+      reader.readAsDataURL(file);
+    });
+    const res = await fetch(`${BACKEND_URL}/api/timetree/parse-screenshot`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ imageBase64: base64, mediaType: file.type || 'image/jpeg' })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    timeTreePreviewEvents = data.events || [];
+    renderTimeTreeEventsList();
+  }catch(e){
+    console.error(e);
+    el('timeTreeImportStatus').textContent = 'Could not read that screenshot: ' + (e.message || e);
   }
 }
 
@@ -7324,6 +7390,7 @@ el('timeTreeImportCloseBtn').addEventListener('click', ()=>{
 el('timeTreeImportOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'timeTreeImportOverlay') el('timeTreeImportOverlay').style.display = 'none';
 });
+el('timeTreeScreenshotBtn').addEventListener('click', readTimeTreeScreenshot);
 el('timeTreePreviewBtn').addEventListener('click', previewTimeTreeImport);
 el('timeTreeImportBtn').addEventListener('click', importTimeTreeSelected);
 el('remindersCustomDateBtn').addEventListener('click', openMiniDatePicker);
