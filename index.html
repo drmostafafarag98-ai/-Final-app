@@ -2341,7 +2341,12 @@ function renderDoctorPatientsGrid(){
   grid.querySelectorAll('.keep-card-summary-btn').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      generatePatientSummary(btn.getAttribute('data-patient'));
+      try{
+        generatePatientSummary(btn.getAttribute('data-patient'));
+      }catch(err){
+        console.error(err);
+        alert('Could not open the summary: ' + (err.message || err));
+      }
     });
   });
 }
@@ -2352,15 +2357,22 @@ let noteExpandCurrentLatestId = '';
 function openNoteExpand(patientName, latestId){
   noteExpandCurrentPatient = patientName;
   noteExpandCurrentLatestId = latestId;
-  const s = sessions[latestId];
   el('noteExpandTitle').textContent = patientName;
-  const fullText = (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '').trim();
-  el('noteExpandBody').textContent = fullText || 'No notes yet.';
-  el('noteExpandGenerateBtn').style.display = (!s.note && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
+  const allIds = currentGridPatientGroups[patientName] || [latestId];
+  const combined = allIds.map(id=>{
+    const s = sessions[id];
+    if(!s) return '';
+    const label = s.sessionType === 'followup' ? 'Follow-up' : 'Assessment';
+    const text = (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '(no notes yet)').trim();
+    return `— ${s.date || ''} · ${label} —\n${text}`;
+  }).filter(Boolean).join('\n\n');
+  el('noteExpandBody').textContent = combined || 'No notes yet.';
+  const latestSession = sessions[latestId];
+  el('noteExpandGenerateBtn').style.display = (latestSession && !latestSession.note && (latestSession.transcriptLines||[]).length > 0) ? 'block' : 'none';
   el('noteExpandMergeBox').style.display = 'none';
   el('noteExpandNameMergeBox').style.display = 'none';
   el('noteExpandActionStatus').textContent = '';
-  const otherSessionIds = (currentGridPatientGroups[patientName] || []).filter(id=> id !== latestId);
+  const otherSessionIds = allIds.filter(id=> id !== latestId);
   el('noteExpandMergeBtn').style.display = otherSessionIds.length > 0 ? 'block' : 'none';
   el('noteExpandOverlay').style.display = 'flex';
 }
@@ -6966,15 +6978,15 @@ function downloadNotePDF(){
 }
 
 async function generatePatientSummary(patientName){
-  el('patientSummaryOverlay').style.display = 'flex';
-  el('patientSummaryTitle').textContent = `Referral Summary — ${patientName}`;
-  el('patientSummaryText').value = '';
-  el('patientSummaryStatus').textContent = 'Gathering all sessions for this patient…';
-  if(!isApproved()){
-    el('patientSummaryStatus').textContent = 'Sign in with Google and get approved first.';
-    return;
-  }
   try{
+    el('patientSummaryOverlay').style.display = 'flex';
+    el('patientSummaryTitle').textContent = `Referral Summary — ${patientName}`;
+    el('patientSummaryText').value = '';
+    el('patientSummaryStatus').textContent = 'Gathering all sessions for this patient…';
+    if(!isApproved()){
+      el('patientSummaryStatus').textContent = 'Sign in with Google and get approved first.';
+      return;
+    }
     const res = await fetch(`${BACKEND_URL}/api/sessions?patientName=${encodeURIComponent(patientName)}&order=asc`, {
       headers: authHeader()
     });
