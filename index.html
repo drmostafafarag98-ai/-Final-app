@@ -6155,9 +6155,8 @@ const TIMETREE_COLOR_KEYWORDS = {
   black: 'mostafa',
   gray: 'marwa',
 };
-function findDoctorNameByKeyword(keyword){
-  const match = Object.values(quickBookDoctorsByEmail).find(d=> (d.name || '').toLowerCase().includes(keyword));
-  return match ? (match.name || match.email) : '';
+function findDoctorByKeyword(keyword){
+  return Object.values(quickBookDoctorsByEmail).find(d=> (d.name || '').toLowerCase().includes(keyword)) || null;
 }
 
 function renderTimeTreeEventsList(){
@@ -6167,7 +6166,7 @@ function renderTimeTreeEventsList(){
     return;
   }
   const doctorOptions = Object.values(quickBookDoctorsByEmail)
-    .map(d=> `<option value="${escapeHtml(d.name || d.email)}">${escapeHtml(d.name || d.email)}</option>`).join('');
+    .map(d=> `<option value="${escapeHtml(d.email)}">${escapeHtml(d.name || d.email)}</option>`).join('');
   el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Doctor + cancelled status were guessed from color — double check them, then tick the ones to bring in:`;
   el('timeTreeEventsList').innerHTML = timeTreePreviewEvents.map((ev, i)=>{
     const label = ev.start ? new Date(ev.start).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '(no date read)';
@@ -6183,11 +6182,11 @@ function renderTimeTreeEventsList(){
     }
     const color = (ev.color || '').toLowerCase();
     const isCancelledColor = color === 'green';
-    const guessedDoctorName = !isCancelledColor && TIMETREE_COLOR_KEYWORDS[color] ? findDoctorNameByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : '';
+    const guessedDoctor = !isCancelledColor && TIMETREE_COLOR_KEYWORDS[color] ? findDoctorByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : null;
     const colorTag = isCancelledColor
       ? '<span style="color:#1b8a4a;font-size:0.7rem;">🟢 looked cancelled in TimeTree</span>'
-      : guessedDoctorName
-        ? `<span style="color:#5b6863;font-size:0.7rem;">🎨 color matched to ${escapeHtml(guessedDoctorName)}</span>`
+      : guessedDoctor
+        ? `<span style="color:#5b6863;font-size:0.7rem;">🎨 color matched to ${escapeHtml(guessedDoctor.name || guessedDoctor.email)}</span>`
         : color && color !== 'unknown'
           ? `<span style="color:#b8894f;font-size:0.7rem;">🎨 color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
           : '';
@@ -6223,10 +6222,10 @@ function renderTimeTreeEventsList(){
   timeTreePreviewEvents.forEach((ev, i)=>{
     const color = (ev.color || '').toLowerCase();
     if(color === 'green') return; // left unchecked, doctor doesn't matter
-    const guessedDoctorName = TIMETREE_COLOR_KEYWORDS[color] ? findDoctorNameByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : '';
-    if(guessedDoctorName){
+    const guessedDoctor = TIMETREE_COLOR_KEYWORDS[color] ? findDoctorByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : null;
+    if(guessedDoctor){
       const select = el('timeTreeEventsList').querySelector(`.tt-event-doctor-select[data-idx="${i}"]`);
-      if(select) select.value = guessedDoctorName;
+      if(select) select.value = guessedDoctor.email;
     }
   });
   el('timeTreeImportFooter').style.display = 'block';
@@ -6310,8 +6309,14 @@ async function importTimeTreeSelected(){
         el('timeTreeImportStatus').textContent = `Pick a doctor for "${nameInput.value || '(untitled)'}" before importing.`;
         return;
       }
+      const chosenDoctor = quickBookDoctorsByEmail[doctorSelect.value];
       const base = timeTreePreviewEvents[parseInt(idx, 10)] || {};
-      checked.push({ ...base, patientName: nameInput.value.trim(), doctorName: doctorSelect.value });
+      checked.push({
+        ...base,
+        patientName: nameInput.value.trim(),
+        doctorName: chosenDoctor ? (chosenDoctor.name || chosenDoctor.email) : doctorSelect.value,
+        doctorColor: chosenDoctor ? chosenDoctor.color : null,
+      });
     }
     el('timeTreeImportStatus').textContent = `Importing ${checked.length} event(s)…`;
     const res = await fetch(`${BACKEND_URL}/api/timetree/import`, {
