@@ -6191,11 +6191,16 @@ function renderTimeTreeEventsList(){
         : color && color !== 'unknown'
           ? `<span style="color:#b8894f;font-size:0.7rem;">🎨 color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
           : '';
+    const nameChoiceButtons = (match && !match.exact) ? `<div style="display:flex;gap:6px;margin-bottom:4px;">
+        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(match.match)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #1b8a4a;background:#e3f6ea;color:#1b8a4a;cursor:pointer;">✓ Yes, same person</button>
+        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(typedName)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #b8894f;background:#fbf0e0;color:#b8894f;cursor:pointer;">🆕 No, different person</button>
+      </div>` : '';
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:0.85rem;${isCancelledColor ? 'opacity:0.6;' : ''}">
       <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" ${isCancelledColor ? '' : 'checked'} style="margin-top:8px;">
       <div style="flex:1;min-width:0;">
         <input type="text" class="tt-event-name-input" data-idx="${i}" list="knownPatientsList" value="${escapeHtml(nameToUse)}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.85rem;margin-bottom:3px;">
         <div style="margin-bottom:3px;">${nameFlag}</div>
+        ${nameChoiceButtons}
         <div style="font-size:0.76rem;color:#5b6863;margin-bottom:2px;">${escapeHtml(label)}</div>
         ${colorTag ? `<div style="margin-bottom:4px;">${colorTag}</div>` : ''}
         <select class="tt-event-doctor-select" data-idx="${i}" style="width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.8rem;">
@@ -6205,6 +6210,16 @@ function renderTimeTreeEventsList(){
       </div>
     </div>`;
   }).join('');
+  el('timeTreeEventsList').querySelectorAll('.tt-name-confirm-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = btn.getAttribute('data-idx');
+      const input = el('timeTreeEventsList').querySelector(`.tt-event-name-input[data-idx="${idx}"]`);
+      if(input) input.value = btn.getAttribute('data-name');
+      btn.closest('div').querySelectorAll('.tt-name-confirm-btn').forEach(b=>{
+        b.style.opacity = (b === btn) ? '1' : '0.4';
+      });
+    });
+  });
   timeTreePreviewEvents.forEach((ev, i)=>{
     const color = (ev.color || '').toLowerCase();
     if(color === 'green') return; // left unchecked, doctor doesn't matter
