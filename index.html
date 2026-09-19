@@ -1130,6 +1130,14 @@
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
           <div id="scheduleList" style="margin-bottom:8px;"></div>
           <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
+          <div style="border-top:1px dashed var(--line);padding-top:10px;margin-bottom:10px;">
+            <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">📝 Don't forget — patients to book this day</div>
+            <div id="dayRemindersList" style="margin-bottom:8px;"></div>
+            <div style="display:flex;gap:6px;">
+              <input type="text" id="dayReminderNameInput" list="knownPatientsList" placeholder="Patient name" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;">
+              <button type="button" class="ghost" id="addDayReminderBtn" style="font-size:0.78rem;padding:8px 12px;">+ Add</button>
+            </div>
+          </div>
           <div style="border-top:1px dashed var(--line);padding-top:10px;">
             <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">🚫 Mark a doctor unavailable this day</div>
             <div id="dayUnavailabilityList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
@@ -4847,6 +4855,8 @@ async function loadMonthAndDay(){
     renderCalendarGrid();
     renderScheduleList(monthEventsByDay[dayKey(calSelectedDate)] || []);
     renderDayUnavailabilityList();
+    await loadDayReminders(monthStart, monthEnd);
+    renderDayRemindersList();
     el('scheduleStatus').textContent = '';
   }catch(e){
     console.error(e);
@@ -4879,6 +4889,7 @@ function renderCalendarGrid(){
     const isToday = sameDay(d, today);
     const isSelected = sameDay(d, calSelectedDate);
     const hasUnavailability = (unavailabilityByDay[key] || []).length > 0;
+    const hasReminders = (dayRemindersByDay[key] || []).length > 0;
     const cell = document.createElement('div');
     cell.style.cssText = `text-align:center;padding:6px 2px;border-radius:6px;cursor:pointer;font-size:0.8rem;
       ${hasUnavailability ? 'border:2px solid #b8894f;' : ''}
@@ -4887,15 +4898,88 @@ function renderCalendarGrid(){
       const hex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
       return `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${isSelected ? '#fff' : hex};margin:0 1px;"></span>`;
     }).join('');
-    cell.innerHTML = `<div>${hasUnavailability ? '🚫 ' : ''}${day}</div><div style="height:8px;">${dotsHtml}</div>`;
+    cell.innerHTML = `<div>${hasUnavailability ? '🚫 ' : ''}${hasReminders ? '📝 ' : ''}${day}</div><div style="height:8px;">${dotsHtml}</div>`;
     cell.addEventListener('click', ()=>{
       calSelectedDate = d;
       renderCalendarGrid();
       renderScheduleList(monthEventsByDay[dayKey(d)] || []);
       renderDayUnavailabilityList();
+      renderDayRemindersList();
       el('dayScheduleOverlay').style.display = 'flex';
     });
     grid.appendChild(cell);
+  }
+}
+
+// ---- Day reminders ("don't forget to book this patient") ----
+let dayRemindersByDay = {};
+
+async function loadDayReminders(monthStart, monthEnd){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/day-reminders?start=${dayKey(monthStart)}&end=${dayKey(monthEnd)}`, { headers: authHeader() });
+    dayRemindersByDay = {};
+    if(res.ok){
+      const items = await res.json();
+      (items || []).forEach(r=>{
+        if(!dayRemindersByDay[r.reminder_date]) dayRemindersByDay[r.reminder_date] = [];
+        dayRemindersByDay[r.reminder_date].push(r);
+      });
+    }
+  }catch(e){
+    console.error('Could not load day reminders:', e);
+  }
+}
+
+function renderDayRemindersList(){
+  const container = el('dayRemindersList');
+  if(!container) return;
+  const key = dayKey(calSelectedDate);
+  const reminders = dayRemindersByDay[key] || [];
+  if(reminders.length === 0){
+    container.innerHTML = '<div style="font-size:0.78rem;color:#8a938e;">No reminders for this day.</div>';
+    return;
+  }
+  container.innerHTML = reminders.map(r=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);">
+    <span style="font-size:0.85rem;">${escapeHtml(r.patient_name)}</span>
+    <div style="display:flex;gap:6px;">
+      <button type="button" class="day-reminder-schedule-btn" data-id="${r.id}" data-name="${escapeHtml(r.patient_name)}" style="font-size:0.74rem;padding:4px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">📅 Schedule</button>
+      <button type="button" class="day-reminder-delete-btn" data-id="${r.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.85rem;">🗑️</button>
+    </div>
+  </div>`).join('');
+  container.querySelectorAll('.day-reminder-schedule-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      openQuickBookOverlay();
+      el('quickBookPatientInput').value = btn.getAttribute('data-name');
+    });
+  });
+  container.querySelectorAll('.day-reminder-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      await fetch(`${BACKEND_URL}/api/day-reminders/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+      const key2 = dayKey(calSelectedDate);
+      dayRemindersByDay[key2] = (dayRemindersByDay[key2] || []).filter(r=> r.id !== btn.getAttribute('data-id'));
+      renderDayRemindersList();
+    });
+  });
+}
+
+async function addDayReminder(){
+  const name = el('dayReminderNameInput').value.trim();
+  if(!name) return;
+  const key = dayKey(calSelectedDate);
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/day-reminders`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ patientName: name, reminderDate: key })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const created = await res.json();
+    if(!dayRemindersByDay[key]) dayRemindersByDay[key] = [];
+    dayRemindersByDay[key].push(created);
+    el('dayReminderNameInput').value = '';
+    renderDayRemindersList();
+  }catch(e){
+    console.error('Could not add reminder:', e);
   }
 }
 
@@ -7144,6 +7228,8 @@ function goToDay(offsetDays){
   }else{
     renderCalendarGrid();
     renderScheduleList(monthEventsByDay[dayKey(calSelectedDate)] || []);
+    renderDayUnavailabilityList();
+    renderDayRemindersList();
   }
 }
 
@@ -7166,6 +7252,7 @@ el('dayScheduleCloseBtn').addEventListener('click', ()=>{
 el('dayScheduleOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'dayScheduleOverlay') el('dayScheduleOverlay').style.display = 'none';
 });
+el('addDayReminderBtn').addEventListener('click', addDayReminder);
 el('openQuickBookBtn').addEventListener('click', openQuickBookOverlay);
 el('quickBookCloseBtn').addEventListener('click', ()=>{
   el('quickBookOverlay').style.display = 'none';
