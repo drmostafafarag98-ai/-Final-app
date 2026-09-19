@@ -6291,25 +6291,29 @@ async function readTimeTreeScreenshot(){
 }
 
 async function importTimeTreeSelected(){
-  const checkboxes = Array.from(el('timeTreeEventsList').querySelectorAll('.tt-event-checkbox:checked'));
-  if(checkboxes.length === 0){
-    el('timeTreeImportStatus').textContent = 'Tick at least one event to import.';
-    return;
-  }
-  const checked = [];
-  for(const cb of checkboxes){
-    const idx = cb.getAttribute('data-idx');
-    const nameInput = el('timeTreeEventsList').querySelector(`.tt-event-name-input[data-idx="${idx}"]`);
-    const doctorSelect = el('timeTreeEventsList').querySelector(`.tt-event-doctor-select[data-idx="${idx}"]`);
-    if(!doctorSelect.value){
-      el('timeTreeImportStatus').textContent = `Pick a doctor for "${nameInput.value || '(untitled)'}" before importing.`;
+  try{
+    const checkboxes = Array.from(el('timeTreeEventsList').querySelectorAll('.tt-event-checkbox:checked'));
+    if(checkboxes.length === 0){
+      el('timeTreeImportStatus').textContent = 'Tick at least one event to import.';
       return;
     }
-    const base = timeTreePreviewEvents[parseInt(idx, 10)];
-    checked.push({ ...base, patientName: nameInput.value.trim(), doctorName: doctorSelect.value });
-  }
-  el('timeTreeImportStatus').textContent = `Importing ${checked.length} event(s)…`;
-  try{
+    const checked = [];
+    for(const cb of checkboxes){
+      const idx = cb.getAttribute('data-idx');
+      const nameInput = el('timeTreeEventsList').querySelector(`.tt-event-name-input[data-idx="${idx}"]`);
+      const doctorSelect = el('timeTreeEventsList').querySelector(`.tt-event-doctor-select[data-idx="${idx}"]`);
+      if(!nameInput || !doctorSelect){
+        el('timeTreeImportStatus').textContent = `Something went wrong reading row ${idx} — try re-reading the screenshot/link and importing again.`;
+        return;
+      }
+      if(!doctorSelect.value){
+        el('timeTreeImportStatus').textContent = `Pick a doctor for "${nameInput.value || '(untitled)'}" before importing.`;
+        return;
+      }
+      const base = timeTreePreviewEvents[parseInt(idx, 10)] || {};
+      checked.push({ ...base, patientName: nameInput.value.trim(), doctorName: doctorSelect.value });
+    }
+    el('timeTreeImportStatus').textContent = `Importing ${checked.length} event(s)…`;
     const res = await fetch(`${BACKEND_URL}/api/timetree/import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
