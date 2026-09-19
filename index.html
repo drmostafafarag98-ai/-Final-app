@@ -1124,6 +1124,7 @@
           <span style="font-weight:700;color:var(--maroon);" id="scheduleDateLabel"></span>
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
+            <button type="button" id="deleteAllDayAppointmentsBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:1.05rem;cursor:pointer;" title="Delete all appointments this day (owner only)">🗑️</button>
             <button type="button" id="dayScheduleCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
           </div>
         </div>
@@ -5260,6 +5261,7 @@ async function submitPayment(method){
 
 function renderScheduleList(events){
   el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
+  el('deleteAllDayAppointmentsBtn').style.display = (signedInDoctor && signedInDoctor.role === 'owner') ? 'inline-block' : 'none';
   const container = el('scheduleList');
   if(events.length === 0){ container.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No events this day.</div>'; return; }
 
@@ -6109,6 +6111,38 @@ function openTimeTreeImport(){
   el('timeTreeEventsList').innerHTML = '';
   el('timeTreeImportFooter').style.display = 'none';
   el('timeTreeImportOverlay').style.display = 'flex';
+  loadQuickBookDoctorOptions();
+}
+
+// Simple Levenshtein-distance-based similarity (0..1) for catching
+// near-duplicate patient names typed slightly differently.
+function nameSimilarity(a, b){
+  a = (a || '').trim().toLowerCase();
+  b = (b || '').trim().toLowerCase();
+  if(!a || !b) return 0;
+  if(a === b) return 1;
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, ()=> new Array(n+1).fill(0));
+  for(let i=0; i<=m; i++) dp[i][0] = i;
+  for(let j=0; j<=n; j++) dp[0][j] = j;
+  for(let i=1; i<=m; i++){
+    for(let j=1; j<=n; j++){
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return 1 - dp[m][n] / Math.max(m, n);
+}
+
+function findClosestKnownPatient(name){
+  const known = [...new Set(Object.values(sessions).map(s=> (s.patientName||'').trim()).filter(Boolean))];
+  if(known.includes(name.trim())) return { match: name.trim(), exact: true };
+  let best = null, bestScore = 0;
+  known.forEach(k=>{
+    const score = nameSimilarity(k, name);
+    if(score > bestScore){ bestScore = score; best = k; }
+  });
+  if(best && bestScore >= 0.72) return { match: best, exact: false, score: bestScore };
+  return null;
 }
 
 function renderTimeTreeEventsList(){
@@ -6117,13 +6151,33 @@ function renderTimeTreeEventsList(){
     el('timeTreeImportFooter').style.display = 'none';
     return;
   }
-  el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Tick the ones to bring in as appointments:`;
+  const doctorOptions = Object.values(quickBookDoctorsByEmail)
+    .map(d=> `<option value="${escapeHtml(d.name || d.email)}">${escapeHtml(d.name || d.email)}</option>`).join('');
+  el('timeTreeImportStatus').textContent = `Found ${timeTreePreviewEvents.length} event(s). Check each name and doctor, then tick the ones to bring in:`;
   el('timeTreeEventsList').innerHTML = timeTreePreviewEvents.map((ev, i)=>{
     const label = ev.start ? new Date(ev.start).toLocaleString(undefined, {weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '(no date read)';
-    return `<label style="display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid var(--line);cursor:pointer;font-size:0.85rem;">
-      <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" checked>
-      <span><strong>${escapeHtml(ev.summary || '(untitled)')}</strong><br><span style="font-size:0.76rem;color:#5b6863;">${escapeHtml(label)}</span></span>
-    </label>`;
+    const typedName = ev.summary || '';
+    const match = findClosestKnownPatient(typedName);
+    let nameFlag = '<span style="color:#b8894f;font-size:0.72rem;">🆕 new patient</span>';
+    let nameToUse = typedName;
+    if(match && match.exact){
+      nameFlag = '<span style="color:#1b8a4a;font-size:0.72rem;">✓ matches existing patient</span>';
+    }else if(match){
+      nameFlag = `<span style="color:#c0392b;font-size:0.72rem;">⚠️ typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
+      nameToUse = match.match; // default to the existing spelling; owner can still edit
+    }
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:0.85rem;">
+      <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" checked style="margin-top:8px;">
+      <div style="flex:1;min-width:0;">
+        <input type="text" class="tt-event-name-input" data-idx="${i}" list="knownPatientsList" value="${escapeHtml(nameToUse)}" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.85rem;margin-bottom:3px;">
+        <div style="margin-bottom:3px;">${nameFlag}</div>
+        <div style="font-size:0.76rem;color:#5b6863;margin-bottom:4px;">${escapeHtml(label)}</div>
+        <select class="tt-event-doctor-select" data-idx="${i}" style="width:100%;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.8rem;">
+          <option value="">— pick the doctor —</option>
+          ${doctorOptions}
+        </select>
+      </div>
+    </div>`;
   }).join('');
   el('timeTreeImportFooter').style.display = 'block';
 }
@@ -6187,10 +6241,22 @@ async function readTimeTreeScreenshot(){
 }
 
 async function importTimeTreeSelected(){
-  const checked = Array.from(el('timeTreeEventsList').querySelectorAll('.tt-event-checkbox:checked')).map(cb=> timeTreePreviewEvents[parseInt(cb.getAttribute('data-idx'), 10)]);
-  if(checked.length === 0){
+  const checkboxes = Array.from(el('timeTreeEventsList').querySelectorAll('.tt-event-checkbox:checked'));
+  if(checkboxes.length === 0){
     el('timeTreeImportStatus').textContent = 'Tick at least one event to import.';
     return;
+  }
+  const checked = [];
+  for(const cb of checkboxes){
+    const idx = cb.getAttribute('data-idx');
+    const nameInput = el('timeTreeEventsList').querySelector(`.tt-event-name-input[data-idx="${idx}"]`);
+    const doctorSelect = el('timeTreeEventsList').querySelector(`.tt-event-doctor-select[data-idx="${idx}"]`);
+    if(!doctorSelect.value){
+      el('timeTreeImportStatus').textContent = `Pick a doctor for "${nameInput.value || '(untitled)'}" before importing.`;
+      return;
+    }
+    const base = timeTreePreviewEvents[parseInt(idx, 10)];
+    checked.push({ ...base, patientName: nameInput.value.trim(), doctorName: doctorSelect.value });
   }
   el('timeTreeImportStatus').textContent = `Importing ${checked.length} event(s)…`;
   try{
@@ -7214,6 +7280,27 @@ el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documen
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
+el('deleteAllDayAppointmentsBtn').addEventListener('click', async ()=>{
+  const dayLabel = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
+  if(!confirm(`Delete EVERY appointment on ${dayLabel}? This cannot be undone.`)) return;
+  if(!confirm('Really sure? Type OK in your head one more time — this permanently removes all of that day\'s appointments.')) return;
+  const dayStart = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), 0,0,0);
+  const dayEnd = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), 23,59,59);
+  el('scheduleStatus').textContent = 'Deleting…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/delete-day?start=${encodeURIComponent(dayStart.toISOString())}&end=${encodeURIComponent(dayEnd.toISOString())}`, {
+      method: 'DELETE',
+      headers: authHeader()
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    el('scheduleStatus').textContent = `Deleted ${data.deleted} appointment(s).`;
+    await loadMonthAndDay();
+  }catch(e){
+    console.error(e);
+    el('scheduleStatus').textContent = 'Could not delete: ' + (e.message || e);
+  }
+});
 function toggleMainNav(forceState){
   const isOpen = typeof forceState === 'boolean' ? forceState : !el('mainNavBar').classList.contains('open');
   el('mainNavBar').classList.toggle('open', isOpen);
