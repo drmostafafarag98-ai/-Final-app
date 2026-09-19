@@ -1069,6 +1069,7 @@
       <div id="calendarSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-top:4px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
     </div>
     <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;">📥 Import from TimeTree</button>
+    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;">🗑️ Trash (deleted days, last 7 days)</button>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1313,6 +1314,19 @@
           <button type="button" id="intakeListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="intakeListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
+      </div>
+    </div>
+
+    <div id="trashOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+          <span style="font-weight:700;color:var(--maroon);">🗑️ Trash</span>
+          <button type="button" id="trashCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        </div>
+        <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+          <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Deleted days from the last 7 days — restore any of them before they're gone for good.</div>
+          <div id="trashList"></div>
+        </div>
       </div>
     </div>
 
@@ -3708,6 +3722,7 @@ function applyLoginResult(doctor){
   }
   signedInDoctor = doctor;
   updateSignInStatusUI();
+  el('openTrashBtn').style.display = (signedInDoctor.role === 'owner') ? 'block' : 'none';
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
     loadDashboardSummary();
@@ -6103,6 +6118,67 @@ function renderMiniDateGrid(){
 // ---- TimeTree import ----
 let timeTreePreviewEvents = [];
 
+// ---- Trash (soft-deleted days) ----
+async function openTrash(){
+  el('trashOverlay').style.display = 'flex';
+  el('trashList').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/trash`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = await res.json();
+    if(!Array.isArray(items) || items.length === 0){
+      el('trashList').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Nothing in the trash.</div>';
+      return;
+    }
+    // Group by the calendar day the appointments were on, so a whole
+    // "delete day" action can be undone in one tap.
+    const byDay = {};
+    items.forEach(ev=>{
+      const d = new Date(ev.start_time);
+      const key = dayKey(d);
+      if(!byDay[key]) byDay[key] = [];
+      byDay[key].push(ev);
+    });
+    const dayKeys = Object.keys(byDay).sort().reverse();
+    el('trashList').innerHTML = dayKeys.map(key=>{
+      const [y,m,d] = key.split('-').map(Number);
+      const dateLabel = new Date(y, m-1, d).toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+      const names = byDay[key].map(ev=> ev.patient_name).join(', ');
+      return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
+        <div style="font-weight:600;font-size:0.88rem;">${escapeHtml(dateLabel)}</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin:4px 0;">${byDay[key].length} appointment(s): ${escapeHtml(names)}</div>
+        <button type="button" class="trash-restore-btn" data-key="${key}" style="font-size:0.78rem;padding:5px 12px;border-radius:999px;border:1px solid #0b8043;background:#e3f6ea;color:#0b8043;cursor:pointer;">↩️ Restore this day</button>
+      </div>`;
+    }).join('');
+    el('trashList').querySelectorAll('.trash-restore-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const key = btn.getAttribute('data-key');
+        const [y,m,d] = key.split('-').map(Number);
+        const dayStart = new Date(y, m-1, d, 0,0,0);
+        const dayEnd = new Date(y, m-1, d, 23,59,59);
+        btn.textContent = 'Restoring…';
+        btn.disabled = true;
+        try{
+          const res = await fetch(`${BACKEND_URL}/api/appointments/restore-day?start=${encodeURIComponent(dayStart.toISOString())}&end=${encodeURIComponent(dayEnd.toISOString())}`, {
+            method: 'POST',
+            headers: authHeader()
+          });
+          if(!res.ok) throw new Error(`Server error ${res.status}`);
+          await loadMonthAndDay();
+          openTrash(); // refresh the list
+        }catch(e){
+          console.error(e);
+          btn.textContent = 'Failed — try again';
+          btn.disabled = false;
+        }
+      });
+    });
+  }catch(e){
+    console.error(e);
+    el('trashList').innerHTML = `<div style="font-size:0.85rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
 function openTimeTreeImport(){
   el('timeTreeUrlInput').value = '';
   el('timeTreeIcsTextInput').value = '';
@@ -6332,7 +6408,7 @@ async function importTimeTreeSelected(){
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
-    el('timeTreeImportStatus').textContent = `✅ Imported ${data.imported} appointment(s).` + (data.errors && data.errors.length ? ` (${data.errors.length} skipped)` : '');
+    el('timeTreeImportStatus').textContent = `✅ Imported ${data.imported} appointment(s).` + (data.phoneFilled ? ` Auto-filled ${data.phoneFilled} phone number(s) from past visits.` : '') + (data.errors && data.errors.length ? ` (${data.errors.length} skipped)` : '');
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -7347,8 +7423,7 @@ el('calNextMonthBtn').addEventListener('click', goToNextMonth);
 el('refreshScheduleBtn').addEventListener('click', loadMonthAndDay);
 el('deleteAllDayAppointmentsBtn').addEventListener('click', async ()=>{
   const dayLabel = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'});
-  if(!confirm(`Delete EVERY appointment on ${dayLabel}? This cannot be undone.`)) return;
-  if(!confirm('Really sure? Type OK in your head one more time — this permanently removes all of that day\'s appointments.')) return;
+  if(!confirm(`Delete EVERY appointment on ${dayLabel}? They'll move to the Trash and can be restored within 7 days.`)) return;
   const dayStart = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), 0,0,0);
   const dayEnd = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), 23,59,59);
   el('scheduleStatus').textContent = 'Deleting…';
@@ -7359,7 +7434,7 @@ el('deleteAllDayAppointmentsBtn').addEventListener('click', async ()=>{
     });
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
-    el('scheduleStatus').textContent = `Deleted ${data.deleted} appointment(s).`;
+    el('scheduleStatus').textContent = `Moved ${data.deleted} appointment(s) to Trash.`;
     await loadMonthAndDay();
   }catch(e){
     console.error(e);
@@ -7534,6 +7609,13 @@ el('intakeListCloseBtn').addEventListener('click', ()=>{
 });
 el('intakeListOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'intakeListOverlay') el('intakeListOverlay').style.display = 'none';
+});
+el('openTrashBtn').addEventListener('click', openTrash);
+el('trashCloseBtn').addEventListener('click', ()=>{
+  el('trashOverlay').style.display = 'none';
+});
+el('trashOverlay').addEventListener('click', (e)=>{
+  if(e.target.id === 'trashOverlay') el('trashOverlay').style.display = 'none';
 });
 el('openTimeTreeImportBtn').addEventListener('click', openTimeTreeImport);
 el('timeTreeImportCloseBtn').addEventListener('click', ()=>{
