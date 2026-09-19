@@ -6250,6 +6250,7 @@ async function previewTimeTreeImport(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
     timeTreePreviewEvents = data.events || [];
+    await loadQuickBookDoctorOptions();
     renderTimeTreeEventsList();
   }catch(e){
     console.error(e);
@@ -6282,6 +6283,7 @@ async function readTimeTreeScreenshot(){
     const data = await res.json();
     if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
     timeTreePreviewEvents = data.events || [];
+    await loadQuickBookDoctorOptions();
     renderTimeTreeEventsList();
   }catch(e){
     console.error(e);
@@ -6310,12 +6312,16 @@ async function importTimeTreeSelected(){
         return;
       }
       const chosenDoctor = quickBookDoctorsByEmail[doctorSelect.value];
+      if(!chosenDoctor){
+        el('timeTreeImportStatus').textContent = `Couldn't match the doctor for "${nameInput.value || '(untitled)'}" — reopen this import popup and try again.`;
+        return;
+      }
       const base = timeTreePreviewEvents[parseInt(idx, 10)] || {};
       checked.push({
         ...base,
         patientName: nameInput.value.trim(),
-        doctorName: chosenDoctor ? (chosenDoctor.name || chosenDoctor.email) : doctorSelect.value,
-        doctorColor: chosenDoctor ? chosenDoctor.color : null,
+        doctorName: chosenDoctor.name || chosenDoctor.email,
+        doctorColor: chosenDoctor.color,
       });
     }
     el('timeTreeImportStatus').textContent = `Importing ${checked.length} event(s)…`;
