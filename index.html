@@ -1163,12 +1163,21 @@
     </div>
 
     <div id="noteExpandOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:82;align-items:center;justify-content:center;padding:16px;">
-      <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:80vh;display:flex;flex-direction:column;overflow:hidden;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
           <span style="font-weight:700;color:var(--maroon);" id="noteExpandTitle">Patient</span>
           <button type="button" id="noteExpandCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
-        <div id="noteExpandBody" style="padding:16px;flex:1;overflow-y:auto;font-size:0.88rem;line-height:1.6;white-space:pre-wrap;"></div>
+        <div id="noteExpandTabBar" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--line);flex-shrink:0;"></div>
+        <div style="padding:12px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
+          <textarea id="noteExpandTextarea" style="flex:1;min-height:220px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.86rem;line-height:1.6;font-family:inherit;resize:vertical;"></textarea>
+          <div id="noteExpandTabStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
+          <div id="noteExpandTabActions" style="display:flex;gap:8px;margin-top:8px;">
+            <button type="button" class="primary" id="noteExpandSaveBtn" style="flex:1;">💾 Save</button>
+            <button type="button" class="ghost" id="noteExpandDownloadTxtBtn" style="display:none;flex:1;">Download .txt</button>
+            <button type="button" class="ghost" id="noteExpandDownloadPdfBtn" style="display:none;flex:1;">Download PDF</button>
+          </div>
+        </div>
         <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
         <div id="noteExpandMergeBox" style="display:none;padding:0 16px 12px;">
           <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
@@ -1184,9 +1193,8 @@
           <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:100px;">🗑️ Delete this file</button>
         </div>
         <div id="noteExpandActionStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px 8px;"></div>
-        <div style="padding:12px 16px;border-top:1px solid var(--line);display:flex;gap:8px;">
-          <button type="button" class="ghost" id="noteExpandFollowupBtn" style="flex:1;">+ Follow-up</button>
-          <button type="button" class="ghost" id="noteExpandSummaryBtn" style="flex:1;">📋 Summary</button>
+        <div style="padding:12px 16px;border-top:1px solid var(--line);">
+          <button type="button" class="ghost" id="noteExpandFollowupBtn" style="width:100%;">+ Follow-up</button>
         </div>
       </div>
     </div>
@@ -2342,7 +2350,10 @@ function renderDoctorPatientsGrid(){
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
       try{
-        generatePatientSummary(btn.getAttribute('data-patient'));
+        const patientName = btn.getAttribute('data-patient');
+        const card = btn.closest('.keep-card');
+        const latestId = card ? card.getAttribute('data-latest-id') : null;
+        openNoteExpandOnSummary(patientName, latestId);
       }catch(err){
         console.error(err);
         alert('Could not open the summary: ' + (err.message || err));
@@ -2354,27 +2365,139 @@ function renderDoctorPatientsGrid(){
 let noteExpandCurrentPatient = '';
 let noteExpandCurrentLatestId = '';
 
+let noteExpandTabs = [];
+let noteExpandActiveTabIndex = 0;
+let noteExpandSummaryText = '';
+let noteExpandSummaryLoading = false;
+
 function openNoteExpand(patientName, latestId){
   noteExpandCurrentPatient = patientName;
   noteExpandCurrentLatestId = latestId;
   el('noteExpandTitle').textContent = patientName;
-  const allIds = currentGridPatientGroups[patientName] || [latestId];
-  const combined = allIds.map(id=>{
-    const s = sessions[id];
-    if(!s) return '';
-    const label = s.sessionType === 'followup' ? 'Follow-up' : 'Assessment';
-    const text = (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '(no notes yet)').trim();
-    return `— ${s.date || ''} · ${label} —\n${text}`;
-  }).filter(Boolean).join('\n\n');
-  el('noteExpandBody').textContent = combined || 'No notes yet.';
-  const latestSession = sessions[latestId];
-  el('noteExpandGenerateBtn').style.display = (latestSession && !latestSession.note && (latestSession.transcriptLines||[]).length > 0) ? 'block' : 'none';
   el('noteExpandMergeBox').style.display = 'none';
   el('noteExpandNameMergeBox').style.display = 'none';
   el('noteExpandActionStatus').textContent = '';
-  const otherSessionIds = allIds.filter(id=> id !== latestId);
-  el('noteExpandMergeBtn').style.display = otherSessionIds.length > 0 ? 'block' : 'none';
+
+  const allIds = currentGridPatientGroups[patientName] || [latestId];
+  const sortedIds = [...allIds].sort((a,b)=> (sessions[a] && sessions[a].createdAt || 0) - (sessions[b] && sessions[b].createdAt || 0));
+  noteExpandTabs = sortedIds.map((id, i)=> ({ type: 'session', id, label: `Session ${i+1}` }));
+  noteExpandTabs.push({ type: 'summary' });
+  noteExpandSummaryText = '';
+  noteExpandSummaryLoading = false;
+
+  el('noteExpandMergeBtn').style.display = sortedIds.length > 1 ? 'block' : 'none';
+
+  const defaultIndex = Math.max(0, noteExpandTabs.length - 2); // the latest real session, not Summary
+  switchNoteExpandTab(defaultIndex);
   el('noteExpandOverlay').style.display = 'flex';
+
+  generateNoteExpandSummaryInBackground(patientName);
+}
+
+function openNoteExpandOnSummary(patientName, latestId){
+  openNoteExpand(patientName, latestId);
+  switchNoteExpandTab(noteExpandTabs.length - 1);
+}
+
+function renderNoteExpandTabBar(){
+  const bar = el('noteExpandTabBar');
+  bar.innerHTML = noteExpandTabs.map((tab, i)=>{
+    const label = tab.type === 'summary' ? '📋 Summary' : tab.label;
+    const isActive = i === noteExpandActiveTabIndex;
+    return `<button type="button" class="note-expand-tab-btn" data-idx="${i}" style="flex-shrink:0;padding:10px 14px;font-size:0.8rem;border:none;background:transparent;border-bottom:2px solid ${isActive ? 'var(--maroon)' : 'transparent'};color:${isActive ? 'var(--maroon)' : '#5b6863'};font-weight:${isActive ? '700' : '400'};cursor:pointer;white-space:nowrap;">${label}</button>`;
+  }).join('');
+  bar.querySelectorAll('.note-expand-tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=> switchNoteExpandTab(parseInt(btn.getAttribute('data-idx'), 10)));
+  });
+}
+
+function switchNoteExpandTab(index){
+  noteExpandActiveTabIndex = index;
+  renderNoteExpandTabBar();
+  const tab = noteExpandTabs[index];
+  if(!tab) return;
+  if(tab.type === 'summary'){
+    el('noteExpandTextarea').value = noteExpandSummaryLoading ? '' : noteExpandSummaryText;
+    el('noteExpandTabStatus').textContent = noteExpandSummaryLoading ? 'Generating summary…' : (noteExpandSummaryText ? '' : 'Could not generate a summary — try reopening this file.');
+    el('noteExpandSaveBtn').style.display = 'none';
+    el('noteExpandDownloadTxtBtn').style.display = 'block';
+    el('noteExpandDownloadPdfBtn').style.display = 'block';
+    el('noteExpandGenerateBtn').style.display = 'none';
+  }else{
+    const s = sessions[tab.id];
+    const hasNote = s && !!s.note;
+    el('noteExpandTextarea').value = s ? (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '') : '';
+    el('noteExpandTabStatus').textContent = s ? `${s.date || ''} · ${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}` : '';
+    el('noteExpandSaveBtn').style.display = 'block';
+    el('noteExpandDownloadTxtBtn').style.display = 'none';
+    el('noteExpandDownloadPdfBtn').style.display = 'none';
+    el('noteExpandGenerateBtn').style.display = (s && !hasNote && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
+  }
+}
+
+async function saveCurrentNoteExpandTab(){
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  if(!tab || tab.type !== 'session') return;
+  const s = sessions[tab.id];
+  if(!s) return;
+  const newText = el('noteExpandTextarea').value;
+  el('noteExpandTabStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({
+        id: tab.id,
+        patientName: s.patientName,
+        sessionDate: s.date,
+        sessionType: s.sessionType,
+        transcript: s.transcriptLines || [],
+        note: newText,
+      })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    s.note = newText;
+    el('noteExpandTabStatus').textContent = 'Saved.';
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+  }catch(e){
+    console.error(e);
+    el('noteExpandTabStatus').textContent = 'Could not save: ' + (e.message || e);
+  }
+}
+
+async function generateNoteExpandSummaryInBackground(patientName){
+  noteExpandSummaryLoading = true;
+  try{
+    const text = await buildPatientSummaryText(patientName);
+    noteExpandSummaryText = text || '';
+  }catch(e){
+    console.error(e);
+    noteExpandSummaryText = '';
+  }
+  noteExpandSummaryLoading = false;
+  const stillOnSamePatient = noteExpandCurrentPatient === patientName;
+  const activeTab = noteExpandTabs[noteExpandActiveTabIndex];
+  if(stillOnSamePatient && activeTab && activeTab.type === 'summary'){
+    switchNoteExpandTab(noteExpandActiveTabIndex);
+  }
+}
+
+function downloadNoteExpandSummaryTxt(){
+  if(!noteExpandSummaryText) return;
+  const blob = new Blob([el('noteExpandTextarea').value], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${noteExpandCurrentPatient.replace(/[^a-z0-9]+/gi,'_')}_summary.txt`;
+  a.click();
+}
+
+function downloadNoteExpandSummaryPdf(){
+  const text = el('noteExpandTextarea').value;
+  if(!text) return;
+  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const container = el('printableNote');
+  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">Referral Summary — ${escapeHtml(noteExpandCurrentPatient)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
+  window.print();
 }
 
 function setSessionType(type){
@@ -5972,6 +6095,43 @@ function normalizeEgyptPhoneForWhatsApp(raw){
 // link), so — unlike the Meta API templates used for automatic sending —
 // they need no approval and can say anything, in any language, and change
 // any time.
+const PATIENT_SUMMARY_SYSTEM_PROMPT = `You are a physical therapist writing a clinical progress letter to the referring physician. The physician does NOT care how many sessions occurred, on what dates, or any administrative/scheduling detail — they care about the clinical picture: what problems the patient presented with, how each has progressed, and the treating clinician's overall read on the case.
+
+Based on the patient's full session history (initial assessment through most recent follow-up), write the letter in EXACTLY this format and nothing else:
+
+CLINICAL CONTEXT: One to two sentences giving the chief complaint / reason for referral and the initial working impression, as actually documented. No dates, no session counts.
+
+PRESENTING SYMPTOMS / FINDINGS AT INITIAL ASSESSMENT:
+List each distinct symptom, complaint, or key objective finding from the initial assessment as its own numbered line, in the clinician's documented terms. Example style: "1. Right shoulder pain, worse with overhead activity" / "2. Positive Neer's test" / "3. Shoulder flexion limited to around 90°".
+
+PROGRESS ON EACH:
+For EVERY numbered item above, in the same order and numbering, give one to two sentences on its current status versus the initial presentation — improved / resolved / unchanged / worsened — with the specific supporting detail actually documented (functional detail, what the patient reports, what changed and by how much where stated). Do not compress this to a single fragment — give the physician enough to actually picture the change. Example style: "1. Improved — pain has dropped from significant at rest to only with heavy overhead lifting; patient reports much better sleep as a result." / "2. Resolved — test now negative, no reproduction of symptoms on provocation."
+
+EXERCISES / INTERVENTIONS USED:
+A synthesized list (not a session-by-session log) of the exercises, manual therapy, and other interventions used across the treatment course, as actually documented — group similar/repeated items together rather than repeating them per visit. If specific exercises or interventions are not documented anywhere, write "Not explicitly documented."
+
+OVERALL IMPRESSION: One to two sentences synthesizing the trajectory of the case as a whole — genuinely useful judgment for the referring physician, not a repeat of the line-by-line detail above.
+
+Hard rules: Do not invent any symptom, finding, outcome, exercise, or intervention not present in the source notes. Do NOT mention session count, session dates, or any administrative/scheduling detail anywhere in the letter. Stay numbered and scannable, but each progress item should be a real sentence or two, not a bare label. Write in professional English suitable for a physician colleague.`;
+
+async function buildPatientSummaryText(patientName){
+  const res = await fetch(`${BACKEND_URL}/api/sessions?patientName=${encodeURIComponent(patientName)}&order=asc`, {
+    headers: authHeader()
+  });
+  if(!res.ok){
+    const errText = await res.text();
+    throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
+  }
+  const patientSessions = await res.json();
+  if(!patientSessions || patientSessions.length === 0) return null;
+  const combined = patientSessions.map(s=>{
+    const label = s.session_type === 'followup' ? 'FOLLOW-UP' : 'INITIAL ASSESSMENT';
+    return `=== ${label} — ${s.session_date || ''} ===\n${s.note || '(no note recorded)'}`;
+  }).join('\n\n');
+  const summary = await callAI(PATIENT_SUMMARY_SYSTEM_PROMPT, `Full session history for ${patientName}:\n\n${combined}`, 4000);
+  return `Patient: ${patientName}\n\n` + summary.trim();
+}
+
 const WHATSAPP_TEMPLATES = {
   confirmation: {
     label: 'Confirmation (with policy)',
@@ -7580,12 +7740,21 @@ el('noteExpandOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'noteExpandOverlay') el('noteExpandOverlay').style.display = 'none';
 });
 el('noteExpandGenerateBtn').addEventListener('click', ()=>{
-  loadSession(noteExpandCurrentLatestId);
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
+  loadSession(targetId);
   el('noteExpandOverlay').style.display = 'none';
   el('doctorPatientsGridOverlay').style.display = 'none';
   switchMainView('documentation');
 });
-el('noteExpandDeleteBtn').addEventListener('click', ()=> deleteSessionFromCard(noteExpandCurrentLatestId));
+el('noteExpandDeleteBtn').addEventListener('click', ()=>{
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
+  deleteSessionFromCard(targetId);
+});
+el('noteExpandSaveBtn').addEventListener('click', saveCurrentNoteExpandTab);
+el('noteExpandDownloadTxtBtn').addEventListener('click', downloadNoteExpandSummaryTxt);
+el('noteExpandDownloadPdfBtn').addEventListener('click', downloadNoteExpandSummaryPdf);
 el('noteExpandNameMergeBtn').addEventListener('click', showNameMergeBox);
 el('noteExpandNameMergeConfirmBtn').addEventListener('click', confirmNameMerge);
 el('noteExpandMergeBtn').addEventListener('click', showMergeOptions);
@@ -7595,9 +7764,6 @@ el('noteExpandFollowupBtn').addEventListener('click', ()=>{
   el('noteExpandOverlay').style.display = 'none';
   el('doctorPatientsGridOverlay').style.display = 'none';
   switchMainView('documentation');
-});
-el('noteExpandSummaryBtn').addEventListener('click', ()=>{
-  generatePatientSummary(noteExpandCurrentPatient);
 });
 el('patientDetailOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'patientDetailOverlay') el('patientDetailOverlay').style.display = 'none';
