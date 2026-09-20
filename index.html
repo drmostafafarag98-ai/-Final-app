@@ -954,7 +954,7 @@
     <h2 style="margin-right:30px;">Sessions</h2>
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
     <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:10px;font-size:0.82rem;">🔄 Sync from clinic server</button>
-    <input type="text" id="sessionSearchInput" placeholder="🔍 Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:10px;">
+    <input type="text" id="sessionSearchInput" placeholder="<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:10px;">
     <button type="button" class="ghost" id="openIntakeListBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;">📋 Intake forms <span id="intakeFormsBadge"></span></button>
     <div id="sessionList"></div>
   </div>
@@ -993,7 +993,7 @@
       </div>
       <div class="dashboard-stats-row" id="statsRow_custom"></div>
 
-      <div class="section-title">📤 Send manually</div>
+      <div class="section-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Send manually</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Sends a Meta-approved WhatsApp template to everyone booked on the chosen day (the automated midnight version is currently off) — press this whenever you want it sent instead.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1003,7 +1003,7 @@
             <option value="package_policy">Package policy (no variables)</option>
             <option value="recovery_session_policy">Recovery session policy (no variables)</option>
           </select>
-          <button type="button" class="ghost" id="manualSendConfirmationsBtn">📤 Send now</button>
+          <button type="button" class="ghost" id="manualSendConfirmationsBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg> Send now</button>
         </div>
         <div id="manualSendStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
       </div>
@@ -1024,14 +1024,14 @@
         <div id="expenseList"></div>
       </div>
 
-      <div class="section-title">📥 Export</div>
+      <div class="section-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Export</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Downloads a CSV file (date, patient, doctor, payment method, amount) for the range you pick below — open it in Excel, or upload/paste it into Google Sheets.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="exportFromDate" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <span style="font-size:0.85rem;color:#5b6863;">to</span>
           <input type="text" id="exportToDate" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
-          <button type="button" class="ghost" id="exportCsvBtn">📥 Download CSV</button>
+          <button type="button" class="ghost" id="exportCsvBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Download CSV</button>
         </div>
         <div id="exportStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
       </div>
@@ -1065,11 +1065,11 @@
 
     <div id="calendarView" style="display:none;">
     <div style="position:relative;margin-bottom:12px;">
-      <input type="text" id="calendarSearchInput" placeholder="🔍 Find a patient's appointment…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+      <input type="text" id="calendarSearchInput" placeholder="<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Find a patient's appointment…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <div id="calendarSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-top:4px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
     </div>
-    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;">📥 Import from TimeTree</button>
-    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;">🗑️ Trash (deleted days, last 7 days)</button>
+    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Import from TimeTree</button>
+    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Trash (deleted days, last 7 days)</button>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1125,7 +1125,7 @@
           <span style="font-weight:700;color:var(--maroon);" id="scheduleDateLabel"></span>
           <div style="display:flex;gap:8px;align-items:center;">
             <button type="button" class="ghost" id="refreshScheduleBtn" style="font-size:0.78rem;padding:5px 10px;">Refresh</button>
-            <button type="button" id="deleteAllDayAppointmentsBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:1.05rem;cursor:pointer;" title="Delete all appointments this day (owner only)">🗑️</button>
+            <button type="button" id="deleteAllDayAppointmentsBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:1.05rem;cursor:pointer;" title="Delete all appointments this day (owner only)"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
             <button type="button" id="dayScheduleCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
           </div>
         </div>
@@ -1141,7 +1141,7 @@
             </div>
           </div>
           <div style="border-top:1px dashed var(--line);padding-top:10px;">
-            <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">🚫 Mark a doctor unavailable this day</div>
+            <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg> Mark a doctor unavailable this day</div>
             <div id="dayUnavailabilityList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           </div>
         </div>
@@ -1157,7 +1157,7 @@
         <button type="button" id="doctorPatientsGridCloseBtn" style="background:transparent;border:none;font-size:1.4rem;cursor:pointer;color:var(--maroon);">×</button>
       </div>
       <div style="padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line);">
-        <input type="text" id="doctorGridSearchInput" placeholder="🔍 Search this doctor's patients…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+        <input type="text" id="doctorGridSearchInput" placeholder="<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Search this doctor's patients…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
       </div>
       <div id="doctorPatientsGrid" style="flex:1;overflow-y:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;align-content:start;"></div>
     </div>
@@ -1173,7 +1173,7 @@
           <textarea id="noteExpandTextarea" style="flex:1;min-height:220px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.86rem;line-height:1.6;font-family:inherit;resize:vertical;"></textarea>
           <div id="noteExpandTabStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
           <div id="noteExpandTabActions" style="display:flex;gap:8px;margin-top:8px;">
-            <button type="button" class="primary" id="noteExpandSaveBtn" style="flex:1;">💾 Save</button>
+            <button type="button" class="primary" id="noteExpandSaveBtn" style="flex:1;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Save</button>
             <button type="button" class="ghost" id="noteExpandDownloadTxtBtn" style="display:none;flex:1;">Download .txt</button>
             <button type="button" class="ghost" id="noteExpandDownloadPdfBtn" style="display:none;flex:1;">Download PDF</button>
           </div>
@@ -1181,16 +1181,16 @@
         <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
         <div id="noteExpandMergeBox" style="display:none;padding:0 16px 12px;">
           <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
-          <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Merge into this file</button>
+          <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m18 4 3 3-3 3"/><path d="M2 7h13a5 5 0 0 1 5 5v0"/><path d="m18 20 3-3-3-3"/><path d="M20 17H7a5 5 0 0 1-5-5v0"/></svg> Merge into this file</button>
         </div>
         <div id="noteExpandNameMergeBox" style="display:none;padding:0 16px 12px;">
           <input type="text" id="noteExpandNameMergeInput" list="knownPatientsList" placeholder="The misspelled name (e.g. how it was typed wrong)" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;">
-          <button type="button" class="ghost" id="noteExpandNameMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Bring their sessions in here</button>
+          <button type="button" class="ghost" id="noteExpandNameMergeConfirmBtn" style="width:100%;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m18 4 3 3-3 3"/><path d="M2 7h13a5 5 0 0 1 5 5v0"/><path d="m18 20 3-3-3-3"/><path d="M20 17H7a5 5 0 0 1-5-5v0"/></svg> Bring their sessions in here</button>
         </div>
         <div style="padding:0 16px 12px;display:flex;gap:8px;flex-wrap:wrap;">
-          <button type="button" id="noteExpandNameMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;">🔀 Merge in a misspelled name</button>
-          <button type="button" id="noteExpandMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;">🔀 Merge with another file</button>
-          <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:100px;">🗑️ Delete this file</button>
+          <button type="button" id="noteExpandNameMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m18 4 3 3-3 3"/><path d="M2 7h13a5 5 0 0 1 5 5v0"/><path d="m18 20 3-3-3-3"/><path d="M20 17H7a5 5 0 0 1-5-5v0"/></svg> Merge in a misspelled name</button>
+          <button type="button" id="noteExpandMergeBtn" style="flex:1;background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:140px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m18 4 3 3-3 3"/><path d="M2 7h13a5 5 0 0 1 5 5v0"/><path d="m18 20 3-3-3-3"/><path d="M20 17H7a5 5 0 0 1-5-5v0"/></svg> Merge with another file</button>
+          <button type="button" id="noteExpandDeleteBtn" style="flex:1;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;min-width:100px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Delete this file</button>
         </div>
         <div id="noteExpandActionStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px 8px;"></div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
@@ -1206,10 +1206,10 @@
           <button type="button" id="pdCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="display:flex;border-bottom:1px solid var(--line);">
-          <button type="button" class="pd-tab-btn active" data-tab="history" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid var(--maroon);color:var(--maroon);font-weight:700;cursor:pointer;">📅 History</button>
-          <button type="button" class="pd-tab-btn" data-tab="payment" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">💰 Payment</button>
-          <button type="button" class="pd-tab-btn" data-tab="edit" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">✏️ Edit</button>
-          <button type="button" class="pd-tab-btn" data-tab="chat" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">💬 Chat</button>
+          <button type="button" class="pd-tab-btn active" data-tab="history" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid var(--maroon);color:var(--maroon);font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> History</button>
+          <button type="button" class="pd-tab-btn" data-tab="payment" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20"/><path d="M6 15h4"/></svg> Payment</button>
+          <button type="button" class="pd-tab-btn" data-tab="edit" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> Edit</button>
+          <button type="button" class="pd-tab-btn" data-tab="chat" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:4px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Chat</button>
         </div>
 
         <div id="pdPanelHistory" class="pd-panel" style="flex:1;overflow-y:auto;padding:14px 16px;">
@@ -1234,13 +1234,13 @@
               sessions
             </label>
             <div style="display:flex;gap:8px;">
-              <button type="button" class="ghost" id="paymentMethodCashBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">💵 Cash</button>
-              <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;">🔵 InstaPay</button>
+              <button type="button" class="ghost" id="paymentMethodCashBtn" style="flex:1;color:#0b8043;border-color:#0b8043;display:flex;align-items:center;justify-content:center;gap:5px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Cash</button>
+              <button type="button" class="ghost" id="paymentMethodInstaPayBtn" style="flex:1;color:#0b8043;border-color:#0b8043;display:flex;align-items:center;justify-content:center;gap:5px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> InstaPay</button>
             </div>
-            <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);">🎁 Already paid — covered by a package (no charge here)</button>
-            <button type="button" class="ghost" id="markFreeBtn" style="color:#2563a8;border-color:#2563a8;">🆓 Mark this session as free (no charge)</button>
-            <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;">↩️ Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
-            <button type="button" id="markUnpaidBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;text-align:left;">❌ Mark as unpaid (correct a mistake)</button>
+            <button type="button" class="ghost" id="paymentMethodPackageBtn" style="color:var(--gold);border-color:var(--gold);display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Already paid — covered by a package (no charge here)</button>
+            <button type="button" class="ghost" id="markFreeBtn" style="color:#2563a8;border-color:#2563a8;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M14.8 9a2 2 0 0 0-1.8-1H11a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4h-2a2 2 0 0 1-1.8-1"/><path d="M12 6v2m0 8v2"/></svg> Mark this session as free (no charge)</button>
+            <button type="button" id="justMarkPaidBtn" style="background:transparent;border:none;color:#5b6863;font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;display:flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg> Just mark paid — already accounted for (accidentally un-marked, no new charge or package change)</button>
+            <button type="button" id="markUnpaidBtn" style="display:none;background:transparent;border:none;color:var(--danger);font-size:0.76rem;text-decoration:underline;cursor:pointer;padding:4px 0;text-align:left;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 6 6 18"/><path d="M6 6l12 12"/></svg> Mark as unpaid (correct a mistake)</button>
             <div id="paymentOverlayStatus" style="font-size:0.78rem;color:#8a938e;"></div>
             <div id="inlineRegPackageBox" style="display:none;background:var(--paper);border:1px dashed var(--gold);border-radius:var(--radius);padding:10px;margin-top:4px;">
               <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">No active package on file for this patient — register their existing one now?</div>
@@ -1287,9 +1287,9 @@
           <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--line);flex-wrap:wrap;">
             <button type="button" class="primary" id="saveEditAppointmentBtn">Save changes</button>
             <button type="button" class="ghost" id="cancelAppointmentBtn" style="color:var(--danger);border-color:var(--danger);">Cancel appointment</button>
-            <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;">👻 Mark as No Show</button>
-            <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
-            <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;">🗑️ Delete permanently</button>
+            <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;align-items:center;justify-content:center;gap:5px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 0 1 5 0"/><path d="M15 15c-.83.67-1.87 1-3 1s-2.17-.33-3-1"/></svg> Mark as No Show</button>
+            <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;align-items:center;justify-content:center;gap:5px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg> Restore (un-cancel)</button>
+            <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;align-items:center;justify-content:center;gap:5px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Delete permanently</button>
           </div>
         </div>
 
@@ -1328,7 +1328,7 @@
     <div id="trashOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">🗑️ Trash</span>
+          <span style="font-weight:700;color:var(--maroon);"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Trash</span>
           <button type="button" id="trashCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
@@ -1341,7 +1341,7 @@
     <div id="timeTreeImportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">📥 Import from TimeTree</span>
+          <span style="font-weight:700;color:var(--maroon);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg> Import from TimeTree</span>
           <button type="button" id="timeTreeImportCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
@@ -1550,7 +1550,7 @@
     </div>
 
     <div id="correctionLogSection" style="display:none;margin-top:10px;margin-bottom:16px;">
-      <button type="button" class="ghost" id="correctionLogToggleBtn" style="width:100%;font-size:0.82rem;">🔍 Terminology corrections made</button>
+      <button type="button" class="ghost" id="correctionLogToggleBtn" style="width:100%;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Terminology corrections made</button>
       <div id="correctionLogPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-top:8px;">
         <div style="font-size:0.75rem;color:#8a938e;margin-bottom:6px;">Struck-through = what was heard. Green = what it was changed to. Worth a quick glance before trusting the note.</div>
         <div id="correctionLogList"></div>
@@ -1587,13 +1587,13 @@
           <label for="noteApprovedCheckbox" style="font-size:0.83rem;color:#6b5842;cursor:pointer;">I have reviewed this note (including checking the highlighted AI-inferred content above) and approve it for the patient record. Required before exporting a PDF.</label>
         </div>
         <div class="actions-row">
-          <button class="save-action" id="saveNoteBtn">💾 Save to session</button>
+          <button class="save-action" id="saveNoteBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Save to session</button>
           <button class="ghost" id="downloadBtn">Download .txt</button>
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
         </div>
         <div class="actions-row" style="margin-top:10px;">
           <button class="save-action" id="syncToServerBtn">☁️ Save to clinic server</button>
-          <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);">🗑️ Request delete (needs owner approval)</button>
+          <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Request delete (needs owner approval)</button>
         </div>
         <div class="status" id="syncStatus" style="margin-top:6px;margin-bottom:0;"></div>
         <div class="actions-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
@@ -1603,7 +1603,7 @@
         <div class="status" id="voiceNoteStatus" style="margin-top:6px;margin-bottom:0;"></div>
 
         <div id="specialTestsSection" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none;">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:4px;">🔍 Add positive special tests to Objective (assessment only)</div>
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:4px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Add positive special tests to Objective (assessment only)</div>
           <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Pick the body region, then check only the tests that came back POSITIVE.</div>
           <select id="testRegionSelect" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
             <option value="">— Select a region —</option>
@@ -1632,7 +1632,7 @@
               </select>
               <button class="ghost" id="applyTemplateBtn" style="font-size:0.8rem;">Apply</button>
             </div>
-            <button class="ghost" id="saveTemplateBtn" style="margin-top:6px;font-size:0.8rem;width:100%;">💾 Save current selection as a template</button>
+            <button class="ghost" id="saveTemplateBtn" style="margin-top:6px;font-size:0.8rem;width:100%;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg> Save current selection as a template</button>
           </div>
         </div>
 
@@ -2261,7 +2261,7 @@ function renderSessionList(){
     if(signedInDoctor && signedInDoctor.role === 'owner' && doctorNames.length > 1){
       const mergeBtn = document.createElement('button');
       mergeBtn.type = 'button';
-      mergeBtn.textContent = '🔀';
+      mergeBtn.textContent = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m18 4 3 3-3 3"/><path d="M2 7h13a5 5 0 0 1 5 5v0"/><path d="m18 20 3-3-3-3"/><path d="M20 17H7a5 5 0 0 1-5-5v0"/></svg>';
       mergeBtn.title = 'Merge with another name (same person, different spelling)';
       mergeBtn.style.cssText = 'font-size:0.75rem;padding:2px 6px;border-radius:4px;border:1px solid var(--gold);background:transparent;cursor:pointer;';
       mergeBtn.onclick = (e)=>{ e.stopPropagation(); promptMergeSessionDoctorGroup(doctorName, doctorNames.filter(n=> n !== doctorName)); };
@@ -3150,7 +3150,7 @@ Respond with ONLY the corrected JSON array in the exact same format and order, n
       renderTranscript();
       renderCorrectionLog();
       el('status').textContent = lastCorrectionLog.length > 0
-        ? `PT terminology checked — ${lastCorrectionLog.length} line(s) corrected (see "🔍 Terminology corrections" below).`
+        ? `PT terminology checked — ${lastCorrectionLog.length} line(s) corrected (see "<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Terminology corrections" below).`
         : 'PT terminology checked — no corrections needed.';
     } else {
       el('status').textContent = 'Terminology check returned an unexpected result — kept the original transcript.';
@@ -3169,7 +3169,7 @@ function renderCorrectionLog(){
     section.style.display = 'none';
     return;
   }
-  toggleBtn.textContent = `🔍 Terminology corrections made (${lastCorrectionLog.length})`;
+  toggleBtn.textContent = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Terminology corrections made (${lastCorrectionLog.length})`;
   list.innerHTML = lastCorrectionLog.map(c=>`
     <div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:0.83rem;">
       <div style="color:#a33d3d;text-decoration:line-through;opacity:0.75;">${escapeHtml(c.before)}</div>
@@ -4461,7 +4461,7 @@ async function loadExpenses(){
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
-        <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+        <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       </div>
     </div>`).join('');
     el('expenseList').querySelectorAll('.expense-delete-btn').forEach(btn=>{
@@ -5063,7 +5063,7 @@ function renderCalendarGrid(){
       const hex = CALENDAR_COLOR_HEX[ev.doctor_color] || '#8a938e';
       return `<span style="display:inline-block;width:5px;height:5px;border-radius:50%;background:${isSelected ? '#fff' : hex};margin:0 1px;"></span>`;
     }).join('');
-    cell.innerHTML = `<div>${hasUnavailability ? '🚫 ' : ''}${hasReminders ? '📝 ' : ''}${day}</div><div style="height:8px;">${dotsHtml}</div>`;
+    cell.innerHTML = `<div>${hasUnavailability ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg> ' : ''}${hasReminders ? '📝 ' : ''}${day}</div><div style="height:8px;">${dotsHtml}</div>`;
     cell.addEventListener('click', ()=>{
       calSelectedDate = d;
       renderCalendarGrid();
@@ -5108,7 +5108,7 @@ function renderDayRemindersList(){
     <span style="font-size:0.85rem;">${escapeHtml(r.patient_name)}</span>
     <div style="display:flex;gap:6px;">
       <button type="button" class="day-reminder-schedule-btn" data-id="${r.id}" data-name="${escapeHtml(r.patient_name)}" style="font-size:0.74rem;padding:4px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">📅 Schedule</button>
-      <button type="button" class="day-reminder-delete-btn" data-id="${r.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.85rem;">🗑️</button>
+      <button type="button" class="day-reminder-delete-btn" data-id="${r.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.85rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
   </div>`).join('');
   container.querySelectorAll('.day-reminder-schedule-btn').forEach(btn=>{
@@ -5161,7 +5161,7 @@ function renderDayUnavailabilityList(){
   }
   container.innerHTML = allDoctorNames.map(name=>{
     const isMarked = markedNames.has(name);
-    return `<button type="button" class="doctor-unavail-btn" data-name="${escapeHtml(name)}" style="font-size:0.75rem;padding:5px 10px;border-radius:var(--radius);border:1px solid ${isMarked ? '#b8894f' : 'var(--line)'};background:${isMarked ? '#b8894f' : 'var(--panel)'};color:${isMarked ? '#fff' : 'var(--ink)'};cursor:pointer;">${isMarked ? '🚫 ' : ''}${escapeHtml(name)}</button>`;
+    return `<button type="button" class="doctor-unavail-btn" data-name="${escapeHtml(name)}" style="font-size:0.75rem;padding:5px 10px;border-radius:var(--radius);border:1px solid ${isMarked ? '#b8894f' : 'var(--line)'};background:${isMarked ? '#b8894f' : 'var(--panel)'};color:${isMarked ? '#fff' : 'var(--ink)'};cursor:pointer;">${isMarked ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg> ' : ''}${escapeHtml(name)}</button>`;
   }).join('');
   container.querySelectorAll('.doctor-unavail-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
@@ -5791,7 +5791,7 @@ function renderAppointmentNotes(notes){
   container.innerHTML = notes.map(n=>{
     const timeStr = n.at ? new Date(n.at).toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
     return `<div style="background:var(--paper);border-radius:var(--radius);padding:8px 12px;margin-bottom:8px;position:relative;">
-      <button type="button" class="delete-note-btn" data-at="${escapeHtml(n.at || '')}" title="Delete this note" style="position:absolute;top:6px;left:8px;background:transparent;border:none;cursor:pointer;font-size:0.85rem;color:#a33d3d;opacity:0.6;">🗑️</button>
+      <button type="button" class="delete-note-btn" data-at="${escapeHtml(n.at || '')}" title="Delete this note" style="position:absolute;top:6px;left:8px;background:transparent;border:none;cursor:pointer;font-size:0.85rem;color:#a33d3d;opacity:0.6;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       <div style="font-size:0.9rem;padding-left:20px;">${escapeHtml(n.text)}</div>
       <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;padding-left:20px;">${escapeHtml(n.author || '')} · ${timeStr}</div>
     </div>`;
