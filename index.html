@@ -4285,6 +4285,8 @@ async function openPatientHistoryPopup(name){
   }
 }
 
+let unpaidListItems = [];
+
 function openPatientListPopup(items, title, emptyMessage, titleColor){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
   el('unpaidListTitle').textContent = title;
@@ -4295,16 +4297,25 @@ function openPatientListPopup(items, title, emptyMessage, titleColor){
     return;
   }
   const sorted = [...items].sort((a,b)=> new Date(a.start_time||0) - new Date(b.start_time||0));
-  el('unpaidListBody').innerHTML = sorted.map(ev=>{
+  unpaidListItems = sorted;
+  el('unpaidListBody').innerHTML = sorted.map((ev, i)=>{
     const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString(undefined, {month:'short', day:'numeric'}) + ' ' + new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
     return `<div style="border-bottom:1px solid var(--line);padding:9px 0;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-      <div>
-        <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(ev.patient_name || '(untitled)')}</div>
+      <div class="unpaid-list-name-link" data-idx="${i}" style="cursor:pointer;">
+        <div style="font-weight:600;font-size:0.85rem;text-decoration:underline;color:var(--maroon);">${escapeHtml(ev.patient_name || '(untitled)')}</div>
         <div style="font-size:0.76rem;color:#5b6863;">${escapeHtml(ev.doctor_name || '')} · ${dateLabel}</div>
       </div>
       ${ev._amount ? `<div style="font-weight:700;color:#0b8043;font-size:0.85rem;white-space:nowrap;">${ev._amount.toLocaleString()} EGP</div>` : ''}
     </div>`;
   }).join('');
+  el('unpaidListBody').querySelectorAll('.unpaid-list-name-link').forEach(row=>{
+    row.addEventListener('click', ()=>{
+      const ev = unpaidListItems[parseInt(row.getAttribute('data-idx'), 10)];
+      if(!ev) return;
+      el('unpaidListOverlay').style.display = 'none';
+      openPatientDetail(ev, 'payment');
+    });
+  });
 }
 
 async function loadDashboardStats(){
