@@ -806,11 +806,11 @@
 <div id="appBody">
 
 <header>
-  <button id="mainNavToggleBtn" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 10px;font-size:1rem;cursor:pointer;">☰</button>
-  <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">☰ Sessions</button>
+  <button id="mainNavToggleBtn" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 10px;font-size:1rem;cursor:pointer;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
+  <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg> Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
   <span class="tag">PT session scribe — pilot build</span>
-  <button id="adminDrawerToggleBtn" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;">⚙️ Admin & Settings</button>
+  <button id="adminDrawerToggleBtn" style="margin-left:auto;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:4px;padding:8px 12px;font-size:0.9rem;cursor:pointer;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Admin & Settings</button>
 </header>
 
 <div id="sidebarBackdrop" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:40;"></div>
@@ -821,12 +821,12 @@
   <h2 style="margin-left:30px;">Admin & Settings</h2>
 
   <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--line);">
-    <button type="button" class="admin-tab-btn active" id="adminTabSettingsBtn" data-tab="settings">⚙️ Settings</button>
-    <button type="button" class="admin-tab-btn" id="adminTabTeamBtn" data-tab="team">👥 Team</button>
+    <button type="button" class="admin-tab-btn active" id="adminTabSettingsBtn" data-tab="settings"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Settings</button>
+    <button type="button" class="admin-tab-btn" id="adminTabTeamBtn" data-tab="team"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Team</button>
   </div>
 
   <div id="adminTabPanelSettings">
-    <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
+    <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -834,7 +834,7 @@
       <button type="button" class="ghost" id="doctorCheckinBtn">Sign in with Google</button>
       <button type="button" class="ghost" id="doctorSignOutBtn" style="display:none;">Sign out</button>
       <button type="button" class="ghost" id="doctorSignOutEverywhereBtn" style="display:none;font-size:0.75rem;color:var(--danger);">Sign out on all devices</button>
-      <button type="button" class="ghost" id="enableNotificationsBtn" style="display:none;">🔔 Enable notifications on this device</button>
+      <button type="button" class="ghost" id="enableNotificationsBtn" style="display:none;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Enable notifications on this device</button>
       <div id="notificationsStatus" style="font-size:0.75rem;color:#8a938e;"></div>
       <div id="checkinStatus" style="font-size:0.8rem;color:#5b6863;"></div>
       <div style="display:flex;gap:8px;">
@@ -927,19 +927,19 @@
   </div>
 
   <div id="adminTabPanelTeam" style="display:none;">
-    <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;">🔐 Pending Deletions (owner only)</button>
+    <button type="button" id="pendingDeletesToggleBtn" class="ghost" style="margin-bottom:14px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Pending Deletions (owner only)</button>
     <div id="pendingDeletesPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="pendingDeletesList"></div>
       <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
-    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;">👥 Manage Doctors (owner only)</button>
+    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Manage Doctors (owner only)</button>
     <div id="doctorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="doctorsList"></div>
       <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
-    <button type="button" id="doctorColorsToggleBtn" class="ghost" style="margin-bottom:14px;">🎨 Doctor Colors (owner or secretary)</button>
+    <button type="button" id="doctorColorsToggleBtn" class="ghost" style="margin-bottom:14px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg> Doctor Colors (owner or secretary)</button>
     <div id="doctorColorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="doctorColorsList"></div>
       <div id="doctorColorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
@@ -955,7 +955,7 @@
     <button class="new-session-btn" id="newSessionBtn">+ New session</button>
     <button class="ghost" id="syncSessionsBtn" style="width:100%;margin-bottom:10px;font-size:0.82rem;">🔄 Sync from clinic server</button>
     <input type="text" id="sessionSearchInput" placeholder="<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Search patient…" style="width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;margin-bottom:10px;">
-    <button type="button" class="ghost" id="openIntakeListBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;">📋 Intake forms <span id="intakeFormsBadge"></span></button>
+    <button type="button" class="ghost" id="openIntakeListBtn" style="width:100%;margin-bottom:14px;font-size:0.82rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Intake forms <span id="intakeFormsBadge"></span></button>
     <div id="sessionList"></div>
   </div>
 
@@ -969,13 +969,13 @@
     </div>
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap;">
-      <div class="section-title" id="statsRow_todayInline_label" style="margin-top:0;">📊 Today</div>
+      <div class="section-title" id="statsRow_todayInline_label" style="margin-top:0;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg> Today</div>
       <input type="text" id="statsInlineDatePicker" inputmode="none" style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.82rem;">
     </div>
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
 
     <div id="dashboardStatsView" style="display:none;">
-      <div class="section-title" style="margin-top:8px;">📊 Today</div>
+      <div class="section-title" style="margin-top:8px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg> Today</div>
       <div class="dashboard-stats-row" id="statsRow_today"></div>
 
       <div class="section-title">📆 This month</div>
@@ -1011,7 +1011,7 @@
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
-      <div class="section-title">💸 Expenses</div>
+      <div class="section-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Expenses</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <input type="text" id="expenseDescInput" placeholder="What was it for?" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
@@ -1037,7 +1037,7 @@
       </div>
 
       <div id="regPackageSection">
-      <div class="section-title">🎁 Register an existing package</div>
+      <div class="section-title"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Register an existing package</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For a patient who already started a package before this system existed — no need to remember dates, just how many sessions they've used so far.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1100,7 +1100,7 @@
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTodayBtn" data-offset="0" style="font-size:0.75rem;padding:5px 10px;">Today</button>
             <button type="button" class="ghost reminders-day-btn" id="remindersDayTomorrowBtn" data-offset="1" style="font-size:0.75rem;padding:5px 10px;">Tomorrow</button>
-            <button type="button" class="ghost" id="remindersCustomDateBtn" style="font-size:0.75rem;padding:5px 10px;">📅 <span id="remindersCustomDateLabel">Pick date</span></button>
+            <button type="button" class="ghost" id="remindersCustomDateBtn" style="font-size:0.75rem;padding:5px 10px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> <span id="remindersCustomDateLabel">Pick date</span></button>
           </div>
         </div>
         <div id="tomorrowRemindersElevatorCode" style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;"></div>
@@ -1308,7 +1308,7 @@
     <div id="unpaidListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span id="unpaidListTitle" style="font-weight:700;color:var(--danger);">💸 Not paid yet</span>
+          <span id="unpaidListTitle" style="font-weight:700;color:var(--danger);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Not paid yet</span>
           <button type="button" id="unpaidListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="unpaidListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
@@ -1318,7 +1318,7 @@
     <div id="intakeListOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:420px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">📋 Intake forms</span>
+          <span style="font-weight:700;color:var(--maroon);"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Intake forms</span>
           <button type="button" id="intakeListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="intakeListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
@@ -1575,7 +1575,7 @@
       <div class="note-output">
         <div class="ai-flag">AI-generated draft — review and edit before saving to the chart. Any diagnosis suggestion below is a prompt for your judgment, not a conclusion.</div>
         <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:0.75rem;">
-          <button type="button" class="ghost" id="notePreviewToggleBtn" style="padding:5px 10px;font-size:0.78rem;">👁️ Preview with source highlighting</button>
+          <button type="button" class="ghost" id="notePreviewToggleBtn" style="padding:5px 10px;font-size:0.78rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> Preview with source highlighting</button>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#fff;border:1px solid #999;display:inline-block;"></span> Heard/documented</span>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#e3f2fd;border:1px solid #90caf9;display:inline-block;"></span> Manually selected</span>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#f3e5f5;border:1px solid #ce93d8;display:inline-block;"></span> AI-inferred</span>
@@ -1592,7 +1592,7 @@
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
         </div>
         <div class="actions-row" style="margin-top:10px;">
-          <button class="save-action" id="syncToServerBtn">☁️ Save to clinic server</button>
+          <button class="save-action" id="syncToServerBtn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 1 8.9"/></svg> Save to clinic server</button>
           <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg> Request delete (needs owner approval)</button>
         </div>
         <div class="status" id="syncStatus" style="margin-top:6px;margin-bottom:0;"></div>
@@ -1982,7 +1982,7 @@ async function loadPatientHistoryStatus(name){
       byDoctor[doc] = (byDoctor[doc] || 0) + 1;
     });
     const breakdown = Object.entries(byDoctor).map(([doc, count])=> `${count} مع ${doc}`).join('، ');
-    badge.innerHTML = `📅 <strong>${active.length}</strong> جلسة سابقة — ${breakdown}`;
+    badge.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> <strong>${active.length}</strong> جلسة سابقة — ${breakdown}`;
   }catch(e){
     console.error('Patient history lookup failed:', e);
     badge.textContent = '';
@@ -2039,7 +2039,7 @@ async function loadIntakeFormForPatient(name){
     if(!form){ notice.style.display = 'none'; return; }
     notice.style.display = 'block';
     notice.innerHTML = `
-      <div style="font-weight:600;color:var(--maroon);margin-bottom:4px;">📋 استمارة استقبال وصلت من ${escapeHtml(form.patient_name)}</div>
+      <div style="font-weight:600;color:var(--maroon);margin-bottom:4px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> استمارة استقبال وصلت من ${escapeHtml(form.patient_name)}</div>
       <div style="margin-bottom:4px;"><strong>التليفون:</strong> ${escapeHtml(form.patient_phone)}</div>
       ${form.chief_complaint ? `<div style="margin-bottom:8px;"><strong>الشكوى:</strong> ${escapeHtml(form.chief_complaint)}</div>` : ''}
       ${form.referral_source ? `<div style="margin-bottom:8px;"><strong>عرفنا إزاي:</strong> ${escapeHtml(form.referral_source)}</div>` : ''}
@@ -2080,7 +2080,7 @@ async function loadPackageStatusForPatient(name, logToChat){
       return;
     }
     const remaining = pkg.total_sessions - pkg.used_sessions;
-    badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>`;
+    badge.innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>`;
 
     if(logToChat){
       const noteText = `Package: ${pkg.used_sessions} of ${pkg.total_sessions} used`;
@@ -2327,7 +2327,7 @@ function renderDoctorPatientsGrid(){
       <span style="display:inline-block;width:fit-content;font-size:0.68rem;padding:2px 8px;border-radius:10px;background:${doctorColorHex};color:#fff;">${escapeHtml(doctorName)}</span>
       ${patientName !== 'Unnamed patient' ? `<div style="display:flex;gap:6px;margin-top:2px;">
         <button type="button" class="keep-card-followup-btn" data-patient="${escapeHtml(patientName)}" style="font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;">+ Follow-up</button>
-        <button type="button" class="keep-card-summary-btn" data-patient="${escapeHtml(patientName)}" style="font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;">📋 Summary</button>
+        <button type="button" class="keep-card-summary-btn" data-patient="${escapeHtml(patientName)}" style="font-size:0.68rem;padding:3px 8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Summary</button>
       </div>` : ''}
     </div>`;
   }).join('');
@@ -2402,7 +2402,7 @@ function openNoteExpandOnSummary(patientName, latestId){
 function renderNoteExpandTabBar(){
   const bar = el('noteExpandTabBar');
   bar.innerHTML = noteExpandTabs.map((tab, i)=>{
-    const label = tab.type === 'summary' ? '📋 Summary' : tab.label;
+    const label = tab.type === 'summary' ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Summary' : tab.label;
     const isActive = i === noteExpandActiveTabIndex;
     return `<button type="button" class="note-expand-tab-btn" data-idx="${i}" style="flex-shrink:0;padding:10px 14px;font-size:0.8rem;border:none;background:transparent;border-bottom:2px solid ${isActive ? 'var(--maroon)' : 'transparent'};color:${isActive ? 'var(--maroon)' : '#5b6863'};font-weight:${isActive ? '700' : '400'};cursor:pointer;white-space:nowrap;">${label}</button>`;
   }).join('');
@@ -2857,7 +2857,7 @@ function startRecAudioMonitor(stream){
             }
           }
           if(recQuietStreak >= QUIET_SECONDS_TO_WARN){
-            setRecFailsafeState('warning', '⚠️ Very quiet for a while — check the phone is still close enough to pick up speech.');
+            setRecFailsafeState('warning', '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Very quiet for a while — check the phone is still close enough to pick up speech.');
           }
         }
       }
@@ -2884,7 +2884,7 @@ function startRecWatchdog(){
     if(!mediaRecorder || mediaRecorder.state === 'inactive'){
       // We believe we're recording but the recorder itself has stopped —
       // the browser or OS killed it without our stop button being pressed.
-      setRecFailsafeState('lost', '⚠️ RECORDING STOPPED UNEXPECTEDLY — tap Start recording again. Anything captured so far was saved.');
+      setRecFailsafeState('lost', '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> RECORDING STOPPED UNEXPECTEDLY — tap Start recording again. Anything captured so far was saved.');
       isRecording = false;
       el('recordBtn').textContent = 'Start recording';
       el('recordBtn').classList.remove('stop');
@@ -2913,7 +2913,7 @@ async function toggleRecording(){
       // from saved recording" can pick this up later once that's sorted.
       el('keyStatus').textContent = 'Not signed in — recording anyway so you don\'t lose this session. Sign in before the note can be generated.';
       el('keyStatus').style.color = '#b8894f';
-      el('status').textContent = '⚠️ Recording without sign-in — audio will be saved, but sign in with Google before transcription/notes will work.';
+      el('status').textContent = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Recording without sign-in — audio will be saved, but sign in with Google before transcription/notes will work.';
     }
     try{
       mediaStream = await navigator.mediaDevices.getUserMedia(AUDIO_CAPTURE_CONSTRAINTS);
@@ -3244,7 +3244,7 @@ ${sharedRules}`;
     if(warningMatch){
       const warningText = warningMatch[1].trim();
       note = (note.slice(0, warningMatch.index) + note.slice(warningMatch.index + warningMatch[0].length)).replace(/^\s+/, '');
-      el('qualityWarningBanner').innerHTML = `⚠️ <strong>Transcript quality notice:</strong> ${escapeHtml(warningText)}`;
+      el('qualityWarningBanner').innerHTML = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> <strong>Transcript quality notice:</strong> ${escapeHtml(warningText)}`;
       el('qualityWarningBanner').style.display = 'block';
     } else {
       el('qualityWarningBanner').style.display = 'none';
@@ -3263,7 +3263,7 @@ ${sharedRules}`;
     el('noteApprovedCheckbox').checked = false;
     el('notePreview').style.display = 'none';
     el('noteText').style.display = 'block';
-    el('notePreviewToggleBtn').textContent = '👁️ Preview with source highlighting';
+    el('notePreviewToggleBtn').textContent = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> Preview with source highlighting';
     el('noteSection').style.display = 'block';
     el('status').textContent = 'Draft ready — saved automatically. Review carefully before finalizing.';
     await saveSession();
@@ -3420,7 +3420,7 @@ async function syncSessionToServerQuietly(){
     el('status').textContent = 'Session saved (synced to clinic server).';
   }catch(e){
     console.error('Background sync failed:', e);
-    el('status').textContent = 'Session saved locally — could not sync to clinic server yet (will need "☁️ Save to clinic server" or a retry).';
+    el('status').textContent = 'Session saved locally — could not sync to clinic server yet (will need "<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 1 8.9"/></svg> Save to clinic server" or a retry).';
   }
 }
 
@@ -4175,7 +4175,7 @@ function renderStatsRow(prefix, stats){
   }
   const fmt = n => (n || 0).toLocaleString();
   const cards = [
-    { label: 'Appointments', num: stats.total, icon: '📅', bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)' },
+    { label: 'Appointments', num: stats.total, icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg>', bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)' },
     { label: 'Confirmation sent', num: stats.sentCount, icon: '➤', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)' },
     { label: 'Confirmed', num: stats.confirmedCount, icon: '✓', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' },
     { label: 'Paid', num: stats.paidCount, icon: '💳', bg: 'var(--badge-purple-bg)', fg: 'var(--badge-purple-fg)' },
@@ -4187,9 +4187,9 @@ function renderStatsRow(prefix, stats){
   // more people might casually see.
   if(prefix !== 'todayInline'){
     cards.push(
-      { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: '💰', bg: '#fbf0e0', fg: '#b8894f' },
-      { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), icon: '💵', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
-      { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: '🔵', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
+      { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>', bg: '#fbf0e0', fg: '#b8894f' },
+      { label: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Cash (EGP)', num: fmt(stats.cashTotal), icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg>', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
+      { label: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
     );
   }
   row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''} style="${c.clickKey ? '' : 'cursor:default;'}">
@@ -4202,9 +4202,9 @@ function renderStatsRow(prefix, stats){
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
-    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '💸 Not paid yet', 'Nobody unpaid in this range 🎉', '#a33d3d'));
-    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '💵 Paid by Cash', 'No cash payments in this range.', '#0b8043'));
-    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '🔵 Paid by InstaPay', 'No InstaPay payments in this range.', '#0b8043'));
+    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Not paid yet', 'Nobody unpaid in this range <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/></svg>', '#a33d3d'));
+    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Paid by Cash', 'No cash payments in this range.', '#0b8043'));
+    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Paid by InstaPay', 'No InstaPay payments in this range.', '#0b8043'));
   });
 }
 
@@ -4241,9 +4241,9 @@ function extractPaymentDetail(ev){
   for(const n of notes){
     const text = (n.text || '').trim();
     const packageMatch = text.match(/^covered by package.*?session\s*(\d+)\s*of\s*(\d+)/i);
-    if(packageMatch) return `🎁 Package — session ${packageMatch[1]} of ${packageMatch[2]}`;
+    if(packageMatch) return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Package — session ${packageMatch[1]} of ${packageMatch[2]}`;
     const cashMatch = text.match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
-    if(cashMatch) return `💰 ${cashMatch[1]} EGP (${cashMatch[2]})`;
+    if(cashMatch) return `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg> ${cashMatch[1]} EGP (${cashMatch[2]})`;
   }
   if(ev.is_free) return '🆓 Free';
   return null;
@@ -4251,7 +4251,7 @@ function extractPaymentDetail(ev){
 
 async function openPatientHistoryPopup(name){
   if(!name) return;
-  el('patientHistoryTitle').textContent = `📋 ${name} — history`;
+  el('patientHistoryTitle').textContent = `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> ${name} — history`;
   el('patientDetailOverlay').style.display = 'flex';
   el('patientHistoryBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">Loading…</div>';
   try{
@@ -4271,8 +4271,8 @@ async function openPatientHistoryPopup(name){
       const paymentDetail = extractPaymentDetail(ev);
       const statusTag = isCancelled ? '<span style="color:#a33d3d;font-weight:700;">❌ Cancelled</span>'
         : isNoShow ? '<span style="color:#b8894f;font-weight:700;">👻 No show</span>'
-        : ev.paid ? `<span style="color:#0b8043;font-weight:700;">${escapeHtml(paymentDetail || '💰 Paid')}</span>`
-        : '<span style="color:#a33d3d;font-weight:700;">💸 Unpaid</span>';
+        : ev.paid ? `<span style="color:#0b8043;font-weight:700;">${escapeHtml(paymentDetail || '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg> Paid')}</span>`
+        : '<span style="color:#a33d3d;font-weight:700;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Unpaid</span>';
       return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
         <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(dateLabel)}</div>
         <div style="font-size:0.78rem;color:#5b6863;margin:2px 0;">${escapeHtml(ev.doctor_name || 'Unassigned')}${isCheckup ? ' · 🩺 Check-up' : ''}</div>
@@ -4372,7 +4372,7 @@ async function registerExistingPackage(){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
-    el('regPackageStatus').textContent = `Saved — ${patientName} now has ${used} of ${total} sessions used. The "🎁 Package" button will work for their remaining sessions.`;
+    el('regPackageStatus').textContent = `Saved — ${patientName} now has ${used} of ${total} sessions used. The "<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Package" button will work for their remaining sessions.`;
     el('regPackagePatientInput').value = '';
     el('regPackageUsedInput').value = '0';
   }catch(e){
@@ -4553,7 +4553,7 @@ async function loadDoctorStatsThisMonth(){
     table.querySelectorAll('.doctor-paid-link').forEach(el2=>{
       el2.addEventListener('click', ()=>{
         const name = el2.getAttribute('data-name');
-        openPatientListPopup(doctorPaidAppointmentsByName[name] || [], `💰 Paid — ${name} (this month)`, 'Nobody paid yet.', '#0b8043');
+        openPatientListPopup(doctorPaidAppointmentsByName[name] || [], `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg> Paid — ${name} (this month)`, 'Nobody paid yet.', '#0b8043');
         el('unpaidListTitle').style.color = '#0b8043';
       });
     });
@@ -4601,7 +4601,7 @@ function refreshInlineStatsRow(){
   const label = el('statsRow_todayInline_label');
   if(label){
     const isToday = sameDay(d, new Date());
-    label.textContent = isToday ? '📊 Today' : `📊 ${d.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'})}`;
+    label.textContent = isToday ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg> Today' : `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg> ${d.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'})}`;
   }
   const pad2 = n=> String(n).padStart(2,'0');
   el('statsInlineDatePicker').value = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
@@ -4666,24 +4666,24 @@ function renderDoctorsRoster(items){
         <span style="font-size:0.72rem;color:#8a938e;">Email/password login:</span>
         <input type="password" class="set-password-input" data-email="${d.email}" placeholder="Set a password" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);min-width:120px;">
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
-        <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;">📋 Copy</button>
+        <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Copy</button>
       </div>
       ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;align-items:center;">
         <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
-          📊 Can view Dashboard (payment/confirmation stats)
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg> Can view Dashboard (payment/confirmation stats)
         </label>
       </div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
-        <div style="font-size:0.72rem;color:#8a938e;margin-bottom:6px;">🔐 Detailed permissions:</div>
+        <div style="font-size:0.72rem;color:#8a938e;margin-bottom:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Detailed permissions:</div>
         <div class="permissions-checklist" data-email="${d.email}" style="display:flex;flex-direction:column;gap:5px;">
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="view_payments" ${d.permissions?.view_payments ? 'checked' : ''}>
-            💰 See/record payments
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg> See/record payments
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="manage_other_appointments" ${d.permissions?.manage_other_appointments ? 'checked' : ''}>
-            📅 Book/edit other doctors' appointments
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> Book/edit other doctors' appointments
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="send_whatsapp" ${d.permissions?.send_whatsapp ? 'checked' : ''}>
@@ -4691,7 +4691,7 @@ function renderDoctorsRoster(items){
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="view_other_patients" ${d.permissions?.view_other_patients ? 'checked' : ''}>
-            📋 See other doctors' patient notes/history
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> See other doctors' patient notes/history
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="edit_cancel_appointments" ${d.permissions?.edit_cancel_appointments ? 'checked' : ''}>
@@ -4699,11 +4699,11 @@ function renderDoctorsRoster(items){
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="manage_team" ${d.permissions?.manage_team ? 'checked' : ''}>
-            👥 Add/remove doctors from the team
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Add/remove doctors from the team
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="register_packages" ${d.permissions?.register_packages ? 'checked' : ''}>
-            🎁 Backfill an existing/old package
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg> Backfill an existing/old package
           </label>
         </div>
       </div>` : ''}
@@ -4811,7 +4811,7 @@ async function setDoctorPassword(email, password, inputEl){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
-    el('doctorsStatus').textContent = `Password set for ${email} — tap 📋 Copy now to save it somewhere before you forget it (it can't be recovered from here later).`;
+    el('doctorsStatus').textContent = `Password set for ${email} — tap <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"/></svg> Copy now to save it somewhere before you forget it (it can't be recovered from here later).`;
   }catch(e){
     console.error(e);
     el('doctorsStatus').textContent = 'Could not set password: ' + (e.message || e);
@@ -5107,7 +5107,7 @@ function renderDayRemindersList(){
   container.innerHTML = reminders.map(r=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);">
     <span style="font-size:0.85rem;">${escapeHtml(r.patient_name)}</span>
     <div style="display:flex;gap:6px;">
-      <button type="button" class="day-reminder-schedule-btn" data-id="${r.id}" data-name="${escapeHtml(r.patient_name)}" style="font-size:0.74rem;padding:4px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">📅 Schedule</button>
+      <button type="button" class="day-reminder-schedule-btn" data-id="${r.id}" data-name="${escapeHtml(r.patient_name)}" style="font-size:0.74rem;padding:4px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> Schedule</button>
       <button type="button" class="day-reminder-delete-btn" data-id="${r.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.85rem;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
   </div>`).join('');
@@ -5366,11 +5366,11 @@ async function submitPayment(method){
       await loadMonthAndDay();
       if(updatedPkg.used_sessions >= updatedPkg.total_sessions){
         const phone = currentPaymentTarget && currentPaymentTarget.patient_phone;
-        if(phone && confirm(`🎉 ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}.\n\nSend them a quick "hope you're feeling better" message now?`)){
+        if(phone && confirm(`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/></svg> ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}.\n\nSend them a quick "hope you're feeling better" message now?`)){
           const message = WHATSAPP_TEMPLATES.package_last_session.build(patientName);
           location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(message)}`;
         }else if(!phone){
-          alert(`🎉 ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}. No phone number on file to send a message — they'll need a new package or per-session payment from here.`);
+          alert(`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 3h.01"/><path d="M22 8h.01"/><path d="M15 2h.01"/><path d="M22 20h.01"/><path d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"/><path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11c-.11.7-.72 1.22-1.43 1.22H17"/><path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98C9.52 4.9 9 5.52 9 6.23V7"/></svg> ${patientName}'s package is finished! That was session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions}. No phone number on file to send a message — they'll need a new package or per-session payment from here.`);
         }
       }else{
         el('scheduleStatus').textContent = `${patientName}: session ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used.`;
@@ -5691,7 +5691,7 @@ async function markAppointmentNoShow(){
                 headers: { 'Content-Type': 'application/json', ...authHeader() },
                 body: JSON.stringify({ text: `No-show penalty — 1 session deducted from package (${count} no-shows, package now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used)` })
               });
-              alert(`⚠️ ${patientName} has reached ${count} no-shows — one session was deducted from their package (now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used).`);
+              alert(`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ${patientName} has reached ${count} no-shows — one session was deducted from their package (now ${updatedPkg.used_sessions} of ${updatedPkg.total_sessions} used).`);
             }
           }else{
             await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentEditAppointment.id)}/notes`, {
@@ -5699,7 +5699,7 @@ async function markAppointmentNoShow(){
               headers: { 'Content-Type': 'application/json', ...authHeader() },
               body: JSON.stringify({ text: `${count} no-shows reached — no active package to deduct from` })
             });
-            alert(`⚠️ ${patientName} has reached ${count} no-shows, but has no active package to deduct from.`);
+            alert(`<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> ${patientName} has reached ${count} no-shows, but has no active package to deduct from.`);
           }
         }
       }
@@ -6451,7 +6451,7 @@ function renderTimeTreeEventsList(){
     if(match && match.exact){
       nameFlag = '<span style="color:#1b8a4a;font-size:0.72rem;">✓ matches existing patient</span>';
     }else if(match){
-      nameFlag = `<span style="color:#c0392b;font-size:0.72rem;">⚠️ typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
+      nameFlag = `<span style="color:#c0392b;font-size:0.72rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
       nameToUse = match.match; // default to the existing spelling; owner can still edit
     }
     const color = (ev.color || '').toLowerCase();
@@ -6460,9 +6460,9 @@ function renderTimeTreeEventsList(){
     const colorTag = isCancelledColor
       ? '<span style="color:#1b8a4a;font-size:0.7rem;">🟢 looked cancelled in TimeTree</span>'
       : guessedDoctor
-        ? `<span style="color:#5b6863;font-size:0.7rem;">🎨 color matched to ${escapeHtml(guessedDoctor.name || guessedDoctor.email)}</span>`
+        ? `<span style="color:#5b6863;font-size:0.7rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg> color matched to ${escapeHtml(guessedDoctor.name || guessedDoctor.email)}</span>`
         : color && color !== 'unknown'
-          ? `<span style="color:#b8894f;font-size:0.7rem;">🎨 color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
+          ? `<span style="color:#b8894f;font-size:0.7rem;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2Z"/></svg> color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
           : '';
     const nameChoiceButtons = (match && !match.exact) ? `<div style="display:flex;gap:6px;margin-bottom:4px;">
         <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(match.match)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #1b8a4a;background:#e3f6ea;color:#1b8a4a;cursor:pointer;">✓ Yes, same person</button>
@@ -7153,7 +7153,7 @@ function downloadNotePDF(){
     return;
   }
   if(!el('noteApprovedCheckbox').checked){
-    el('status').textContent = '⚠️ Please review the note (check the highlighted preview) and tick the approval box before exporting a PDF.';
+    el('status').textContent = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="m21.7 18-8-14.3a2 2 0 0 0-3.5 0L2.3 18a2 2 0 0 0 1.7 3h16a2 2 0 0 0 1.7-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg> Please review the note (check the highlighted preview) and tick the approval box before exporting a PDF.';
     return;
   }
   const patientName = el('patientName').value || 'Unnamed patient';
@@ -7182,7 +7182,7 @@ async function generatePatientSummary(patientName){
     }
     const patientSessions = await res.json();
     if(!patientSessions || patientSessions.length === 0){
-      el('patientSummaryStatus').textContent = 'No sessions found on the clinic server for this patient. (Sessions must be saved with "☁️ Save to clinic server" to appear here.)';
+      el('patientSummaryStatus').textContent = 'No sessions found on the clinic server for this patient. (Sessions must be saved with "<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h.79a4.5 4.5 0 1 1 1 8.9"/></svg> Save to clinic server" to appear here.)';
       return;
     }
     const combined = patientSessions.map(s=>{
@@ -7538,7 +7538,7 @@ el('quickBookPatientInput').addEventListener('change', ()=> autofillPatientPhone
 el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatientPhone('editAppointmentPatientInput', 'editAppointmentPhoneInput'));
 
 // ---- Top-level view switcher: Calendar vs Documentation ----
-// Documentation owns the Sessions sidebar (☰ button in the header) — it
+// Documentation owns the Sessions sidebar (<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg> button in the header) — it
 // only makes sense while looking at patient notes, so it's hidden while
 // the Calendar view is active instead of floating globally.
 function switchMainView(view){
@@ -7989,7 +7989,7 @@ el('notePreviewToggleBtn').addEventListener('click', ()=>{
   if(isShowing){
     preview.style.display = 'none';
     textarea.style.display = 'block';
-    el('notePreviewToggleBtn').textContent = '👁️ Preview with source highlighting';
+    el('notePreviewToggleBtn').textContent = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg> Preview with source highlighting';
   } else {
     preview.innerHTML = buildHighlightedNotePreview(textarea.value);
     preview.style.display = 'block';
@@ -8067,8 +8067,8 @@ el('settingsToggleBtn').addEventListener('click', ()=>{
   const isOpen = panel.style.display !== 'none';
   panel.style.display = isOpen ? 'none' : 'block';
   el('settingsToggleBtn').textContent = isOpen
-    ? '⚙️ Settings (API keys, dialect, Drive backup)'
-    : '⚙️ Hide settings';
+    ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Settings (API keys, dialect, Drive backup)'
+    : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg> Hide settings';
 });
 
 el('newSessionBtn').addEventListener('click', startNewSession);
@@ -8222,7 +8222,7 @@ async function refreshNotificationButtonLabel(){
   }
   if(!swRegistration) swRegistration = await navigator.serviceWorker.getRegistration('./');
   const existing = swRegistration ? await swRegistration.pushManager.getSubscription() : null;
-  btn.textContent = existing ? '🔔 Notifications on for this device' : '🔔 Enable notifications on this device';
+  btn.textContent = existing ? '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Notifications on for this device' : '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;display:inline-block;vertical-align:-2px;"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg> Enable notifications on this device';
 }
 
 async function enableNotifications(){
