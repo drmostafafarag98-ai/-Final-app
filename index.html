@@ -970,7 +970,7 @@
 
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap;">
       <div class="section-title" id="statsRow_todayInline_label" style="margin-top:0;">📊 Today</div>
-      <input type="date" id="statsInlineDatePicker" style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.82rem;">
+      <input type="text" id="statsInlineDatePicker" inputmode="none" style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.82rem;">
     </div>
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
 
@@ -986,9 +986,9 @@
 
       <div class="section-title">🔎 Custom range</div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-        <input type="date" id="statsRangeFromInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <input type="text" id="statsRangeFromInput" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
         <span style="font-size:0.85rem;color:#5b6863;">to</span>
-        <input type="date" id="statsRangeToInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <input type="text" id="statsRangeToInput" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
         <button type="button" class="ghost" id="statsRangeGoBtn">Show</button>
       </div>
       <div class="dashboard-stats-row" id="statsRow_custom"></div>
@@ -997,7 +997,7 @@
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Sends a Meta-approved WhatsApp template to everyone booked on the chosen day (the automated midnight version is currently off) — press this whenever you want it sent instead.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <input type="date" id="manualSendDateInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="manualSendDateInput" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <select id="manualSendTemplateSelect" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
             <option value="appointment_confirmation">Confirmation (needs name/date/time)</option>
             <option value="package_policy">Package policy (no variables)</option>
@@ -1016,7 +1016,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <input type="text" id="expenseDescInput" placeholder="What was it for?" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <input type="number" id="expenseAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
-          <input type="date" id="expenseDateInput" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="expenseDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <button type="button" class="ghost" id="addExpenseBtn">Add</button>
         </div>
         <div id="expenseStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
@@ -1028,9 +1028,9 @@
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Downloads a CSV file (date, patient, doctor, payment method, amount) for the range you pick below — open it in Excel, or upload/paste it into Google Sheets.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <input type="date" id="exportFromDate" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="exportFromDate" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <span style="font-size:0.85rem;color:#5b6863;">to</span>
-          <input type="date" id="exportToDate" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="exportToDate" inputmode="none" style="padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <button type="button" class="ghost" id="exportCsvBtn">📥 Download CSV</button>
         </div>
         <div id="exportStatus" style="font-size:0.75rem;color:#8a938e;margin-top:8px;"></div>
@@ -1260,7 +1260,7 @@
             <input type="text" id="editAppointmentPatientInput" list="knownPatientsList" placeholder="Patient name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
             <input type="tel" id="editAppointmentPhoneInput" placeholder="Phone" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
             <div style="display:flex;gap:8px;">
-              <input type="date" id="editAppointmentDateInput" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+              <input type="text" id="editAppointmentDateInput" inputmode="none" style="flex:1;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
             </div>
             <label style="font-size:0.78rem;color:#5b6863;">Time</label>
             <div style="display:flex;gap:8px;align-items:center;">
@@ -1464,7 +1464,7 @@
           <label style="font-size:0.78rem;color:#5b6863;">Patient's name</label>
           <input type="text" id="invoicePatientInput" placeholder="Patient's name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Date</label>
-          <input type="date" id="invoiceDateInput" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          <input type="text" id="invoiceDateInput" inputmode="none" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Doctor's name (appears above the signature)</label>
           <input type="text" id="invoiceDoctorInput" placeholder="Doctor's name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Number of sessions (1 for a single session, or a package size)</label>
@@ -1497,7 +1497,7 @@
     <div class="patient-row" style="margin-top:-8px;flex-direction:column;align-items:stretch;gap:6px;">
       <div style="display:flex;gap:8px;align-items:center;">
         <label style="font-size:0.78rem;color:#5b6863;white-space:nowrap;">Surgery date (if applicable):</label>
-        <input type="date" id="surgeryDateInput" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
+        <input type="text" id="surgeryDateInput" inputmode="none" style="flex:1;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
         <button type="button" class="ghost" id="clearSurgeryDateBtn" style="font-size:0.75rem;padding:6px 10px;white-space:nowrap;">Clear</button>
       </div>
       <div id="postOpDayLabel" style="font-size:0.82rem;font-weight:600;color:var(--maroon);"></div>
@@ -5257,6 +5257,8 @@ let currentPaymentTarget = null;
 let paymentOverlayItems = [];
 async function openPaymentOverlay(ev){
   currentPaymentTarget = ev;
+  submitPaymentInProgress = false;
+  ['paymentMethodCashBtn','paymentMethodInstaPayBtn','paymentMethodPackageBtn','markFreeBtn','justMarkPaidBtn','markUnpaidBtn'].forEach(id=>{ const b = el(id); if(b) b.disabled = false; });
   el('paymentPatientName').textContent = ev.patient_name || '(untitled)';
   const requestedMatch = (ev.notes || []).map(n=> (n.text || '').match(/^payment requested:\s*([\d.,]+)\s*egp/i)).find(Boolean);
   el('paymentAmountInput').value = requestedMatch ? requestedMatch[1] : '';
@@ -5293,7 +5295,11 @@ async function openPaymentOverlay(ev){
   }
 }
 
+let submitPaymentInProgress = false;
 async function submitPayment(method){
+  if(submitPaymentInProgress){
+    return; // already processing a submission — ignore extra taps
+  }
   const isPackage = method === 'Package';
   const amount = el('paymentAmountInput').value.trim();
   if(!isPackage && !amount){
@@ -5307,6 +5313,10 @@ async function submitPayment(method){
   }
   const patientName = currentPaymentTarget ? currentPaymentTarget.patient_name : '';
   el('paymentOverlayStatus').textContent = 'Saving…';
+  submitPaymentInProgress = true;
+  const paymentButtonIds = ['paymentMethodCashBtn','paymentMethodInstaPayBtn','paymentMethodPackageBtn','markFreeBtn','justMarkPaidBtn','markUnpaidBtn'];
+  paymentButtonIds.forEach(id=>{ const b = el(id); if(b) b.disabled = true; });
+  try{
 
   // ---- Package button: consume from this patient's active package ----
   if(isPackage){
@@ -5417,6 +5427,11 @@ async function submitPayment(method){
   }catch(err){
     console.error(err);
     el('paymentOverlayStatus').textContent = 'Could not save: ' + (err.message || err);
+  }
+
+  }finally{
+    submitPaymentInProgress = false;
+    paymentButtonIds.forEach(id=>{ const b = el(id); if(b) b.disabled = false; });
   }
 }
 
