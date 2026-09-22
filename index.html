@@ -2304,12 +2304,26 @@ function renderDoctorPatientsGrid(){
   const searchQuery = (el('doctorGridSearchInput').value || '').trim().toLowerCase();
   const ids = Object.keys(sessions).filter(id=> ((sessions[id].doctorName || 'Unassigned').trim() || 'Unassigned') === doctorName);
 
-  const patientGroups = {};
+  // Group case-insensitively so "Raghda" and "raghda" merge into one card
+  // instead of showing as two separate patients. The canonical display
+  // name used everywhere downstream is whichever casing was used most
+  // recently.
+  const byLowerKey = {};
   ids.forEach(id=>{
     const s = sessions[id];
-    const key = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
-    if(!patientGroups[key]) patientGroups[key] = [];
-    patientGroups[key].push(id);
+    const rawName = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
+    const lowerKey = rawName.toLowerCase();
+    if(!byLowerKey[lowerKey]) byLowerKey[lowerKey] = { displayName: rawName, latestCreatedAt: -Infinity, ids: [] };
+    byLowerKey[lowerKey].ids.push(id);
+    const createdAt = s.createdAt || 0;
+    if(createdAt >= byLowerKey[lowerKey].latestCreatedAt){
+      byLowerKey[lowerKey].displayName = rawName;
+      byLowerKey[lowerKey].latestCreatedAt = createdAt;
+    }
+  });
+  const patientGroups = {};
+  Object.values(byLowerKey).forEach(group=>{
+    patientGroups[group.displayName] = group.ids;
   });
   Object.keys(patientGroups).forEach(key=>{
     patientGroups[key].sort((a,b)=> (sessions[b].createdAt||0) - (sessions[a].createdAt||0));
@@ -6490,7 +6504,9 @@ function nameSimilarity(a, b){
 
 function findClosestKnownPatient(name){
   const known = [...new Set(Object.values(sessions).map(s=> (s.patientName||'').trim()).filter(Boolean))];
-  if(known.includes(name.trim())) return { match: name.trim(), exact: true };
+  const typedTrimmed = name.trim();
+  const exactCaseInsensitive = known.find(k=> k.toLowerCase() === typedTrimmed.toLowerCase());
+  if(exactCaseInsensitive) return { match: exactCaseInsensitive, exact: true };
   let best = null, bestScore = 0;
   known.forEach(k=>{
     const score = nameSimilarity(k, name);
