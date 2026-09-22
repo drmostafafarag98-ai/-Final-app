@@ -4172,7 +4172,7 @@ async function fetchStatsForRange(start, end){
     let cashTotal = 0, instapayTotal = 0;
     const cashItems = [], instapayItems = [];
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
-    items.forEach(ev=>{
+    active.forEach(ev=>{
       (ev.notes || []).forEach(n=>{
         const m = (n.text || '').trim().match(paidNoteRe);
         if(!m) return;
