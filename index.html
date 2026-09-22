@@ -1031,6 +1031,10 @@
           <input type="text" id="expenseDescInput" placeholder="What was it for?" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <input type="number" id="expenseAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <input type="text" id="expenseDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <div id="expensePaymentMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="expense-method-btn active" data-method="cash" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button>
+            <button type="button" class="expense-method-btn" data-method="instapay" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
+          </div>
           <button type="button" class="ghost" id="addExpenseBtn">Add</button>
         </div>
         <div id="expenseStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
@@ -4584,6 +4588,16 @@ async function calculatePayroll(){
   }
 }
 
+let selectedExpenseMethod = 'cash';
+function setExpenseMethod(method){
+  selectedExpenseMethod = method;
+  document.querySelectorAll('.expense-method-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-method') === method;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
 async function loadExpenses(){
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
@@ -4595,21 +4609,26 @@ async function loadExpenses(){
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     const items = (await res.json()) || [];
     const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
-    el('expenseMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP spent`;
+    const cashTotal = items.filter(e=> (e.payment_method || 'cash') === 'cash').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    const instapayTotal = items.filter(e=> e.payment_method === 'instapay').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    el('expenseMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP spent (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
     if(items.length === 0){
       el('expenseList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No expenses logged this month.</div>';
       return;
     }
-    el('expenseList').innerHTML = items.map(e=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+    el('expenseList').innerHTML = items.map(e=>{
+      const isInstapay = e.payment_method === 'instapay';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
       <div>
         <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
-        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)} · <span style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
         <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
       </div>
-    </div>`).join('');
+    </div>`;
+    }).join('');
     el('expenseList').querySelectorAll('.expense-delete-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         if(!confirm('Delete this expense?')) return;
@@ -4627,6 +4646,7 @@ async function addExpense(){
   const description = el('expenseDescInput').value.trim();
   const amount = parseFloat(el('expenseAmountInput').value);
   const expenseDate = el('expenseDateInput').value || new Date().toISOString().slice(0,10);
+  const paymentMethod = selectedExpenseMethod;
   if(!description || !amount){
     el('expenseStatus').textContent = 'Enter a description and amount first.';
     return;
@@ -4636,12 +4656,13 @@ async function addExpense(){
     const res = await fetch(`${BACKEND_URL}/api/expenses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ description, amount, expenseDate })
+      body: JSON.stringify({ description, amount, expenseDate, paymentMethod })
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     el('expenseDescInput').value = '';
     el('expenseAmountInput').value = '';
     el('expenseStatus').textContent = '';
+    setExpenseMethod('cash');
     loadExpenses();
   }catch(e){
     console.error(e);
@@ -7789,6 +7810,9 @@ el('statsRangeGoBtn').addEventListener('click', async ()=>{
 });
 el('exportCsvBtn').addEventListener('click', exportCsv);
 el('regPackageBtn').addEventListener('click', registerExistingPackage);
+document.querySelectorAll('.expense-method-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setExpenseMethod(btn.getAttribute('data-method')));
+});
 el('addExpenseBtn').addEventListener('click', addExpense);
 el('calcPayrollBtn').addEventListener('click', calculatePayroll);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
