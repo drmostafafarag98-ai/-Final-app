@@ -1011,6 +1011,20 @@
       <div class="section-title">👨‍⚕️ By doctor — this month</div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
+      <div id="payrollSectionWrap" style="display:none;">
+        <div class="section-title">💰 Doctor Payroll</div>
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+            <input type="text" id="payrollFromInput" inputmode="none" placeholder="From" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+            <input type="text" id="payrollToInput" inputmode="none" placeholder="To" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+            <button type="button" class="ghost" id="calcPayrollBtn">Calculate</button>
+          </div>
+          <div id="payrollStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:8px;"></div>
+          <div id="payrollSummary" style="font-size:0.82rem;margin-bottom:10px;"></div>
+          <div id="payrollTable"></div>
+        </div>
+      </div>
+
       <div class="section-title">💸 Expenses</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
@@ -3858,6 +3872,7 @@ function applyLoginResult(doctor){
   signedInDoctor = doctor;
   updateSignInStatusUI();
   el('openTrashBtn').style.display = (signedInDoctor.role === 'owner') ? 'block' : 'none';
+  el('payrollSectionWrap').style.display = (signedInDoctor.role === 'owner') ? 'block' : 'none';
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
     loadDashboardSummary();
@@ -4438,6 +4453,44 @@ async function exportCsv(){
 
 let doctorPaidAppointmentsByName = {};
 
+async function calculatePayroll(){
+  const fromVal = el('payrollFromInput').value;
+  const toVal = el('payrollToInput').value;
+  if(!fromVal || !toVal){
+    el('payrollStatus').textContent = 'Pick a from and to date first.';
+    return;
+  }
+  const start = new Date(fromVal + 'T00:00:00');
+  const end = new Date(toVal + 'T23:59:59');
+  el('payrollStatus').textContent = 'Calculating…';
+  el('payrollTable').innerHTML = '';
+  el('payrollSummary').innerHTML = '';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/payroll?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || `Server error ${res.status}`);
+    el('payrollStatus').textContent = '';
+    const fmt = n => (n || 0).toLocaleString(undefined, {maximumFractionDigits: 0});
+    el('payrollSummary').innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total revenue collected</span><strong>${fmt(data.totalRevenue)} EGP</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total expenses</span><strong style="color:var(--danger);">${fmt(data.totalExpenses)} EGP</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total doctor payout</span><strong>${fmt(data.totalPayout)} EGP</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line);margin-top:4px;padding-top:6px;"><span style="font-weight:700;">Net profit (split ${data.partnerCount} ways)</span><strong style="color:#1b8a4a;">${fmt(data.netProfit)} EGP</strong></div>
+    `;
+    el('payrollTable').innerHTML = data.rows.map(row=> `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-weight:700;">${escapeHtml(row.doctorName)}</span>
+        <span style="font-weight:700;color:var(--maroon);">${row.totalPay != null ? fmt(row.totalPay) + ' EGP' : '—'}</span>
+      </div>
+      <div style="font-size:0.76rem;color:#5b6863;margin-top:2px;">${escapeHtml(row.formula)}</div>
+      <div style="font-size:0.76rem;color:#8a938e;margin-top:2px;">Revenue: ${fmt(row.revenue)} EGP · ${row.sessionCount} session(s)${row.profitShare != null ? ` · profit share: ${fmt(row.profitShare)} EGP` : ''}</div>
+    </div>`).join('');
+  }catch(e){
+    console.error(e);
+    el('payrollStatus').textContent = 'Could not calculate: ' + (e.message || e);
+  }
+}
+
 async function loadExpenses(){
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
@@ -4574,6 +4627,14 @@ async function loadDashboardSummary(){
   el('dashboardSummary').style.display = 'flex';
   el('regPackageSection').style.display = hasClientPermission('register_packages') ? 'block' : 'none';
   refreshInlineStatsRow();
+
+  if(signedInDoctor.role === 'owner' && !el('payrollFromInput').value){
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    el('payrollFromInput').value = dayKey(monthStart);
+    el('payrollToInput').value = dayKey(monthEnd);
+  }
 
   if(signedInDoctor.role === 'owner'){
     try{
@@ -6670,7 +6731,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -7634,6 +7695,7 @@ el('statsRangeGoBtn').addEventListener('click', async ()=>{
 el('exportCsvBtn').addEventListener('click', exportCsv);
 el('regPackageBtn').addEventListener('click', registerExistingPackage);
 el('addExpenseBtn').addEventListener('click', addExpense);
+el('calcPayrollBtn').addEventListener('click', calculatePayroll);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
