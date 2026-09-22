@@ -4621,7 +4621,7 @@ async function loadExpenses(){
       return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
       <div>
         <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
-        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)} · <span style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)} · <span class="expense-method-badge" data-id="${e.id}" data-current="${isInstapay ? 'instapay' : 'cash'}" style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;cursor:pointer;" title="Tap to switch to ${isInstapay ? 'Cash' : 'InstaPay'}">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
@@ -4634,6 +4634,24 @@ async function loadExpenses(){
         if(!confirm('Delete this expense?')) return;
         await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
         loadExpenses();
+      });
+    });
+    el('expenseList').querySelectorAll('.expense-method-badge').forEach(badge=>{
+      badge.addEventListener('click', async ()=>{
+        const newMethod = badge.getAttribute('data-current') === 'cash' ? 'instapay' : 'cash';
+        badge.style.opacity = '0.5';
+        try{
+          const res = await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(badge.getAttribute('data-id'))}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ paymentMethod: newMethod })
+          });
+          if(!res.ok) throw new Error(`Server error ${res.status}`);
+          loadExpenses();
+        }catch(e){
+          console.error(e);
+          badge.style.opacity = '1';
+        }
       });
     });
   }catch(e){
