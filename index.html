@@ -4192,7 +4192,22 @@ async function fetchStatsForRange(start, end){
       });
     });
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal };
+    // Expenses for the same range, so we can show a net-after-expenses
+    // figure right alongside the money cards.
+    let expensesTotal = 0;
+    try{
+      const expStartDate = dayKey(start);
+      const expEndDate = dayKey(end);
+      const expRes = await fetch(`${BACKEND_URL}/api/expenses?start=${expStartDate}&end=${expEndDate}`, { headers: authHeader() });
+      if(expRes.ok){
+        const expItems = (await expRes.json()) || [];
+        expensesTotal = expItems.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+      }
+    }catch(expErr){
+      console.error('Expenses fetch for stats range failed:', expErr);
+    }
+
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4219,10 +4234,12 @@ function renderStatsRow(prefix, stats){
   // access-gated page) — not on the main page's quick-glance row, which
   // more people might casually see.
   if(prefix !== 'todayInline'){
+    const netColor = stats.netAfterExpenses >= 0 ? { bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' } : { bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)' };
     cards.push(
       { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: '💰', bg: '#fbf0e0', fg: '#b8894f' },
       { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), icon: '💵', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
       { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: '🔵', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
+      { label: 'Net (after expenses, EGP)', num: fmt(stats.netAfterExpenses), icon: '⚖️', bg: netColor.bg, fg: netColor.fg },
     );
   }
   row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''} style="${c.clickKey ? '' : 'cursor:default;'}">
