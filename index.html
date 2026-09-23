@@ -1216,9 +1216,16 @@
 
     <div id="noteExpandOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:82;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);" id="noteExpandTitle">Patient</span>
-          <button type="button" id="noteExpandCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);gap:8px;">
+          <div style="flex:1;min-width:0;">
+            <span style="font-weight:700;color:var(--maroon);" id="noteExpandTitle">Patient</span>
+            <button type="button" id="noteExpandEditNameBtn" title="Edit patient name" style="background:transparent;border:none;cursor:pointer;color:#5b6863;padding:2px 4px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+            <div id="noteExpandNameEditBox" style="display:none;margin-top:6px;gap:6px;">
+              <input type="text" id="noteExpandNameEditInput" list="knownPatientsList" style="flex:1;padding:6px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;">
+              <button type="button" class="ghost" id="noteExpandNameSaveBtn" style="font-size:0.78rem;padding:6px 10px;">Save</button>
+            </div>
+          </div>
+          <button type="button" id="noteExpandCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);flex-shrink:0;">×</button>
         </div>
         <div id="noteExpandTabBar" style="display:flex;overflow-x:auto;border-bottom:1px solid var(--line);flex-shrink:0;"></div>
         <div style="padding:12px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
@@ -2445,6 +2452,7 @@ function openNoteExpand(patientName, latestId){
   el('noteExpandTitle').textContent = patientName;
   el('noteExpandMergeBox').style.display = 'none';
   el('noteExpandNameMergeBox').style.display = 'none';
+  el('noteExpandNameEditBox').style.display = 'none';
   el('noteExpandActionStatus').textContent = '';
 
   const allIds = currentGridPatientGroups[patientName] || [latestId];
@@ -2499,7 +2507,7 @@ function switchNoteExpandTab(index){
     el('noteExpandTabStatus').textContent = s ? `${s.date || ''} · ${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}` : '';
     el('noteExpandSaveBtn').style.display = 'block';
     el('noteExpandDownloadTxtBtn').style.display = 'none';
-    el('noteExpandDownloadPdfBtn').style.display = 'none';
+    el('noteExpandDownloadPdfBtn').style.display = 'block';
     el('noteExpandGenerateBtn').style.display = (s && !hasNote && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
   }
 }
@@ -2590,9 +2598,17 @@ function exportPatientListPdf(){
 function downloadNoteExpandSummaryPdf(){
   const text = el('noteExpandTextarea').value;
   if(!text) return;
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  let heading = `Referral Summary — ${noteExpandCurrentPatient}`;
+  if(tab && tab.type === 'session'){
+    const s = sessions[tab.id];
+    const typeLabel = s && s.sessionType === 'followup' ? 'Follow-up' : 'Assessment';
+    const dateLabel = s ? (s.date || '') : '';
+    heading = `${noteExpandCurrentPatient} — ${typeLabel}${dateLabel ? ' — ' + dateLabel : ''}`;
+  }
   const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   const container = el('printableNote');
-  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">Referral Summary — ${escapeHtml(noteExpandCurrentPatient)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
+  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(heading)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   window.print();
 }
 
@@ -3585,6 +3601,51 @@ async function deleteSessionFromCard(id){
 function showNameMergeBox(){
   el('noteExpandNameMergeInput').value = '';
   el('noteExpandNameMergeBox').style.display = 'block';
+}
+
+function showNameEditBox(){
+  const current = noteExpandCurrentPatient === 'Unnamed patient' ? '' : noteExpandCurrentPatient;
+  el('noteExpandNameEditInput').value = current;
+  el('noteExpandNameEditBox').style.display = 'flex';
+  el('noteExpandNameEditInput').focus();
+}
+
+async function saveNoteExpandName(){
+  const newName = el('noteExpandNameEditInput').value.trim();
+  if(!newName){
+    el('noteExpandActionStatus').textContent = 'Type a name first.';
+    return;
+  }
+  const ids = currentGridPatientGroups[noteExpandCurrentPatient] || [noteExpandCurrentLatestId];
+  el('noteExpandActionStatus').textContent = 'Saving name…';
+  try{
+    await Promise.all(ids.map(id=>{
+      const s = sessions[id];
+      if(!s) return Promise.resolve();
+      return fetch(`${BACKEND_URL}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({
+          id,
+          patientName: newName,
+          sessionDate: s.date,
+          sessionType: s.sessionType,
+          transcript: s.transcriptLines || [],
+          note: s.note || '',
+        })
+      });
+    }));
+    ids.forEach(id=>{ if(sessions[id]) sessions[id].patientName = newName; });
+    el('noteExpandNameEditBox').style.display = 'none';
+    el('noteExpandActionStatus').textContent = 'Name updated.';
+    noteExpandCurrentPatient = newName;
+    el('noteExpandTitle').textContent = newName;
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+    renderSessionList();
+  }catch(e){
+    console.error(e);
+    el('noteExpandActionStatus').textContent = 'Could not save name: ' + (e.message || e);
+  }
 }
 
 async function confirmNameMerge(){
@@ -8318,6 +8379,8 @@ el('noteExpandDeleteBtn').addEventListener('click', ()=>{
 el('noteExpandSaveBtn').addEventListener('click', saveCurrentNoteExpandTab);
 el('noteExpandDownloadTxtBtn').addEventListener('click', downloadNoteExpandSummaryTxt);
 el('noteExpandDownloadPdfBtn').addEventListener('click', downloadNoteExpandSummaryPdf);
+el('noteExpandEditNameBtn').addEventListener('click', showNameEditBox);
+el('noteExpandNameSaveBtn').addEventListener('click', saveNoteExpandName);
 el('noteExpandNameMergeBtn').addEventListener('click', showNameMergeBox);
 el('noteExpandNameMergeConfirmBtn').addEventListener('click', confirmNameMerge);
 el('noteExpandMergeBtn').addEventListener('click', showMergeOptions);
