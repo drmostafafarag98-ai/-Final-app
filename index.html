@@ -1057,6 +1057,11 @@
         </div>
         <div id="expenseStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
         <div style="font-size:0.85rem;font-weight:700;color:var(--danger);margin-bottom:8px;" id="expenseMonthTotal"></div>
+        <div id="expenseFilterToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;margin-bottom:10px;width:fit-content;">
+          <button type="button" class="expense-filter-btn active" data-filter="all" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">All</button>
+          <button type="button" class="expense-filter-btn" data-filter="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">Cash</button>
+          <button type="button" class="expense-filter-btn" data-filter="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
+        </div>
         <div id="expenseList"></div>
       </div>
 
@@ -4967,6 +4972,9 @@ async function addTransfer(){
   }
 }
 
+let lastExpenseItems = [];
+let selectedExpenseFilter = 'all';
+
 async function loadExpenses(){
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
@@ -4977,58 +4985,76 @@ async function loadExpenses(){
     const res = await fetch(`${BACKEND_URL}/api/expenses?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     const items = (await res.json()) || [];
+    lastExpenseItems = items;
     const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const cashTotal = items.filter(e=> (e.payment_method || 'cash') === 'cash').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const instapayTotal = items.filter(e=> e.payment_method === 'instapay').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     el('expenseMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP spent (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
-    if(items.length === 0){
-      el('expenseList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No expenses logged this month.</div>';
-      return;
-    }
-    el('expenseList').innerHTML = items.map(e=>{
-      const isInstapay = e.payment_method === 'instapay';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-      <div>
-        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
-        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)} · <span class="expense-method-badge" data-id="${e.id}" data-current="${isInstapay ? 'instapay' : 'cash'}" style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;cursor:pointer;" title="Tap to switch to ${isInstapay ? 'Cash' : 'InstaPay'}">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
-        <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
-      </div>
-    </div>`;
-    }).join('');
-    el('expenseList').querySelectorAll('.expense-delete-btn').forEach(btn=>{
-      btn.addEventListener('click', async ()=>{
-        if(!confirm('Delete this expense?')) return;
-        await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
-        loadExpenses();
-      });
-    });
-    el('expenseList').querySelectorAll('.expense-method-badge').forEach(badge=>{
-      badge.addEventListener('click', async ()=>{
-        const newMethod = badge.getAttribute('data-current') === 'cash' ? 'instapay' : 'cash';
-        badge.style.opacity = '0.5';
-        try{
-          const res = await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(badge.getAttribute('data-id'))}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', ...authHeader() },
-            body: JSON.stringify({ paymentMethod: newMethod })
-          });
-          const responseText = await res.text();
-          if(!res.ok) throw new Error(`Server error ${res.status}: ${responseText.slice(0,200)}`);
-          loadExpenses();
-        }catch(e){
-          console.error(e);
-          badge.style.opacity = '1';
-          alert('Could not switch payment method: ' + (e.message || e));
-        }
-      });
-    });
+    renderExpenseList();
   }catch(e){
     console.error(e);
     el('expenseList').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
+}
+
+function setExpenseFilter(filter){
+  selectedExpenseFilter = filter;
+  document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-filter') === filter;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+  renderExpenseList();
+}
+
+function renderExpenseList(){
+  const items = selectedExpenseFilter === 'all'
+    ? lastExpenseItems
+    : lastExpenseItems.filter(e=> (e.payment_method || 'cash') === selectedExpenseFilter);
+  if(items.length === 0){
+    el('expenseList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">${lastExpenseItems.length === 0 ? 'No expenses logged this month.' : 'No expenses match this filter.'}</div>`;
+    return;
+  }
+  el('expenseList').innerHTML = items.map(e=>{
+    const isInstapay = e.payment_method === 'instapay';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+    <div>
+      <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
+      <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.expense_date)} · <span class="expense-method-badge" data-id="${e.id}" data-current="${isInstapay ? 'instapay' : 'cash'}" style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;cursor:pointer;" title="Tap to switch to ${isInstapay ? 'Cash' : 'InstaPay'}">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:0.85rem;font-weight:700;color:var(--danger);">${parseFloat(e.amount).toLocaleString()} EGP</span>
+      <button type="button" class="expense-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+    </div>
+  </div>`;
+  }).join('');
+  el('expenseList').querySelectorAll('.expense-delete-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      if(!confirm('Delete this expense?')) return;
+      await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+      loadExpenses();
+    });
+  });
+  el('expenseList').querySelectorAll('.expense-method-badge').forEach(badge=>{
+    badge.addEventListener('click', async ()=>{
+      const newMethod = badge.getAttribute('data-current') === 'cash' ? 'instapay' : 'cash';
+      badge.style.opacity = '0.5';
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/expenses/${encodeURIComponent(badge.getAttribute('data-id'))}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ paymentMethod: newMethod })
+        });
+        const responseText = await res.text();
+        if(!res.ok) throw new Error(`Server error ${res.status}: ${responseText.slice(0,200)}`);
+        loadExpenses();
+      }catch(e){
+        console.error(e);
+        badge.style.opacity = '1';
+        alert('Could not switch payment method: ' + (e.message || e));
+      }
+    });
+  });
 }
 
 async function addExpense(){
@@ -8210,6 +8236,9 @@ document.querySelectorAll('.income-method-btn').forEach(btn=>{
 });
 el('addIncomeBtn').addEventListener('click', addOtherIncome);
 el('addTransferBtn').addEventListener('click', addTransfer);
+document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setExpenseFilter(btn.getAttribute('data-filter')));
+});
 el('addExpenseBtn').addEventListener('click', addExpense);
 el('calcPayrollBtn').addEventListener('click', calculatePayroll);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
