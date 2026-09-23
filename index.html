@@ -1330,6 +1330,9 @@
           <button type="button" id="unpaidListCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div id="unpaidListBody" style="padding:14px 16px;flex:1;overflow-y:auto;"></div>
+        <div style="padding:10px 16px;border-top:1px solid var(--line);">
+          <button type="button" class="ghost" id="unpaidListExportBtn" style="width:100%;">Export PDF</button>
+        </div>
       </div>
     </div>
 
@@ -2521,6 +2524,33 @@ function downloadNoteExpandSummaryTxt(){
   a.href = URL.createObjectURL(blob);
   a.download = `${noteExpandCurrentPatient.replace(/[^a-z0-9]+/gi,'_')}_summary.txt`;
   a.click();
+}
+
+function exportPatientListPdf(){
+  if(!unpaidListItems || unpaidListItems.length === 0) return;
+  const title = el('unpaidListTitle').textContent;
+  const rows = unpaidListItems.map(ev=>{
+    const dateLabel = ev.start_time ? new Date(ev.start_time).toLocaleDateString(undefined, {month:'short', day:'numeric', year:'numeric'}) + ' ' + new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
+    const amount = ev._amount ? `${ev._amount.toLocaleString()} EGP` : '';
+    return `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #ddd;">${escapeHtml(ev.patient_name || '(untitled)')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #ddd;">${escapeHtml(ev.doctor_name || '')}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #ddd;">${escapeHtml(dateLabel)}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #ddd;text-align:right;">${escapeHtml(amount)}</td>
+    </tr>`;
+  }).join('');
+  const container = el('printableNote');
+  container.innerHTML = `<img src="${CLINIC_LOGO_DATA_URI}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)} — ${unpaidListItems.length} patient(s)</div>
+  <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+    <thead><tr>
+      <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Patient</th>
+      <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Doctor</th>
+      <th style="text-align:left;padding:6px 8px;border-bottom:2px solid #333;">Date</th>
+      <th style="text-align:right;padding:6px 8px;border-bottom:2px solid #333;">Amount</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  window.print();
 }
 
 function downloadNoteExpandSummaryPdf(){
@@ -4192,22 +4222,28 @@ async function fetchStatsForRange(start, end){
       });
     });
 
-    // Expenses for the same range, so we can show a net-after-expenses
-    // figure right alongside the money cards.
-    let expensesTotal = 0;
+    // Expenses for the same range, split by payment method, so we can
+    // show a net-after-expenses figure PER CHANNEL (cash vs instapay) —
+    // not just one combined number.
+    let cashExpenses = 0, instapayExpenses = 0;
     try{
       const expStartDate = dayKey(start);
       const expEndDate = dayKey(end);
       const expRes = await fetch(`${BACKEND_URL}/api/expenses?start=${expStartDate}&end=${expEndDate}`, { headers: authHeader() });
       if(expRes.ok){
         const expItems = (await expRes.json()) || [];
-        expensesTotal = expItems.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+        expItems.forEach(e=>{
+          const amt = parseFloat(e.amount || 0);
+          if(e.payment_method === 'instapay') instapayExpenses += amt;
+          else cashExpenses += amt;
+        });
       }
     }catch(expErr){
       console.error('Expenses fetch for stats range failed:', expErr);
     }
+    const expensesTotal = cashExpenses + instapayExpenses;
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, cashExpenses, instapayExpenses, netCash: cashTotal - cashExpenses, netInstapay: instapayTotal - instapayExpenses, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4234,12 +4270,14 @@ function renderStatsRow(prefix, stats){
   // access-gated page) — not on the main page's quick-glance row, which
   // more people might casually see.
   if(prefix !== 'todayInline'){
-    const netColor = stats.netAfterExpenses >= 0 ? { bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' } : { bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)' };
+    const netCashColor = stats.netCash >= 0 ? { bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' } : { bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)' };
+    const netInstapayColor = stats.netInstapay >= 0 ? { bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' } : { bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)' };
     cards.push(
       { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: '💰', bg: '#fbf0e0', fg: '#b8894f' },
       { label: '💵 Cash (EGP)', num: fmt(stats.cashTotal), icon: '💵', bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
       { label: '🔵 InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: '🔵', bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
-      { label: 'Net (after expenses, EGP)', num: fmt(stats.netAfterExpenses), icon: '⚖️', bg: netColor.bg, fg: netColor.fg },
+      { label: 'Net Cash (after cash expenses)', num: fmt(stats.netCash), icon: '⚖️', bg: netCashColor.bg, fg: netCashColor.fg },
+      { label: 'Net InstaPay (after instapay expenses)', num: fmt(stats.netInstapay), icon: '⚖️', bg: netInstapayColor.bg, fg: netInstapayColor.fg },
     );
   }
   row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''} style="${c.clickKey ? '' : 'cursor:default;'}">
@@ -8042,6 +8080,7 @@ el('pdCloseBtn').addEventListener('click', ()=>{
 el('unpaidListCloseBtn').addEventListener('click', ()=>{
   el('unpaidListOverlay').style.display = 'none';
 });
+el('unpaidListExportBtn').addEventListener('click', exportPatientListPdf);
 el('unpaidListOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'unpaidListOverlay') el('unpaidListOverlay').style.display = 'none';
 });
