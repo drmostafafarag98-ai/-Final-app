@@ -1025,6 +1025,24 @@
         </div>
       </div>
 
+      <div class="section-title">💰 Other Income (events, etc.)</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Money that comes in from something other than a patient session — an event, a workshop, etc.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="incomeDescInput" placeholder="What was it for?" style="flex:2;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="number" id="incomeAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="incomeDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <div id="incomePaymentMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="income-method-btn active" data-method="cash" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button>
+            <button type="button" class="income-method-btn" data-method="instapay" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
+          </div>
+          <button type="button" class="ghost" id="addIncomeBtn">Add</button>
+        </div>
+        <div id="incomeStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
+        <div style="font-size:0.85rem;font-weight:700;color:#1b8a4a;margin-bottom:8px;" id="incomeMonthTotal"></div>
+        <div id="incomeList"></div>
+      </div>
+
       <div class="section-title">💸 Expenses</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
@@ -4278,10 +4296,32 @@ async function fetchStatsForRange(start, end){
     }catch(trErr){
       console.error('Transfers fetch for stats range failed:', trErr);
     }
-    const netCash = cashTotal - cashExpenses - cashOut + cashIn;
-    const netInstapay = instapayTotal - instapayExpenses - instapayOut + instapayIn;
+    const netCashBeforeIncome = cashTotal - cashExpenses - cashOut + cashIn;
+    const netInstapayBeforeIncome = instapayTotal - instapayExpenses - instapayOut + instapayIn;
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, cashExpenses, instapayExpenses, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
+    // Other income (events etc.) for the same range — adds to revenue,
+    // same as a session payment would.
+    let cashIncome = 0, instapayIncome = 0;
+    try{
+      const incStartDate = dayKey(start);
+      const incEndDate = dayKey(end);
+      const incRes = await fetch(`${BACKEND_URL}/api/other-income?start=${incStartDate}&end=${incEndDate}`, { headers: authHeader() });
+      if(incRes.ok){
+        const incItems = (await incRes.json()) || [];
+        incItems.forEach(inc=>{
+          const amt = parseFloat(inc.amount || 0);
+          if(inc.payment_method === 'instapay') instapayIncome += amt;
+          else cashIncome += amt;
+        });
+      }
+    }catch(incErr){
+      console.error('Other-income fetch for stats range failed:', incErr);
+    }
+    const netCash = netCashBeforeIncome + cashIncome;
+    const netInstapay = netInstapayBeforeIncome + instapayIncome;
+    const otherIncomeTotal = cashIncome + instapayIncome;
+
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4462,6 +4502,7 @@ async function loadDashboardStats(){
   loadDoctorStatsThisMonth();
   loadExpenses();
   loadTransfers();
+  loadOtherIncome();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -4679,6 +4720,106 @@ async function calculatePayroll(){
   }catch(e){
     console.error(e);
     el('payrollStatus').textContent = 'Could not calculate: ' + (e.message || e);
+  }
+}
+
+let selectedIncomeMethod = 'cash';
+function setIncomeMethod(method){
+  selectedIncomeMethod = method;
+  document.querySelectorAll('.income-method-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-method') === method;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
+async function loadOtherIncome(){
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  el('incomeList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/other-income?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    const cashTotal = items.filter(e=> (e.payment_method || 'cash') === 'cash').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    const instapayTotal = items.filter(e=> e.payment_method === 'instapay').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
+    el('incomeMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
+    if(items.length === 0){
+      el('incomeList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No other income logged this month.</div>';
+      return;
+    }
+    el('incomeList').innerHTML = items.map(e=>{
+      const isInstapay = e.payment_method === 'instapay';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(e.description)}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(e.income_date)} · <span class="income-method-badge" data-id="${e.id}" data-current="${isInstapay ? 'instapay' : 'cash'}" style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;cursor:pointer;" title="Tap to switch to ${isInstapay ? 'Cash' : 'InstaPay'}">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.85rem;font-weight:700;color:#1b8a4a;">${parseFloat(e.amount).toLocaleString()} EGP</span>
+        <button type="button" class="income-delete-btn" data-id="${e.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+      </div>
+    </div>`;
+    }).join('');
+    el('incomeList').querySelectorAll('.income-delete-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Delete this income entry?')) return;
+        await fetch(`${BACKEND_URL}/api/other-income/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+        loadOtherIncome();
+      });
+    });
+    el('incomeList').querySelectorAll('.income-method-badge').forEach(badge=>{
+      badge.addEventListener('click', async ()=>{
+        const newMethod = badge.getAttribute('data-current') === 'cash' ? 'instapay' : 'cash';
+        badge.style.opacity = '0.5';
+        try{
+          const res2 = await fetch(`${BACKEND_URL}/api/other-income/${encodeURIComponent(badge.getAttribute('data-id'))}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', ...authHeader() },
+            body: JSON.stringify({ paymentMethod: newMethod })
+          });
+          if(!res2.ok) throw new Error(`Server error ${res2.status}`);
+          loadOtherIncome();
+        }catch(e){
+          console.error(e);
+          badge.style.opacity = '1';
+        }
+      });
+    });
+  }catch(e){
+    console.error(e);
+    el('incomeList').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function addOtherIncome(){
+  const description = el('incomeDescInput').value.trim();
+  const amount = parseFloat(el('incomeAmountInput').value);
+  const incomeDate = el('incomeDateInput').value || new Date().toISOString().slice(0,10);
+  const paymentMethod = selectedIncomeMethod;
+  if(!description || !amount){
+    el('incomeStatus').textContent = 'Enter a description and amount first.';
+    return;
+  }
+  el('incomeStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/other-income`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ description, amount, incomeDate, paymentMethod })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('incomeDescInput').value = '';
+    el('incomeAmountInput').value = '';
+    el('incomeStatus').textContent = '';
+    setIncomeMethod('cash');
+    loadOtherIncome();
+  }catch(e){
+    console.error(e);
+    el('incomeStatus').textContent = 'Could not save: ' + (e.message || e);
   }
 }
 
@@ -7034,7 +7175,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -8003,6 +8144,10 @@ document.querySelectorAll('.expense-method-btn').forEach(btn=>{
 document.querySelectorAll('.transfer-direction-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setTransferDirection(btn.getAttribute('data-from'), btn.getAttribute('data-to')));
 });
+document.querySelectorAll('.income-method-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setIncomeMethod(btn.getAttribute('data-method')));
+});
+el('addIncomeBtn').addEventListener('click', addOtherIncome);
 el('addTransferBtn').addEventListener('click', addTransfer);
 el('addExpenseBtn').addEventListener('click', addExpense);
 el('calcPayrollBtn').addEventListener('click', calculatePayroll);
