@@ -1042,6 +1042,22 @@
         <div id="expenseList"></div>
       </div>
 
+      <div class="section-title">🔁 Cash ↔ InstaPay Transfers</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Moving money between the cash drawer and InstaPay — not new revenue, not an expense, just tracked so Net Cash/InstaPay stay accurate.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="number" id="transferAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <div id="transferDirectionToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="transfer-direction-btn active" data-from="cash" data-to="instapay" style="border:none;padding:8px 12px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash → InstaPay</button>
+            <button type="button" class="transfer-direction-btn" data-from="instapay" data-to="cash" style="border:none;padding:8px 12px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay → Cash</button>
+          </div>
+          <input type="text" id="transferDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="addTransferBtn">Add</button>
+        </div>
+        <div id="transferStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
+        <div id="transferList"></div>
+      </div>
+
       <div class="section-title">📥 Export</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Downloads a CSV file (date, patient, doctor, payment method, amount) for the range you pick below — open it in Excel, or upload/paste it into Google Sheets.</div>
@@ -4243,7 +4259,29 @@ async function fetchStatsForRange(start, end){
     }
     const expensesTotal = cashExpenses + instapayExpenses;
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, cashExpenses, instapayExpenses, netCash: cashTotal - cashExpenses, netInstapay: instapayTotal - instapayExpenses, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
+    // Internal Cash↔InstaPay transfers for the same range — money moved
+    // between the two, not new revenue or a real expense, but it still
+    // has to shift the Net figures or they'd be wrong.
+    let cashOut = 0, cashIn = 0, instapayOut = 0, instapayIn = 0;
+    try{
+      const trStartDate = dayKey(start);
+      const trEndDate = dayKey(end);
+      const trRes = await fetch(`${BACKEND_URL}/api/transfers?start=${trStartDate}&end=${trEndDate}`, { headers: authHeader() });
+      if(trRes.ok){
+        const trItems = (await trRes.json()) || [];
+        trItems.forEach(t=>{
+          const amt = parseFloat(t.amount || 0);
+          if(t.from_method === 'cash'){ cashOut += amt; instapayIn += amt; }
+          else{ instapayOut += amt; cashIn += amt; }
+        });
+      }
+    }catch(trErr){
+      console.error('Transfers fetch for stats range failed:', trErr);
+    }
+    const netCash = cashTotal - cashExpenses - cashOut + cashIn;
+    const netInstapay = instapayTotal - instapayExpenses - instapayOut + instapayIn;
+
+    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal, expensesTotal, cashExpenses, instapayExpenses, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4423,6 +4461,7 @@ async function loadDashboardStats(){
   renderStatsRow('year', yearStats);
   loadDoctorStatsThisMonth();
   loadExpenses();
+  loadTransfers();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -4651,6 +4690,79 @@ function setExpenseMethod(method){
     btn.style.background = active ? 'var(--maroon)' : 'transparent';
     btn.style.color = active ? '#fff' : 'var(--ink)';
   });
+}
+
+let selectedTransferFrom = 'cash';
+let selectedTransferTo = 'instapay';
+function setTransferDirection(from, to){
+  selectedTransferFrom = from;
+  selectedTransferTo = to;
+  document.querySelectorAll('.transfer-direction-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-from') === from;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
+async function loadTransfers(){
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  el('transferList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/transfers?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    if(items.length === 0){
+      el('transferList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No transfers logged this month.</div>';
+      return;
+    }
+    el('transferList').innerHTML = items.map(t=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;">${t.from_method === 'cash' ? 'Cash → InstaPay' : 'InstaPay → Cash'}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(t.transfer_date)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.85rem;font-weight:700;color:var(--maroon);">${parseFloat(t.amount).toLocaleString()} EGP</span>
+        <button type="button" class="transfer-delete-btn" data-id="${t.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+      </div>
+    </div>`).join('');
+    el('transferList').querySelectorAll('.transfer-delete-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Delete this transfer?')) return;
+        await fetch(`${BACKEND_URL}/api/transfers/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+        loadTransfers();
+      });
+    });
+  }catch(e){
+    console.error(e);
+    el('transferList').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function addTransfer(){
+  const amount = parseFloat(el('transferAmountInput').value);
+  const transferDate = el('transferDateInput').value || new Date().toISOString().slice(0,10);
+  if(!amount){
+    el('transferStatus').textContent = 'Enter an amount first.';
+    return;
+  }
+  el('transferStatus').textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/transfers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ amount, fromMethod: selectedTransferFrom, toMethod: selectedTransferTo, transferDate })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('transferAmountInput').value = '';
+    el('transferStatus').textContent = '';
+    loadTransfers();
+  }catch(e){
+    console.error(e);
+    el('transferStatus').textContent = 'Could not save: ' + (e.message || e);
+  }
 }
 
 async function loadExpenses(){
@@ -6922,7 +7034,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -7888,6 +8000,10 @@ el('regPackageBtn').addEventListener('click', registerExistingPackage);
 document.querySelectorAll('.expense-method-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setExpenseMethod(btn.getAttribute('data-method')));
 });
+document.querySelectorAll('.transfer-direction-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setTransferDirection(btn.getAttribute('data-from'), btn.getAttribute('data-to')));
+});
+el('addTransferBtn').addEventListener('click', addTransfer);
 el('addExpenseBtn').addEventListener('click', addExpense);
 el('calcPayrollBtn').addEventListener('click', calculatePayroll);
 el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
