@@ -4646,11 +4646,13 @@ async function loadExpenses(){
             headers: { 'Content-Type': 'application/json', ...authHeader() },
             body: JSON.stringify({ paymentMethod: newMethod })
           });
-          if(!res.ok) throw new Error(`Server error ${res.status}`);
+          const responseText = await res.text();
+          if(!res.ok) throw new Error(`Server error ${res.status}: ${responseText.slice(0,200)}`);
           loadExpenses();
         }catch(e){
           console.error(e);
           badge.style.opacity = '1';
+          alert('Could not switch payment method: ' + (e.message || e));
         }
       });
     });
