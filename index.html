@@ -1243,7 +1243,7 @@
           </div>
         </div>
         <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
-        <button type="button" class="primary" id="noteExpandStartRecordingBtn" style="display:none;margin:0 16px 12px;">🎙️ Start recording this session</button>
+        <button type="button" class="primary" id="noteExpandStartRecordingBtn" style="display:none;margin:0 16px 12px;align-items:center;justify-content:center;gap:8px;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg> Start recording this session</button>
         <div id="noteExpandMergeBox" style="display:none;padding:0 16px 12px;">
           <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
           <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Merge into this file</button>
@@ -2517,7 +2517,7 @@ function switchNoteExpandTab(index){
     el('noteExpandDownloadTxtBtn').style.display = 'none';
     el('noteExpandDownloadPdfBtn').style.display = 'block';
     el('noteExpandGenerateBtn').style.display = (s && !hasNote && hasTranscript) ? 'block' : 'none';
-    el('noteExpandStartRecordingBtn').style.display = (s && !hasNote && !hasTranscript) ? 'block' : 'none';
+    el('noteExpandStartRecordingBtn').style.display = (s && !hasNote && !hasTranscript) ? 'flex' : 'none';
   }
 }
 
