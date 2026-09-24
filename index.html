@@ -4311,19 +4311,27 @@ async function fetchStatsForRange(start, end){
     const cashItems = [], instapayItems = [];
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
     active.forEach(ev=>{
+      let evCash = 0, evInstapay = 0;
       (ev.notes || []).forEach(n=>{
         const m = (n.text || '').trim().match(paidNoteRe);
         if(!m) return;
         const amt = parseFloat(m[1].replace(/,/g, ''));
         if(isNaN(amt)) return;
-        if(m[2].toLowerCase() === 'cash'){
-          cashTotal += amt;
-          cashItems.push({ ...ev, _amount: amt });
-        }else{
-          instapayTotal += amt;
-          instapayItems.push({ ...ev, _amount: amt });
-        }
+        if(m[2].toLowerCase() === 'cash') evCash += amt;
+        else evInstapay += amt;
       });
+      // One combined entry per appointment per method — even if the same
+      // appointment somehow has more than one matching note (e.g. an
+      // accidental duplicate payment note), it should show as ONE line
+      // with the total, not one line per note.
+      if(evCash > 0){
+        cashTotal += evCash;
+        cashItems.push({ ...ev, _amount: evCash });
+      }
+      if(evInstapay > 0){
+        instapayTotal += evInstapay;
+        instapayItems.push({ ...ev, _amount: evInstapay });
+      }
     });
 
     // Expenses for the same range, split by payment method, so we can
