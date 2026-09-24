@@ -1243,6 +1243,7 @@
           </div>
         </div>
         <button type="button" class="primary" id="noteExpandGenerateBtn" style="display:none;margin:0 16px 12px;">✨ Open to generate the clinical note</button>
+        <button type="button" class="primary" id="noteExpandStartRecordingBtn" style="display:none;margin:0 16px 12px;">🎙️ Start recording this session</button>
         <div id="noteExpandMergeBox" style="display:none;padding:0 16px 12px;">
           <select id="noteExpandMergeSelect" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;margin-bottom:6px;"></select>
           <button type="button" class="ghost" id="noteExpandMergeConfirmBtn" style="width:100%;font-size:0.82rem;">🔀 Merge into this file</button>
@@ -2505,15 +2506,18 @@ function switchNoteExpandTab(index){
     el('noteExpandDownloadTxtBtn').style.display = 'block';
     el('noteExpandDownloadPdfBtn').style.display = 'block';
     el('noteExpandGenerateBtn').style.display = 'none';
+    el('noteExpandStartRecordingBtn').style.display = 'none';
   }else{
     const s = sessions[tab.id];
     const hasNote = s && !!s.note;
+    const hasTranscript = s && (s.transcriptLines||[]).length > 0;
     el('noteExpandTextarea').value = s ? (s.note || (s.transcriptLines||[]).map(l=>l.text).join('\n') || '') : '';
     el('noteExpandTabStatus').textContent = s ? `${s.date || ''} · ${s.sessionType === 'followup' ? 'Follow-up' : 'Assessment'}` : '';
     el('noteExpandSaveBtn').style.display = 'block';
     el('noteExpandDownloadTxtBtn').style.display = 'none';
     el('noteExpandDownloadPdfBtn').style.display = 'block';
-    el('noteExpandGenerateBtn').style.display = (s && !hasNote && (s.transcriptLines||[]).length > 0) ? 'block' : 'none';
+    el('noteExpandGenerateBtn').style.display = (s && !hasNote && hasTranscript) ? 'block' : 'none';
+    el('noteExpandStartRecordingBtn').style.display = (s && !hasNote && !hasTranscript) ? 'block' : 'none';
   }
 }
 
@@ -3719,9 +3723,9 @@ async function confirmMergeSessions(){
     delete sessions[removeId];
     el('noteExpandMergeBox').style.display = 'none';
     el('noteExpandActionStatus').textContent = 'Merged.';
-    openNoteExpand(noteExpandCurrentPatient, noteExpandCurrentLatestId);
     renderSessionList();
     if(currentGridDoctorName) renderDoctorPatientsGrid();
+    openNoteExpand(noteExpandCurrentPatient, noteExpandCurrentLatestId);
   }catch(e){
     console.error(e);
     el('noteExpandActionStatus').textContent = 'Could not merge: ' + (e.message || e);
@@ -8393,6 +8397,14 @@ el('noteExpandOverlay').addEventListener('click', (e)=>{
   if(e.target.id === 'noteExpandOverlay') el('noteExpandOverlay').style.display = 'none';
 });
 el('noteExpandGenerateBtn').addEventListener('click', ()=>{
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
+  loadSession(targetId);
+  el('noteExpandOverlay').style.display = 'none';
+  el('doctorPatientsGridOverlay').style.display = 'none';
+  switchMainView('documentation');
+});
+el('noteExpandStartRecordingBtn').addEventListener('click', ()=>{
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
   const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
   loadSession(targetId);
