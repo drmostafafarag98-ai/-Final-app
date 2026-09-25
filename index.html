@@ -605,7 +605,8 @@
   .note-output{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:var(--radius);
+    border-radius:var(--card-radius);
+    box-shadow:var(--card-shadow);
     padding:18px;
   }
   .note-output textarea{
@@ -1549,7 +1550,8 @@
       </div>
     </div>
     <div id="documentationView">
-    <div class="section-title" style="margin-top:28px;">Patient</div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
+    <div class="section-title" style="margin-top:0;">Patient</div>
     <div class="patient-row">
       <input type="text" id="patientName" placeholder="Patient name / ID">
       <input type="text" id="sessionDate" placeholder="Session date" readonly>
@@ -1571,20 +1573,24 @@
       <div id="postOpDayLabel" style="font-size:0.82rem;font-weight:600;color:var(--maroon);"></div>
     </div>
 
-    <div class="patient-row" style="margin-top:-8px;">
+    <div class="patient-row" style="margin-top:-8px;margin-bottom:0;">
       <div style="display:flex;gap:8px;flex:1;">
         <button type="button" class="ghost session-type-btn active" id="typeAssessmentBtn" data-type="assessment" style="flex:1;">Initial assessment</button>
         <button type="button" class="ghost session-type-btn" id="typeFollowupBtn" data-type="followup" style="flex:1;">Follow-up / progress</button>
       </div>
     </div>
+    </div>
 
-    <div class="section-title" style="margin-top:16px;">Attached images (X-rays, imaging, etc.)</div>
-    <div style="margin-bottom:16px;">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
+    <div class="section-title" style="margin-top:0;">Attached images (X-rays, imaging, etc.)</div>
+    <div style="margin-bottom:0;">
       <input type="file" id="imageUploadInput" accept="image/*" multiple style="font-size:0.85rem;margin-bottom:8px;">
       <div id="imageGallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
     </div>
+    </div>
 
-    <div class="section-title">Record the session</div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
+    <div class="section-title" style="margin-top:0;">Record the session</div>
     <div style="margin-bottom:14px;">
       <button class="ghost" id="micTestBtn">🎙️ Test microphone</button>
       <div id="micTestMeterWrap" style="display:none;margin-top:10px;">
@@ -1607,10 +1613,11 @@
       <span class="rec-indicator" id="recIndicator" style="display:none;"><span class="dot"></span> recording</span>
     </div>
 
-    <div style="margin-bottom:16px;">
+    <div style="margin-bottom:0;">
       <label style="font-size:0.8rem;color:#5b6863;display:block;margin-bottom:6px;">Or upload an existing recording (e.g. from your phone's voice memo app):</label>
       <input type="file" id="externalAudioInput">
       <div style="font-size:0.72rem;color:#8a938e;margin-top:4px;">This now accepts any file type — some phones hide audio recordings when the picker is filtered to "audio only". Pick the recording file directly; we'll detect it's audio automatically.</div>
+    </div>
     </div>
 
     <div class="transcript" id="transcript">
