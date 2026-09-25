@@ -1560,8 +1560,8 @@
     <div id="patientIntakeNotice" style="display:none;background:#eef6f3;border:1px solid var(--maroon);border-radius:var(--radius);padding:10px 12px;margin:-4px 0 12px;font-size:0.82rem;"></div>
     <div id="patientHistoryStatus" style="font-size:0.78rem;color:#5b6863;margin:-4px 0 8px;"></div>
     <div class="patient-row" style="margin-top:-8px;">
-      <button type="button" class="ghost" id="openPrescriptionBtn" style="flex:1;">🖨️ Prescription (روشتة)</button>
-      <button type="button" class="ghost" id="openInvoiceBtn" style="flex:1;">🧾 Invoice</button>
+      <button type="button" class="ghost" id="openPrescriptionBtn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg> Prescription (روشتة)</button>
+      <button type="button" class="ghost" id="openInvoiceBtn" style="flex:1;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Invoice</button>
     </div>
 
     <div class="patient-row" style="margin-top:-8px;flex-direction:column;align-items:stretch;gap:6px;">
@@ -1592,19 +1592,19 @@
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
     <div class="section-title" style="margin-top:0;">Record the session</div>
     <div style="margin-bottom:14px;">
-      <button class="ghost" id="micTestBtn">🎙️ Test microphone</button>
+      <button class="ghost" id="micTestBtn" style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg> Test microphone</button>
       <div id="micTestMeterWrap" style="display:none;margin-top:10px;">
         <div style="background:#e4e9e6;border-radius:6px;height:14px;overflow:hidden;">
           <div id="micTestMeterFill" style="background:var(--maroon);height:100%;width:0%;transition:width 0.08s;"></div>
         </div>
         <div id="micTestStatus" style="font-size:0.8rem;color:#5b6863;margin-top:6px;">Say something — the bar should move as you speak.</div>
       </div>
-      <div style="font-size:0.78rem;color:#8a938e;margin-top:8px;">💡 For best accuracy: lay the phone flat on the table roughly equidistant between doctor and patient, away from AC vents or equipment noise, and try not to talk over each other.</div>
+      <div style="font-size:0.78rem;color:#8a938e;margin-top:8px;display:flex;align-items:flex-start;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.23 1.47 1.41 2.5"/></svg> <span>For best accuracy: lay the phone flat on the table roughly equidistant between doctor and patient, away from AC vents or equipment noise, and try not to talk over each other.</span></div>
     </div>
 
     <div id="recFailsafeBanner" class="rec-failsafe"></div>
 
-    <div style="font-size:0.78rem;color:#8a938e;margin-bottom:10px;">💡 <strong>Recording only the clinical discussion:</strong> tap Pause during hands-on treatment, small talk, or breaks — resume when you're back to discussing history, findings, or instructions. A shorter, focused recording transcribes faster and more accurately than one continuous session.</div>
+    <div style="font-size:0.78rem;color:#8a938e;margin-bottom:10px;display:flex;align-items:flex-start;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5.72.72 1.23 1.47 1.41 2.5"/></svg> <span><strong>Recording only the clinical discussion:</strong> tap Pause during hands-on treatment, small talk, or breaks — resume when you're back to discussing history, findings, or instructions. A shorter, focused recording transcribes faster and more accurately than one continuous session.</span></div>
 
     <div class="rec-controls">
       <button class="primary" id="recordBtn">Start recording</button>
@@ -1625,7 +1625,7 @@
     </div>
 
     <div id="correctionLogSection" style="display:none;margin-top:10px;margin-bottom:16px;">
-      <button type="button" class="ghost" id="correctionLogToggleBtn" style="width:100%;font-size:0.82rem;">🔍 Terminology corrections made</button>
+      <button type="button" class="ghost" id="correctionLogToggleBtn" style="width:100%;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Terminology corrections made</button>
       <div id="correctionLogPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-top:8px;">
         <div style="font-size:0.75rem;color:#8a938e;margin-bottom:6px;">Struck-through = what was heard. Green = what it was changed to. Worth a quick glance before trusting the note.</div>
         <div id="correctionLogList"></div>
@@ -1650,7 +1650,7 @@
       <div class="note-output">
         <div class="ai-flag">AI-generated draft — review and edit before saving to the chart. Any diagnosis suggestion below is a prompt for your judgment, not a conclusion.</div>
         <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:0.75rem;">
-          <button type="button" class="ghost" id="notePreviewToggleBtn" style="padding:5px 10px;font-size:0.78rem;">👁️ Preview with source highlighting</button>
+          <button type="button" class="ghost" id="notePreviewToggleBtn" style="padding:5px 10px;font-size:0.78rem;display:inline-flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg> Preview with source highlighting</button>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#fff;border:1px solid #999;display:inline-block;"></span> Heard/documented</span>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#e3f2fd;border:1px solid #90caf9;display:inline-block;"></span> Manually selected</span>
           <span style="display:flex;align-items:center;gap:4px;color:#5b6863;"><span style="width:10px;height:10px;border-radius:2px;background:#f3e5f5;border:1px solid #ce93d8;display:inline-block;"></span> AI-inferred</span>
@@ -1662,23 +1662,23 @@
           <label for="noteApprovedCheckbox" style="font-size:0.83rem;color:#6b5842;cursor:pointer;">I have reviewed this note (including checking the highlighted AI-inferred content above) and approve it for the patient record. Required before exporting a PDF.</label>
         </div>
         <div class="actions-row">
-          <button class="save-action" id="saveNoteBtn">💾 Save to session</button>
+          <button class="save-action" id="saveNoteBtn" style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save to session</button>
           <button class="ghost" id="downloadBtn">Download .txt</button>
           <button class="ghost" id="downloadPdfBtn">Download PDF</button>
         </div>
         <div class="actions-row" style="margin-top:10px;">
-          <button class="save-action" id="syncToServerBtn">☁️ Save to clinic server</button>
-          <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);">🗑️ Request delete (needs owner approval)</button>
+          <button class="save-action" id="syncToServerBtn" style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10Z"/></svg> Save to clinic server</button>
+          <button class="ghost" id="requestDeleteBtn" style="color:var(--danger);border-color:var(--danger);display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Request delete (needs owner approval)</button>
         </div>
         <div class="status" id="syncStatus" style="margin-top:6px;margin-bottom:0;"></div>
         <div class="actions-row" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);">
-          <button class="ghost" id="voiceNoteBtn">🎤 Add voice note to update this note</button>
+          <button class="ghost" id="voiceNoteBtn" style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg> Add voice note to update this note</button>
           <span class="rec-indicator" id="voiceNoteIndicator" style="display:none;"><span class="dot"></span> recording</span>
         </div>
         <div class="status" id="voiceNoteStatus" style="margin-top:6px;margin-bottom:0;"></div>
 
         <div id="specialTestsSection" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line);display:none;">
-          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:4px;">🔍 Add positive special tests to Objective (assessment only)</div>
+          <div style="font-size:0.85rem;font-weight:600;color:var(--maroon);margin-bottom:4px;display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Add positive special tests to Objective (assessment only)</div>
           <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Pick the body region, then check only the tests that came back POSITIVE.</div>
           <select id="testRegionSelect" style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;margin-bottom:8px;">
             <option value="">— Select a region —</option>
@@ -1707,7 +1707,7 @@
               </select>
               <button class="ghost" id="applyTemplateBtn" style="font-size:0.8rem;">Apply</button>
             </div>
-            <button class="ghost" id="saveTemplateBtn" style="margin-top:6px;font-size:0.8rem;width:100%;">💾 Save current selection as a template</button>
+            <button class="ghost" id="saveTemplateBtn" style="margin-top:6px;font-size:0.8rem;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save current selection as a template</button>
           </div>
         </div>
 
