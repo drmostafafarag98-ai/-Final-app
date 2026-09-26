@@ -934,13 +934,13 @@
       <div id="pendingDeletesStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
-    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;">👥 Manage Doctors (owner only)</button>
+    <button type="button" id="doctorsToggleBtn" class="ghost" style="margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Manage Doctors (owner only)</button>
     <div id="doctorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="doctorsList"></div>
       <div id="doctorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
     </div>
 
-    <button type="button" id="doctorColorsToggleBtn" class="ghost" style="margin-bottom:14px;">🎨 Doctor Colors (owner or secretary)</button>
+    <button type="button" id="doctorColorsToggleBtn" class="ghost" style="margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.688-1.688h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> Doctor Colors (owner or secretary)</button>
     <div id="doctorColorsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div id="doctorColorsList"></div>
       <div id="doctorColorsStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
@@ -5377,44 +5377,44 @@ function renderDoctorsRoster(items){
         <span style="font-size:0.72rem;color:#8a938e;">Email/password login:</span>
         <input type="password" class="set-password-input" data-email="${d.email}" placeholder="Set a password" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--panel);min-width:120px;">
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
-        <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;">📋 Copy</button>
+        <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
       </div>
       ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;align-items:center;">
         <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
-          📊 Can view Dashboard (payment/confirmation stats)
+          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg> Can view Dashboard (payment/confirmation stats)
         </label>
       </div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);">
-        <div style="font-size:0.72rem;color:#8a938e;margin-bottom:6px;">🔐 Detailed permissions:</div>
+        <div style="font-size:0.72rem;color:#8a938e;margin-bottom:6px;display:flex;align-items:center;gap:5px;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Detailed permissions:</div>
         <div class="permissions-checklist" data-email="${d.email}" style="display:flex;flex-direction:column;gap:5px;">
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="view_payments" ${d.permissions?.view_payments ? 'checked' : ''}>
-            💰 See/record payments
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> See/record payments
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="manage_other_appointments" ${d.permissions?.manage_other_appointments ? 'checked' : ''}>
-            📅 Book/edit other doctors' appointments
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> Book/edit other doctors' appointments
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="send_whatsapp" ${d.permissions?.send_whatsapp ? 'checked' : ''}>
-            📱 Send WhatsApp messages
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></svg> Send WhatsApp messages
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="view_other_patients" ${d.permissions?.view_other_patients ? 'checked' : ''}>
-            📋 See other doctors' patient notes/history
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> See other doctors' patient notes/history
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="edit_cancel_appointments" ${d.permissions?.edit_cancel_appointments ? 'checked' : ''}>
-            ✏️ Edit/cancel appointments
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg> Edit/cancel appointments
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="manage_team" ${d.permissions?.manage_team ? 'checked' : ''}>
-            👥 Add/remove doctors from the team
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Add/remove doctors from the team
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="register_packages" ${d.permissions?.register_packages ? 'checked' : ''}>
-            🎁 Backfill an existing/old package
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Backfill an existing/old package
           </label>
         </div>
       </div>` : ''}
