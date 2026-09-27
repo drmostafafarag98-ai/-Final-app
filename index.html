@@ -1076,6 +1076,24 @@
         <div id="expenseList"></div>
       </div>
 
+      <div class="section-title" style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> Doctor Withdrawals (their own earnings, not a business cost)</div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">When a doctor or partner takes some of their own earnings out of the cash/InstaPay pool — tracked separately from clinic Expenses above, and shown against what Payroll says they're owed.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <select id="withdrawalDoctorSelect" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;"></select>
+          <input type="number" id="withdrawalAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="withdrawalDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <div id="withdrawalMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="withdrawal-method-btn active" data-method="cash" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button>
+            <button type="button" class="withdrawal-method-btn" data-method="instapay" style="border:none;padding:8px 14px;font-size:0.82rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
+          </div>
+          <button type="button" class="ghost" id="addWithdrawalBtn">Add</button>
+        </div>
+        <div id="withdrawalStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
+        <div style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;" id="withdrawalMonthTotal"></div>
+        <div id="withdrawalList"></div>
+      </div>
+
       <div class="section-title" style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Cash ↔ InstaPay Transfers</div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Moving money between the cash drawer and InstaPay — not new revenue, not an expense, just tracked so Net Cash/InstaPay stay accurate.</div>
@@ -4418,8 +4436,28 @@ async function fetchStatsForRange(start, end){
     }catch(trErr){
       console.error('Transfers fetch for stats range failed:', trErr);
     }
-    const netCashBeforeIncome = cashTotal - cashExpenses - cashOut + cashIn;
-    const netInstapayBeforeIncome = instapayTotal - instapayExpenses - instapayOut + instapayIn;
+
+    // Doctor/partner withdrawals — real money physically taken out of the
+    // pool as their own earnings, so it reduces Net the same way an
+    // expense does, but tracked separately for reporting.
+    let cashWithdrawn = 0, instapayWithdrawn = 0;
+    try{
+      const wdStartDate = dayKey(start);
+      const wdEndDate = dayKey(end);
+      const wdRes = await fetch(`${BACKEND_URL}/api/doctor-withdrawals?start=${wdStartDate}&end=${wdEndDate}`, { headers: authHeader() });
+      if(wdRes.ok){
+        const wdItems = (await wdRes.json()) || [];
+        wdItems.forEach(w=>{
+          const amt = parseFloat(w.amount || 0);
+          if(w.payment_method === 'instapay') instapayWithdrawn += amt;
+          else cashWithdrawn += amt;
+        });
+      }
+    }catch(wdErr){
+      console.error('Withdrawals fetch for stats range failed:', wdErr);
+    }
+    const netCashBeforeIncome = cashTotal - cashExpenses - cashOut + cashIn - cashWithdrawn;
+    const netInstapayBeforeIncome = instapayTotal - instapayExpenses - instapayOut + instapayIn - instapayWithdrawn;
 
     // Other income (events etc.) for the same range — adds to revenue,
     // same as a session payment would.
@@ -4688,6 +4726,7 @@ async function loadDashboardStats(){
   loadExpenses();
   loadTransfers();
   loadOtherIncome();
+  loadWithdrawals();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -4821,16 +4860,24 @@ async function calculatePayroll(){
     // Same two fetches, same date-range construction, same non-cancelled
     // filter, and the SAME payment-note regex the Dashboard cards use —
     // so this total can never silently drift from what's shown there.
-    const [apptRes, expRes, incRes] = await Promise.all([
+    const [apptRes, expRes, incRes, wdRes] = await Promise.all([
       fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/expenses?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/other-income?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
+      fetch(`${BACKEND_URL}/api/doctor-withdrawals?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
     ]);
     if(!apptRes.ok) throw new Error(`Server error ${apptRes.status}`);
     const items = (await apptRes.json()) || [];
     const expenseRows = apptRes.ok && expRes.ok ? ((await expRes.json()) || []) : [];
     const otherIncomeRows = incRes.ok ? ((await incRes.json()) || []) : [];
     const otherIncomeTotal = otherIncomeRows.reduce((sum, inc)=> sum + parseFloat(inc.amount || 0), 0);
+    const withdrawalRows = wdRes.ok ? ((await wdRes.json()) || []) : [];
+    const withdrawnByDoctor = {};
+    withdrawalRows.forEach(w=>{
+      const rule = matchPayrollRule(w.doctor_name);
+      const key = rule ? rule.label : (w.doctor_name || 'Unassigned');
+      withdrawnByDoctor[key] = (withdrawnByDoctor[key] || 0) + parseFloat(w.amount || 0);
+    });
     const active = items.filter(ev=> ev.status !== 'cancelled');
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
 
@@ -4940,14 +4987,19 @@ async function calculatePayroll(){
       <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Investment set-aside${netProfitBeforeInvestment > 50000 ? ' (10% — profit over 50,000)' : ' (flat)'}</span><strong style="color:#b8894f;">${fmt(investmentAmount)} EGP</strong></div>
       <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line);margin-top:4px;padding-top:6px;"><span style="font-weight:700;">Net profit (split ${partnerRows.length} ways)</span><strong style="color:#1b8a4a;">${fmt(netProfit)} EGP</strong></div>
     `;
-    el('payrollTable').innerHTML = rows.map(row=> `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
+    el('payrollTable').innerHTML = rows.map(row=>{
+      const withdrawn = withdrawnByDoctor[row.doctorName] || 0;
+      const remaining = row.totalPay != null ? row.totalPay - withdrawn : null;
+      return `<div style="border-bottom:1px solid var(--line);padding:10px 0;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;">
         <span style="font-weight:700;">${escapeHtml(row.doctorName)}</span>
         <span style="font-weight:700;color:var(--maroon);">${row.totalPay != null ? fmt(row.totalPay) + ' EGP' : '—'}</span>
       </div>
       <div style="font-size:0.76rem;color:#5b6863;margin-top:2px;">${escapeHtml(row.formula)}</div>
       <div style="font-size:0.76rem;color:#8a938e;margin-top:2px;">Revenue: ${fmt(row.revenue)} EGP · ${row.sessionCount} session(s)${row.profitShare != null ? ` · profit share: ${fmt(row.profitShare)} EGP` : ''}</div>
-    </div>`).join('');
+      ${withdrawn > 0 ? `<div style="font-size:0.76rem;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);color:${remaining < 0 ? 'var(--danger)' : '#1b8a4a'};">Withdrawn so far: ${fmt(withdrawn)} EGP · ${remaining < 0 ? `Over by ${fmt(Math.abs(remaining))} EGP` : `Remaining: ${fmt(remaining)} EGP`}</div>` : ''}
+    </div>`;
+    }).join('');
   }catch(e){
     console.error(e);
     el('payrollStatus').textContent = 'Could not calculate: ' + (e.message || e);
@@ -5138,6 +5190,94 @@ async function addTransfer(){
 }
 
 let lastExpenseItems = [];
+let selectedWithdrawalMethod = 'cash';
+function setWithdrawalMethod(method){
+  selectedWithdrawalMethod = method;
+  document.querySelectorAll('.withdrawal-method-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-method') === method;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
+function populateWithdrawalDoctorSelect(){
+  const select = el('withdrawalDoctorSelect');
+  if(select.options.length > 0) return;
+  select.innerHTML = PAYROLL_RULES.map(r=> `<option value="${escapeHtml(r.label)}">${escapeHtml(r.label)}</option>`).join('');
+}
+
+async function loadWithdrawals(){
+  populateWithdrawalDoctorSelect();
+  const now = new Date();
+  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
+  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  el('withdrawalList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctor-withdrawals?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const total = items.reduce((sum, w)=> sum + parseFloat(w.amount || 0), 0);
+    el('withdrawalMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP withdrawn`;
+    if(items.length === 0){
+      el('withdrawalList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No withdrawals logged this month.</div>';
+      return;
+    }
+    el('withdrawalList').innerHTML = items.map(w=>{
+      const isInstapay = w.payment_method === 'instapay';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div>
+        <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(w.doctor_name)}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(w.withdrawal_date)} · <span style="padding:1px 7px;border-radius:999px;background:${isInstapay ? 'var(--badge-blue-bg)' : 'var(--badge-green-bg)'};color:${isInstapay ? 'var(--badge-blue-fg)' : 'var(--badge-green-fg)'};font-size:0.7rem;">${isInstapay ? 'InstaPay' : 'Cash'}</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:0.85rem;font-weight:700;color:var(--maroon);">${parseFloat(w.amount).toLocaleString()} EGP</span>
+        <button type="button" class="withdrawal-delete-btn" data-id="${w.id}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:0.9rem;">🗑️</button>
+      </div>
+    </div>`;
+    }).join('');
+    el('withdrawalList').querySelectorAll('.withdrawal-delete-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        if(!confirm('Delete this withdrawal?')) return;
+        await fetch(`${BACKEND_URL}/api/doctor-withdrawals/${encodeURIComponent(btn.getAttribute('data-id'))}`, { method: 'DELETE', headers: authHeader() });
+        loadWithdrawals();
+      });
+    });
+  }catch(e){
+    console.error(e);
+    el('withdrawalList').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function addWithdrawal(){
+  const doctorName = el('withdrawalDoctorSelect').value;
+  const amount = parseFloat(el('withdrawalAmountInput').value);
+  const withdrawalDate = el('withdrawalDateInput').value || new Date().toISOString().slice(0,10);
+  const paymentMethod = selectedWithdrawalMethod;
+  if(!doctorName || !amount){
+    el('withdrawalStatus').textContent = 'Pick a doctor and enter an amount first.';
+    return;
+  }
+  el('withdrawalStatus').textContent = 'Saving…';
+  el('addWithdrawalBtn').disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/doctor-withdrawals`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ doctorName, amount, paymentMethod, withdrawalDate })
+    });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    el('withdrawalAmountInput').value = '';
+    el('withdrawalStatus').textContent = '';
+    loadWithdrawals();
+  }catch(e){
+    console.error(e);
+    el('withdrawalStatus').textContent = 'Could not save: ' + (e.message || e);
+  }finally{
+    el('addWithdrawalBtn').disabled = false;
+  }
+}
+
 let selectedExpenseFilter = 'all';
 
 async function loadExpenses(){
@@ -7481,7 +7621,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -8455,6 +8595,10 @@ document.querySelectorAll('.income-method-btn').forEach(btn=>{
 });
 el('addIncomeBtn').addEventListener('click', addOtherIncome);
 el('dayReviewGoBtn').addEventListener('click', loadDayReview);
+document.querySelectorAll('.withdrawal-method-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setWithdrawalMethod(btn.getAttribute('data-method')));
+});
+el('addWithdrawalBtn').addEventListener('click', addWithdrawal);
 el('addTransferBtn').addEventListener('click', addTransfer);
 document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setExpenseFilter(btn.getAttribute('data-filter')));
