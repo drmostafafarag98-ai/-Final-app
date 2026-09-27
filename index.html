@@ -4842,8 +4842,10 @@ async function calculatePayroll(){
       if(!coveredByPackage) return;
       const key = (ev.patient_name || '').trim().toLowerCase();
       if(!key) return;
+      const rule = matchPayrollRule(ev.doctor_name);
+      const doctorIdentity = rule ? rule.label : (ev.doctor_name || 'Unassigned');
       if(!packageDoctorsByPatient[key]) packageDoctorsByPatient[key] = { displayName: ev.patient_name, doctors: new Set() };
-      packageDoctorsByPatient[key].doctors.add(ev.doctor_name || 'Unassigned');
+      packageDoctorsByPatient[key].doctors.add(doctorIdentity);
     });
     const crossDoctorPatients = Object.values(packageDoctorsByPatient).filter(p=> p.doctors.size > 1);
     el('payrollWarnings').innerHTML = crossDoctorPatients.length === 0 ? '' : `<div style="background:#fbf0e0;border:1px solid #d9a441;border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;font-size:0.8rem;">
