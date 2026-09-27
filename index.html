@@ -1136,7 +1136,7 @@
       <input type="text" id="calendarSearchInput" placeholder="🔍 Find a patient's appointment…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <div id="calendarSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-top:4px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
     </div>
-    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;">📥 Import from TimeTree</button>
+    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button>
     <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
@@ -1328,6 +1328,19 @@
                 <button type="button" class="ghost" id="inlineRegPackageBtn" style="font-size:0.78rem;padding:5px 10px;">Register & continue</button>
               </div>
             </div>
+            <div id="sellNextPackageBox" style="background:var(--paper);border:1px dashed var(--maroon);border-radius:var(--radius);padding:10px;margin-top:10px;">
+              <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Patient is also paying today for a NEW package they'll start using on a future visit (e.g. paid on their last session of the current package):</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                <input type="number" id="sellNextPackageSessionsInput" min="2" placeholder="Sessions" style="width:75px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+                <input type="number" id="sellNextPackageAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+                <div id="sellNextPackageMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+                  <button type="button" class="sell-next-package-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button>
+                  <button type="button" class="sell-next-package-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
+                </div>
+              </div>
+              <button type="button" class="ghost" id="sellNextPackageBtn" style="width:100%;font-size:0.8rem;">Save new package + payment (0 sessions used yet)</button>
+              <div id="sellNextPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
+            </div>
           </div>
         </div>
 
@@ -1420,13 +1433,13 @@
     <div id="timeTreeImportOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:85vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);">📥 Import from TimeTree</span>
+          <span style="font-weight:700;color:var(--maroon);display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</span>
           <button type="button" id="timeTreeImportCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
           <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Easiest: take a screenshot of your TimeTree calendar and upload it — Claude will read the appointments out of the picture. This only reads events — nothing gets added until you pick which ones further down.</div>
           <input type="file" id="timeTreeScreenshotInput" accept="image/*" style="width:100%;margin-bottom:8px;font-size:0.82rem;">
-          <button type="button" class="ghost" id="timeTreeScreenshotBtn" style="width:100%;margin-bottom:14px;">📷 Read this screenshot</button>
+          <button type="button" class="ghost" id="timeTreeScreenshotBtn" style="width:100%;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/></svg> Read this screenshot</button>
           <div style="text-align:center;font-size:0.75rem;color:#8a938e;margin-bottom:8px;">— or paste a .ics file's content —</div>
           <textarea id="timeTreeIcsTextInput" placeholder="Paste the .ics file content here…" style="width:100%;min-height:90px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.8rem;margin-bottom:8px;font-family:monospace;"></textarea>
           <div style="text-align:center;font-size:0.75rem;color:#8a938e;margin-bottom:8px;">— or, if you have a live link —</div>
@@ -4490,9 +4503,9 @@ function renderStatsRow(prefix, stats){
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
-    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '💸 Not paid yet', 'Nobody unpaid in this range 🎉', '#a33d3d'));
-    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '💵 Paid by Cash', 'No cash payments in this range.', '#0b8043'));
-    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '🔵 Paid by InstaPay', 'No InstaPay payments in this range.', '#0b8043'));
+    if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not paid yet</span>', 'Nobody unpaid in this range.', '#a33d3d'));
+    if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Paid by Cash</span>', 'No cash payments in this range.', '#0b8043'));
+    if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Paid by InstaPay</span>', 'No InstaPay payments in this range.', '#0b8043'));
   });
 }
 
@@ -4526,12 +4539,22 @@ async function openPatientDetail(ev, startTab){
 
 function extractPaymentDetail(ev){
   const notes = ev.notes || [];
+  // Check every note for an actual cash/instapay payment FIRST — an
+  // appointment that both started a package AND took a payment that day
+  // should show the money, not just "Package — session 1 of X" (the
+  // money is the important context for a month-end review).
+  for(const n of notes){
+    const text = (n.text || '').trim();
+    const cashMatch = text.match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
+    if(cashMatch){
+      const startsPackage = /starts a package of (\d+)/i.exec(text);
+      return `💰 ${cashMatch[1]} EGP (${cashMatch[2]})${startsPackage ? ` — starts package of ${startsPackage[1]}` : ''}`;
+    }
+  }
   for(const n of notes){
     const text = (n.text || '').trim();
     const packageMatch = text.match(/^covered by package.*?session\s*(\d+)\s*of\s*(\d+)/i);
     if(packageMatch) return `🎁 Package — session ${packageMatch[1]} of ${packageMatch[2]}`;
-    const cashMatch = text.match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
-    if(cashMatch) return `💰 ${cashMatch[1]} EGP (${cashMatch[2]})`;
   }
   if(ev.is_free) return '🆓 Free';
   return null;
@@ -4617,7 +4640,7 @@ let unpaidListItems = [];
 
 function openPatientListPopup(items, title, emptyMessage, titleColor){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
-  el('unpaidListTitle').textContent = title;
+  el('unpaidListTitle').innerHTML = title;
   el('unpaidListTitle').style.color = titleColor || '#a33d3d';
   el('unpaidListOverlay').style.display = 'flex';
   if(items.length === 0){
@@ -5253,7 +5276,7 @@ async function loadDoctorStatsThisMonth(){
     table.querySelectorAll('.doctor-paid-link').forEach(el2=>{
       el2.addEventListener('click', ()=>{
         const name = el2.getAttribute('data-name');
-        openPatientListPopup(doctorPaidAppointmentsByName[name] || [], `💰 Paid — ${name} (this month)`, 'Nobody paid yet.', '#0b8043');
+        openPatientListPopup(doctorPaidAppointmentsByName[name] || [], `<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Paid — ${escapeHtml(name)} (this month)</span>`, 'Nobody paid yet.', '#0b8043');
         el('unpaidListTitle').style.color = '#0b8043';
       });
     });
@@ -5915,6 +5938,57 @@ async function markAsFree(){
   }catch(err){
     console.error(err);
     el('paymentOverlayStatus').textContent = 'Could not save: ' + (err.message || err);
+  }
+}
+
+let selectedSellNextPackageMethod = 'cash';
+function setSellNextPackageMethod(method){
+  selectedSellNextPackageMethod = method;
+  document.querySelectorAll('.sell-next-package-method-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-method') === method;
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
+async function sellNextPackage(){
+  if(!currentPaymentTarget) return;
+  const patientName = currentPaymentTarget.patient_name;
+  const totalSessions = parseInt(el('sellNextPackageSessionsInput').value, 10);
+  const amount = parseFloat(el('sellNextPackageAmountInput').value);
+  const method = selectedSellNextPackageMethod;
+  if(!patientName || !totalSessions || totalSessions < 2 || !amount){
+    el('sellNextPackageStatus').textContent = 'Enter the number of sessions (2+) and the amount first.';
+    return;
+  }
+  el('sellNextPackageStatus').textContent = 'Saving…';
+  el('sellNextPackageBtn').disabled = true;
+  try{
+    const pkgRes = await fetch(`${BACKEND_URL}/api/packages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0 })
+    });
+    if(!pkgRes.ok){
+      const errBody = await pkgRes.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${pkgRes.status}`);
+    }
+    const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
+    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions (for a future visit)`;
+    const noteRes = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ text: noteText })
+    });
+    if(!noteRes.ok) throw new Error(`Server error ${noteRes.status}`);
+    el('sellNextPackageStatus').textContent = `Saved — new ${totalSessions}-session package on file (0 used), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
+    el('sellNextPackageSessionsInput').value = '';
+    el('sellNextPackageAmountInput').value = '';
+  }catch(e){
+    console.error(e);
+    el('sellNextPackageStatus').textContent = 'Could not save: ' + (e.message || e);
+  }finally{
+    el('sellNextPackageBtn').disabled = false;
   }
 }
 
@@ -7182,24 +7256,24 @@ function renderTimeTreeEventsList(){
     let nameFlag = '<span style="color:#b8894f;font-size:0.72rem;">🆕 new patient</span>';
     let nameToUse = typedName;
     if(match && match.exact){
-      nameFlag = '<span style="color:#1b8a4a;font-size:0.72rem;">✓ matches existing patient</span>';
+      nameFlag = '<span style="color:#1b8a4a;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> matches existing patient</span>';
     }else if(match){
-      nameFlag = `<span style="color:#c0392b;font-size:0.72rem;">⚠️ typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
+      nameFlag = `<span style="color:#c0392b;font-size:0.72rem;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> typed "${escapeHtml(typedName)}" — did you mean "${escapeHtml(match.match)}"?</span>`;
       nameToUse = match.match; // default to the existing spelling; owner can still edit
     }
     const color = (ev.color || '').toLowerCase();
     const isCancelledColor = color === 'green';
     const guessedDoctor = !isCancelledColor && TIMETREE_COLOR_KEYWORDS[color] ? findDoctorByKeyword(TIMETREE_COLOR_KEYWORDS[color]) : null;
     const colorTag = isCancelledColor
-      ? '<span style="color:#1b8a4a;font-size:0.7rem;">🟢 looked cancelled in TimeTree</span>'
+      ? '<span style="color:#1b8a4a;font-size:0.7rem;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/></svg> looked cancelled in TimeTree</span>'
       : guessedDoctor
-        ? `<span style="color:#5b6863;font-size:0.7rem;">🎨 color matched to ${escapeHtml(guessedDoctor.name || guessedDoctor.email)}</span>`
+        ? `<span style="color:#5b6863;font-size:0.7rem;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.688-1.688h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> color matched to ${escapeHtml(guessedDoctor.name || guessedDoctor.email)}</span>`
         : color && color !== 'unknown'
-          ? `<span style="color:#b8894f;font-size:0.7rem;">🎨 color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
+          ? `<span style="color:#b8894f;font-size:0.7rem;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.688-1.688h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg> color "${escapeHtml(color)}" didn't match a known doctor — pick one</span>`
           : '';
     const nameChoiceButtons = (match && !match.exact) ? `<div style="display:flex;gap:6px;margin-bottom:4px;">
-        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(match.match)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #1b8a4a;background:#e3f6ea;color:#1b8a4a;cursor:pointer;">✓ Yes, same person</button>
-        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(typedName)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #b8894f;background:#fbf0e0;color:#b8894f;cursor:pointer;">🆕 No, different person</button>
+        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(match.match)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #1b8a4a;background:#e3f6ea;color:#1b8a4a;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="20 6 9 17 4 12"/></svg> Yes, same person</button>
+        <button type="button" class="tt-name-confirm-btn" data-idx="${i}" data-name="${escapeHtml(typedName)}" style="font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid #b8894f;background:#fbf0e0;color:#b8894f;cursor:pointer;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> No, different person</button>
       </div>` : '';
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 2px;border-bottom:1px solid var(--line);font-size:0.85rem;${isCancelledColor ? 'opacity:0.6;' : ''}">
       <input type="checkbox" class="tt-event-checkbox" data-idx="${i}" ${isCancelledColor ? '' : 'checked'} style="margin-top:8px;">
@@ -8677,6 +8751,11 @@ el('inlineRegPackageBtn').addEventListener('click', async ()=>{
     el('paymentOverlayStatus').textContent = 'Could not register: ' + (e.message || e);
   }
 });
+
+document.querySelectorAll('.sell-next-package-method-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setSellNextPackageMethod(btn.getAttribute('data-method')));
+});
+el('sellNextPackageBtn').addEventListener('click', sellNextPackage);
 
 el('saveEditAppointmentBtn').addEventListener('click', saveEditAppointment);
 el('cancelAppointmentBtn').addEventListener('click', cancelAppointment);
