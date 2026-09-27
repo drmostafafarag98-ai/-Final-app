@@ -4838,20 +4838,35 @@ async function calculatePayroll(){
     // credit for that work.
     const packageDoctorsByPatient = {};
     active.forEach(ev=>{
-      const coveredByPackage = (ev.notes || []).some(n=> (n.text || '').includes('Covered by package') || /starts a package of/.test(n.text || ''));
-      if(!coveredByPackage) return;
+      const notes = ev.notes || [];
+      const packageNote = notes.find(n=> (n.text || '').includes('Covered by package') || /starts a package of/.test(n.text || ''));
+      if(!packageNote) return;
       const key = (ev.patient_name || '').trim().toLowerCase();
       if(!key) return;
       const rule = matchPayrollRule(ev.doctor_name);
       const doctorIdentity = rule ? rule.label : (ev.doctor_name || 'Unassigned');
-      if(!packageDoctorsByPatient[key]) packageDoctorsByPatient[key] = { displayName: ev.patient_name, doctors: new Set() };
-      packageDoctorsByPatient[key].doctors.add(doctorIdentity);
+      if(!packageDoctorsByPatient[key]) packageDoctorsByPatient[key] = { displayName: ev.patient_name, sessionsByDoctor: {}, creditedTo: null };
+      const entry = packageDoctorsByPatient[key];
+      entry.sessionsByDoctor[doctorIdentity] = (entry.sessionsByDoctor[doctorIdentity] || 0) + 1;
+      const cashMatch = (packageNote.text || '').match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
+      if(cashMatch){
+        entry.creditedTo = { doctor: doctorIdentity, amount: cashMatch[1], method: cashMatch[2] };
+      }
     });
-    const crossDoctorPatients = Object.values(packageDoctorsByPatient).filter(p=> p.doctors.size > 1);
+    const crossDoctorPatients = Object.values(packageDoctorsByPatient).filter(p=> Object.keys(p.sessionsByDoctor).length > 1);
     el('payrollWarnings').innerHTML = crossDoctorPatients.length === 0 ? '' : `<div style="background:#fbf0e0;border:1px solid #d9a441;border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;font-size:0.8rem;">
       <div style="font-weight:700;color:#8a5a1a;margin-bottom:4px;">⚠️ Package sessions split across doctors</div>
-      <div style="color:#5b6863;margin-bottom:6px;">These patients' package sessions in this range were seen by more than one doctor — the payment is credited only to whoever was on shift when it was recorded, so the other doctor's work isn't reflected below.</div>
-      ${crossDoctorPatients.map(p=> `<div style="padding:2px 0;">• <strong>${escapeHtml(p.displayName)}</strong> — ${[...p.doctors].map(d=>escapeHtml(d)).join(', ')}</div>`).join('')}
+      <div style="color:#5b6863;margin-bottom:8px;">These patients' package sessions in this range were seen by more than one doctor — the payment is credited only to whoever was on shift when it was recorded.</div>
+      ${crossDoctorPatients.map(p=>{
+        const doctorLines = Object.entries(p.sessionsByDoctor).map(([doc, count])=>{
+          const isCredited = p.creditedTo && p.creditedTo.doctor === doc;
+          return `${escapeHtml(doc)} (${count} session${count>1?'s':''}${isCredited ? `, credited ${p.creditedTo.amount} EGP ${p.creditedTo.method}` : ''})`;
+        }).join(' · ');
+        return `<div style="padding:4px 0;border-top:1px solid #eddcb8;">
+          <strong>${escapeHtml(p.displayName)}</strong>
+          <div style="color:#5b6863;font-size:0.76rem;">${doctorLines}</div>
+        </div>`;
+      }).join('')}
     </div>`;
 
     const revenueByKey = {};
