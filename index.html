@@ -4821,13 +4821,16 @@ async function calculatePayroll(){
     // Same two fetches, same date-range construction, same non-cancelled
     // filter, and the SAME payment-note regex the Dashboard cards use —
     // so this total can never silently drift from what's shown there.
-    const [apptRes, expRes] = await Promise.all([
+    const [apptRes, expRes, incRes] = await Promise.all([
       fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/expenses?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
+      fetch(`${BACKEND_URL}/api/other-income?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
     ]);
     if(!apptRes.ok) throw new Error(`Server error ${apptRes.status}`);
     const items = (await apptRes.json()) || [];
     const expenseRows = apptRes.ok && expRes.ok ? ((await expRes.json()) || []) : [];
+    const otherIncomeRows = incRes.ok ? ((await incRes.json()) || []) : [];
+    const otherIncomeTotal = otherIncomeRows.reduce((sum, inc)=> sum + parseFloat(inc.amount || 0), 0);
     const active = items.filter(ev=> ev.status !== 'cancelled');
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
 
@@ -4888,7 +4891,7 @@ async function calculatePayroll(){
     });
 
     const totalExpenses = expenseRows.reduce((sum,e)=> sum + parseFloat(e.amount || 0), 0);
-    const totalRevenue = Object.values(revenueByKey).reduce((a,b)=> a+b, 0);
+    const totalRevenue = Object.values(revenueByKey).reduce((a,b)=> a+b, 0) + otherIncomeTotal;
 
     const rows = [];
     let totalPayout = 0;
@@ -4929,6 +4932,7 @@ async function calculatePayroll(){
     const fmt = n => (n || 0).toLocaleString(undefined, {maximumFractionDigits: 0});
     el('payrollSummary').innerHTML = `
       <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total revenue collected</span><strong>${fmt(totalRevenue)} EGP</strong></div>
+      ${otherIncomeTotal > 0 ? `<div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#8a938e;font-size:0.78rem;padding-left:8px;">— of which Other Income</span><span style="color:#8a938e;font-size:0.78rem;">${fmt(otherIncomeTotal)} EGP</span></div>` : ''}
       <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total expenses</span><strong style="color:var(--danger);">${fmt(totalExpenses)} EGP</strong></div>
       <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:#5b6863;">Total doctor payout</span><strong>${fmt(totalPayout)} EGP</strong></div>
       <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line);margin-top:4px;padding-top:6px;"><span style="font-weight:700;">Net profit (split ${partnerRows.length} ways)</span><strong style="color:#1b8a4a;">${fmt(netProfit)} EGP</strong></div>
