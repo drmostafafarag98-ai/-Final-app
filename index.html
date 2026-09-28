@@ -807,7 +807,7 @@
 <div id="appBody">
 
 <header>
-  <button id="mainNavToggleBtn" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:8px 10px;cursor:pointer;display:flex;align-items:center;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
+  <button id="mainNavToggleBtn" style="display:none;background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:8px 10px;cursor:pointer;line-height:0;"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg></button>
   <button id="sidebarToggleBtn" style="background:transparent;border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:8px 12px;font-size:0.88rem;cursor:pointer;display:flex;align-items:center;gap:7px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 6h16"/><path d="M4 12h16"/><path d="M4 18h16"/></svg> Sessions</button>
   <h1 class="display logo-shimmer" lang="ar" dir="rtl" style="font-family:'Aref Ruqaa', 'Amiri', serif; font-weight:700; font-size:1.9rem;">مُسَاعِد</h1>
   <span class="tag">Clinic Management &amp; Clinical Notes</span>
@@ -1397,6 +1397,7 @@
             <button type="button" class="ghost" id="noShowAppointmentBtn" style="display:none;color:#b8894f;border-color:#b8894f;">👻 Mark as No Show</button>
             <button type="button" class="ghost" id="restoreAppointmentBtn" style="display:none;">↩️ Restore (un-cancel)</button>
             <button type="button" class="ghost" id="deleteAppointmentPermanentlyBtn" style="display:none;color:var(--danger);border-color:var(--danger);font-weight:700;">🗑️ Delete permanently</button>
+            <button type="button" class="ghost" id="quickInvoiceBtn" style="display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg> Invoice</button>
           </div>
         </div>
 
@@ -4362,6 +4363,12 @@ async function fetchStatsForRange(start, end){
     const sentItems = active.filter(ev => hasNote(ev, 'confirmation sent'));
     const sentCount = sentItems.length;
     const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
+    const checkupItems = active.filter(ev => ev.visit_type === 'checkup');
+    const recoveryItems = active.filter(ev => ev.visit_type === 'recovery');
+    const regularSessionItems = active.filter(ev => ev.visit_type !== 'checkup' && ev.visit_type !== 'recovery');
+    const checkupCount = checkupItems.length;
+    const recoveryCount = recoveryItems.length;
+    const regularSessionCount = regularSessionItems.length;
     const paidCount = active.filter(ev => !!ev.paid).length;
     const unpaidItems = active.filter(ev => !ev.paid);
     const unpaidCount = unpaidItems.length;
@@ -4482,7 +4489,7 @@ async function fetchStatsForRange(start, end){
     const netInstapay = netInstapayBeforeIncome + instapayIncome;
     const otherIncomeTotal = cashIncome + instapayIncome;
 
-    return { total: active.length, sentCount, sentItems, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
+    return { total: active.length, sentCount, sentItems, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, checkupCount, recoveryCount, regularSessionCount, checkupItems, recoveryItems, regularSessionItems, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4509,6 +4516,9 @@ function renderStatsRow(prefix, stats){
     cash: svgIcon('<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/>'),
     instapay: svgIcon('<path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>'),
     scale: svgIcon('<line x1="12" y1="3" x2="12" y2="21"/><path d="M5 7h4l-2 5a3 3 0 0 0 6 0l-2-5"/><path d="M15 7h4l-2 5a3 3 0 0 0 6 0l-2-5"/><path d="M5 7h14"/>'),
+    stethoscope: svgIcon('<path d="M4.8 2.3A.3.3 0 1 0 4.2 2a.3.3 0 0 0 .6.3Z"/><path d="M8 2c-1.8 0-3 1.2-3 3v6a5 5 0 0 0 10 0V7"/><path d="M15 2c1.8 0 3 1.2 3 3v6a5 5 0 0 1-5 5"/><circle cx="19" cy="12" r="2"/><path d="M13 22a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>'),
+    recovery: svgIcon('<path d="M21.5 2v6h-6"/><path d="M2.5 22v-6h6"/><path d="M2 11.5a10 10 0 0 1 18.4-6.3L21.5 8"/><path d="M22 12.5a10 10 0 0 1-18.4 6.3L2.5 16"/>'),
+    session: svgIcon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/>'),
   };
   const cards = [
     { label: 'Appointments', num: stats.total, icon: ICONS.calendar, bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)' },
@@ -4517,6 +4527,9 @@ function renderStatsRow(prefix, stats){
     { label: 'Paid', num: stats.paidCount, icon: ICONS.card, bg: 'var(--badge-purple-bg)', fg: 'var(--badge-purple-fg)' },
     { label: 'Not paid yet', num: stats.unpaidCount, icon: ICONS.alert, bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)', clickKey: 'unpaid' },
     { label: 'Cancelled', num: stats.cancelledCount, icon: ICONS.x, bg: '#eceeed', fg: '#6b7573' },
+    { label: 'Sessions', num: stats.regularSessionCount, icon: ICONS.session, bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)', clickKey: 'session' },
+    { label: 'Check-ups', num: stats.checkupCount, icon: ICONS.stethoscope, bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'checkup' },
+    { label: 'Recovery', num: stats.recoveryCount, icon: ICONS.recovery, bg: 'var(--badge-purple-bg)', fg: 'var(--badge-purple-fg)', clickKey: 'recovery' },
   ];
   // Money figures only belong on the dedicated Dashboard view (its own
   // access-gated page) — not on the main page's quick-glance row, which
@@ -4544,6 +4557,9 @@ function renderStatsRow(prefix, stats){
     const key = cardEl.getAttribute('data-click-key');
     if(key === 'sent') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.sentItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Confirmation sent</span>', 'No confirmations sent in this range.', '#2563a8', 'history'));
     if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not paid yet</span>', 'Nobody unpaid in this range.', '#a33d3d'));
+    if(key === 'session') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.regularSessionItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;">' + ICONS.session + ' Sessions</span>', 'No regular sessions in this range.', '#1c6b64', 'history'));
+    if(key === 'checkup') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.checkupItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;">' + ICONS.stethoscope + ' Check-ups</span>', 'No check-ups in this range.', '#2563a8', 'history'));
+    if(key === 'recovery') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.recoveryItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;">' + ICONS.recovery + ' Recovery</span>', 'No recovery sessions in this range.', '#6b3fa0', 'history'));
     if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Paid by Cash</span>', 'No cash payments in this range.', '#0b8043'));
     if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Paid by InstaPay</span>', 'No InstaPay payments in this range.', '#0b8043'));
   });
@@ -8268,6 +8284,22 @@ function openInvoiceOverlay(){
   el('invoiceTotalInput').value = '';
 }
 
+// Same overlay, opened from an appointment row/popup instead of the
+// Documentation screen — pre-fills from that appointment's patient and
+// doctor so the owner never has to go through Docs just to print an
+// invoice for someone.
+function openInvoiceOverlayFromAppointment(ev){
+  openInvoiceOverlay();
+  if(!ev) return;
+  el('invoicePatientInput').value = ev.patient_name || '';
+  if(ev.doctor_name) el('invoiceDoctorInput').value = ev.doctor_name;
+  if(ev.start_time){
+    const d = new Date(ev.start_time);
+    const pad = n => String(n).padStart(2,'0');
+    el('invoiceDateInput').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+}
+
 function recalcInvoiceTotal(){
   const sessions = parseFloat(el('invoiceSessionsInput').value);
   const price = parseFloat(el('invoicePriceInput').value);
@@ -8291,7 +8323,7 @@ function downloadInvoicePdf(){
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page"><div class="inv-header"><div class="inv-diamonds"><svg viewBox="0 0 180 90" xmlns="http://www.w3.org/2000/svg"><polygon points="70,10 115,10 155,55 110,55" fill="#1c4a4a"/><polygon points="95,10 140,10 175,50 135,50" fill="#b23b3b" opacity="0.92"/><polygon points="60,55 95,55 115,80 80,80" fill="#b23b3b"/><polygon points="105,0 120,18 90,18" fill="#1f3547"/></svg></div><div class="inv-logo-word">EMPOWE<span class="arrow">R</span></div><div class="inv-tagline">Physical Therapy and Rehabilitation</div></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="inv-header" style="text-align:center;"><img src="${CLINIC_LOGO_DATA_URI}" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
   window.print();
   container.className = '';
 }
@@ -8971,6 +9003,7 @@ el('downloadSummaryTxtBtn').addEventListener('click', downloadSummaryTxt);
 el('downloadSummaryPdfBtn').addEventListener('click', downloadSummaryPdf);
 el('openPrescriptionBtn').addEventListener('click', openPrescriptionOverlay);
 el('openInvoiceBtn').addEventListener('click', openInvoiceOverlay);
+el('quickInvoiceBtn').addEventListener('click', ()=> openInvoiceOverlayFromAppointment(currentPaymentTarget));
 el('invoiceCloseBtn').addEventListener('click', ()=>{
   el('invoiceOverlay').style.display = 'none';
 });
