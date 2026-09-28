@@ -4359,7 +4359,8 @@ async function fetchStatsForRange(start, end){
     const active = items.filter(ev => ev.status !== 'cancelled');
     const cancelledCount = items.filter(ev => ev.status === 'cancelled').length;
     const hasNote = (ev, text) => (ev.notes || []).some(n => (n.text || '').trim().toLowerCase() === text);
-    const sentCount = active.filter(ev => hasNote(ev, 'confirmation sent')).length;
+    const sentItems = active.filter(ev => hasNote(ev, 'confirmation sent'));
+    const sentCount = sentItems.length;
     const confirmedCount = active.filter(ev => hasNote(ev, 'confirmed')).length;
     const paidCount = active.filter(ev => !!ev.paid).length;
     const unpaidItems = active.filter(ev => !ev.paid);
@@ -4481,7 +4482,7 @@ async function fetchStatsForRange(start, end){
     const netInstapay = netInstapayBeforeIncome + instapayIncome;
     const otherIncomeTotal = cashIncome + instapayIncome;
 
-    return { total: active.length, sentCount, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
+    return { total: active.length, sentCount, sentItems, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -4511,7 +4512,7 @@ function renderStatsRow(prefix, stats){
   };
   const cards = [
     { label: 'Appointments', num: stats.total, icon: ICONS.calendar, bg: 'var(--badge-teal-bg)', fg: 'var(--badge-teal-fg)' },
-    { label: 'Confirmation sent', num: stats.sentCount, icon: ICONS.sent, bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)' },
+    { label: 'Confirmation sent', num: stats.sentCount, icon: ICONS.sent, bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'sent' },
     { label: 'Confirmed', num: stats.confirmedCount, icon: ICONS.check, bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)' },
     { label: 'Paid', num: stats.paidCount, icon: ICONS.card, bg: 'var(--badge-purple-bg)', fg: 'var(--badge-purple-fg)' },
     { label: 'Not paid yet', num: stats.unpaidCount, icon: ICONS.alert, bg: 'var(--badge-red-bg)', fg: 'var(--badge-red-fg)', clickKey: 'unpaid' },
@@ -4541,6 +4542,7 @@ function renderStatsRow(prefix, stats){
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
+    if(key === 'sent') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.sentItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Confirmation sent</span>', 'No confirmations sent in this range.', '#2563a8', 'history'));
     if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not paid yet</span>', 'Nobody unpaid in this range.', '#a33d3d'));
     if(key === 'cash') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.cashItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Paid by Cash</span>', 'No cash payments in this range.', '#0b8043'));
     if(key === 'instapay') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.instapayItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 1 4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="m7 23-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg> Paid by InstaPay</span>', 'No InstaPay payments in this range.', '#0b8043'));
@@ -4676,7 +4678,7 @@ async function openPatientHistoryPopup(name){
 
 let unpaidListItems = [];
 
-function openPatientListPopup(items, title, emptyMessage, titleColor){
+function openPatientListPopup(items, title, emptyMessage, titleColor, clickTab){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
   el('unpaidListTitle').innerHTML = title;
   el('unpaidListTitle').style.color = titleColor || '#a33d3d';
@@ -4702,7 +4704,7 @@ function openPatientListPopup(items, title, emptyMessage, titleColor){
       const ev = unpaidListItems[parseInt(row.getAttribute('data-idx'), 10)];
       if(!ev) return;
       el('unpaidListOverlay').style.display = 'none';
-      openPatientDetail(ev, 'payment');
+      openPatientDetail(ev, clickTab || 'payment');
     });
   });
 }
@@ -7077,10 +7079,22 @@ async function addManualDoctor(){
 }
 
 function normalizeEgyptPhoneForWhatsApp(raw){
-  let digits = String(raw || '').replace(/[^\d]/g, '');
-  if(digits.startsWith('0')) digits = digits.slice(1);
-  if(!digits.startsWith('20')) digits = '20' + digits;
-  return digits;
+  const trimmed = String(raw || '').trim();
+  const digits = trimmed.replace(/[^\d]/g, '');
+  if(!digits) return digits;
+  // Explicit international format ("+44…" or "0044…") — keep the country code as typed.
+  if(trimmed.startsWith('+')) return digits;
+  if(digits.startsWith('00')) return digits.slice(2);
+  // Egyptian local format (01xxxxxxxxx, or a landline like 02xxxxxxxx).
+  if(digits.startsWith('0')) return '20' + digits.slice(1);
+  // Already Egyptian international (20 + 10 digits).
+  if(digits.startsWith('20') && digits.length === 12) return digits;
+  // Egyptian mobile typed without the leading 0 (1[0125] + 8 digits).
+  if(/^1[0125]\d{8}$/.test(digits)) return '20' + digits;
+  // Long enough to already carry a country code (e.g. 447762863623 typed without "+") — leave it alone.
+  if(digits.length >= 11) return digits;
+  // Short leftover: assume Egyptian.
+  return '20' + digits;
 }
 
 // Ready-made WhatsApp message templates for the "Tomorrow's appointments"
