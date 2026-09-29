@@ -1578,9 +1578,15 @@
           <input type="text" id="invoiceDateInput" inputmode="none" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Doctor's name (appears above the signature)</label>
           <input type="text" id="invoiceDoctorInput" placeholder="Doctor's name" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
+          <label style="font-size:0.78rem;color:#5b6863;">Payment type</label>
+          <div id="invoicePaymentTypeToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="invoice-type-btn active" data-type="checkup" style="flex:1;border:none;padding:9px 6px;font-size:0.82rem;cursor:pointer;background:var(--maroon);color:#fff;border-radius:999px;">Check-up (كشف)</button>
+            <button type="button" class="invoice-type-btn" data-type="session" style="flex:1;border:none;padding:9px 6px;font-size:0.82rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">Session (جلسة)</button>
+            <button type="button" class="invoice-type-btn" data-type="package" style="flex:1;border:none;padding:9px 6px;font-size:0.82rem;cursor:pointer;background:transparent;color:var(--ink);border-radius:999px;">Package (باكدج)</button>
+          </div>
           <label style="font-size:0.78rem;color:#5b6863;">Number of sessions (1 for a single session, or a package size)</label>
           <input type="number" id="invoiceSessionsInput" min="1" step="1" placeholder="e.g. 1 or 6" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
-          <label style="font-size:0.78rem;color:#5b6863;">Price per session (EGP)</label>
+          <label style="font-size:0.78rem;color:#5b6863;" id="invoicePriceLabel">Price per session (EGP)</label>
           <input type="number" id="invoicePriceInput" min="0" step="1" placeholder="e.g. 450" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
           <label style="font-size:0.78rem;color:#5b6863;">Total payment (EGP) — auto-filled, edit if there's a discount</label>
           <input type="number" id="invoiceTotalInput" min="0" step="1" placeholder="Auto-calculated" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
@@ -8271,6 +8277,25 @@ function showRecoveryControls(show){
   el('recoveryControls').style.display = show ? 'block' : 'none';
 }
 
+let invoicePaymentType = 'checkup';
+const INVOICE_TYPE_LABELS = { checkup: 'Check-up (كشف)', session: 'Individual session (جلسة فردية)', package: 'Package (باكدج)' };
+
+function setInvoicePaymentType(type){
+  invoicePaymentType = type;
+  document.querySelectorAll('.invoice-type-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-type') === type;
+    btn.classList.toggle('active', active);
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+  // Packages are sold as one bundle price against a number of sessions —
+  // not sessions × a per-session rate — so the amount field means
+  // something different for them and shouldn't be multiplied.
+  el('invoicePriceLabel').textContent = type === 'package' ? 'Total package price (EGP)' : 'Price per session (EGP)';
+  el('invoicePriceInput').placeholder = type === 'package' ? 'e.g. 2400 for the whole package' : 'e.g. 450';
+  recalcInvoiceTotal();
+}
+
 function openInvoiceOverlay(){
   el('invoiceOverlay').style.display = 'flex';
   el('invoiceStatus').textContent = '';
@@ -8282,6 +8307,7 @@ function openInvoiceOverlay(){
   el('invoiceSessionsInput').value = '';
   el('invoicePriceInput').value = '';
   el('invoiceTotalInput').value = '';
+  setInvoicePaymentType('checkup');
 }
 
 // Same overlay, opened from an appointment row/popup instead of the
@@ -8298,12 +8324,18 @@ function openInvoiceOverlayFromAppointment(ev){
     const pad = n => String(n).padStart(2,'0');
     el('invoiceDateInput').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
   }
+  if(ev.visit_type === 'checkup') setInvoicePaymentType('checkup');
 }
 
 function recalcInvoiceTotal(){
   const sessions = parseFloat(el('invoiceSessionsInput').value);
   const price = parseFloat(el('invoicePriceInput').value);
-  if(!isNaN(sessions) && !isNaN(price)){
+  if(isNaN(price)) return;
+  if(invoicePaymentType === 'package'){
+    // The entered amount already IS the total — a package isn't priced
+    // per session, so don't multiply it by the session count.
+    el('invoiceTotalInput').value = price;
+  }else if(!isNaN(sessions)){
     el('invoiceTotalInput').value = sessions * price;
   }
 }
@@ -8319,12 +8351,24 @@ function downloadInvoicePdf(){
     el('invoiceStatus').textContent = 'Fill in all fields first.';
     return;
   }
+  const typeLabel = INVOICE_TYPE_LABELS[invoicePaymentType] || 'Check-up (كشف)';
+  const isPackage = invoicePaymentType === 'package';
+  const amountHeader = isPackage ? 'Package Price' : 'Price per Session';
   const [yyyy, mo, dd] = dateVal.split('-');
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page"><div class="inv-header" style="text-align:center;"><img src="${CLINIC_LOGO_DATA_URI}" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>Price per Session</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="inv-header" style="text-align:center;"><img src="${CLINIC_LOGO_DATA_URI}" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><div class="inv-fields"><div class="field"><span class="label">Payment Type :</span><span class="val">${escapeHtml(typeLabel)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>${escapeHtml(amountHeader)}</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(isPackage ? total : price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  // A "Save as PDF" dialog suggests the page <title> as the default
+  // filename, so set it to "patient name - payment type" just for the
+  // print, then restore the app's real title once printing is done.
+  const originalTitle = document.title;
+  const safeName = (patientName + ' - ' + typeLabel.replace(/\s*\([^)]*\)\s*/g, '')).replace(/[\\/:*?"<>|]/g, '').trim();
+  document.title = safeName || originalTitle;
+  const restoreTitle = () => { document.title = originalTitle; window.removeEventListener('afterprint', restoreTitle); };
+  window.addEventListener('afterprint', restoreTitle);
   window.print();
+  setTimeout(restoreTitle, 3000); // fallback for browsers that don't fire afterprint reliably
   container.className = '';
 }
 
@@ -9002,6 +9046,9 @@ el('patientSummaryOverlay').addEventListener('click', (e)=>{
 el('downloadSummaryTxtBtn').addEventListener('click', downloadSummaryTxt);
 el('downloadSummaryPdfBtn').addEventListener('click', downloadSummaryPdf);
 el('openPrescriptionBtn').addEventListener('click', openPrescriptionOverlay);
+document.querySelectorAll('.invoice-type-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setInvoicePaymentType(btn.getAttribute('data-type')));
+});
 el('openInvoiceBtn').addEventListener('click', openInvoiceOverlay);
 el('quickInvoiceBtn').addEventListener('click', ()=> openInvoiceOverlayFromAppointment(currentPaymentTarget));
 el('invoiceCloseBtn').addEventListener('click', ()=>{
