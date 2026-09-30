@@ -1350,12 +1350,16 @@
               <div style="font-size:0.78rem;color:#5b6863;margin-bottom:8px;">Patient is also paying today for a NEW package they'll start using on a future visit (e.g. paid on their last session of the current package):</div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
                 <input type="number" id="sellNextPackageSessionsInput" min="2" placeholder="Sessions" style="width:75px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
-                <input type="number" id="sellNextPackageAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+                <input type="number" id="sellNextPackageTotalPriceInput" placeholder="Total price (EGP)" style="width:125px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+                <input type="number" id="sellNextPackageAmountInput" placeholder="Paid now (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;">
                 <div id="sellNextPackageMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
                   <button type="button" class="sell-next-package-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button>
                   <button type="button" class="sell-next-package-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
                 </div>
               </div>
+              <div style="font-size:0.72rem;color:#8a938e;margin-bottom:8px;">Leave "Paid now" equal to the total if they're paying in full. If they're paying part now, the rest will show as a remaining balance until you record it.</div>
               <button type="button" class="ghost" id="sellNextPackageBtn" style="width:100%;font-size:0.8rem;">Save new package + payment (0 sessions used yet)</button>
               <div id="sellNextPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
             </div>
@@ -2188,6 +2192,49 @@ async function loadIntakeFormForPatient(name){
   }
 }
 
+let selectedPackageBalanceMethod = 'cash';
+
+// Records an installment toward an active package's total_price (the
+// part of it that was owed after the initial payment), and logs it as
+// revenue the same way any other Cash/InstaPay payment is — as a note
+// on the current appointment — so Dashboard totals pick it up normally.
+async function recordPackageBalancePayment(pkgId, patientName){
+  const amount = parseFloat(el('packageBalanceAmountInput').value);
+  const method = selectedPackageBalanceMethod;
+  if(!amount || amount <= 0){
+    el('packageBalanceStatus').textContent = 'Enter an amount first.';
+    return;
+  }
+  el('packageBalanceStatus').textContent = 'Saving…';
+  el('savePackageBalanceBtn').disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/add-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ amount })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
+    if(currentPaymentTarget){
+      await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
+        body: JSON.stringify({ text: `Paid ${amount} EGP (${methodLabel}) — package balance payment` })
+      });
+    }
+    el('packageBalanceStatus').textContent = `Saved — ${amount} EGP (${methodLabel}) counted as revenue.`;
+    loadPackageStatusForPatient(patientName);
+  }catch(e){
+    console.error(e);
+    el('packageBalanceStatus').textContent = 'Could not save: ' + (e.message || e);
+  }finally{
+    el('savePackageBalanceBtn').disabled = false;
+  }
+}
+
 async function loadPackageStatusForPatient(name, logToChat){
   const badge = el('patientPackageStatus');
   if(!name || !name.trim() || !isApproved()){
@@ -2203,7 +2250,32 @@ async function loadPackageStatusForPatient(name, logToChat){
       return;
     }
     const remaining = pkg.total_sessions - pkg.used_sessions;
-    badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>`;
+    const moneyRemaining = pkg.total_price != null ? Math.max(0, pkg.total_price - (pkg.amount_paid || 0)) : 0;
+    const moneyLine = pkg.total_price != null
+      ? (moneyRemaining > 0
+          ? ` · 💰 <strong style="color:var(--danger);">${moneyRemaining} EGP</strong> still owed`
+          : ` · 💰 fully paid`)
+      : '';
+    badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>${moneyLine}` +
+      (moneyRemaining > 0 ? ` <button type="button" id="recordPackageBalanceBtn" data-pkg-id="${pkg.id}" data-remaining="${moneyRemaining}" style="margin-left:6px;font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">Record payment</button><div id="packageBalanceFormBox" style="display:none;margin-top:8px;padding:8px;border:1px dashed var(--maroon);border-radius:var(--radius);background:var(--paper);"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="number" id="packageBalanceAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;"><div id="packageBalanceMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;"><button type="button" class="package-balance-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button><button type="button" class="package-balance-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button></div><button type="button" class="ghost" id="savePackageBalanceBtn" style="font-size:0.78rem;">Save</button></div><div id="packageBalanceStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div></div>` : '');
+    if(moneyRemaining > 0){
+      el('recordPackageBalanceBtn').addEventListener('click', ()=>{
+        const box = el('packageBalanceFormBox');
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        el('packageBalanceAmountInput').value = moneyRemaining;
+      });
+      document.querySelectorAll('.package-balance-method-btn').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          selectedPackageBalanceMethod = btn.getAttribute('data-method');
+          document.querySelectorAll('.package-balance-method-btn').forEach(b=>{
+            const active = b === btn;
+            b.style.background = active ? 'var(--maroon)' : 'transparent';
+            b.style.color = active ? '#fff' : 'var(--ink)';
+          });
+        });
+      });
+      el('savePackageBalanceBtn').addEventListener('click', ()=> recordPackageBalancePayment(pkg.id, name.trim()));
+    }
 
     if(logToChat){
       const noteText = `Package: ${pkg.used_sessions} of ${pkg.total_sessions} used`;
@@ -6143,10 +6215,12 @@ async function sellNextPackage(){
   if(!currentPaymentTarget) return;
   const patientName = currentPaymentTarget.patient_name;
   const totalSessions = parseInt(el('sellNextPackageSessionsInput').value, 10);
+  const totalPriceRaw = el('sellNextPackageTotalPriceInput').value;
+  const totalPrice = totalPriceRaw ? parseFloat(totalPriceRaw) : null;
   const amount = parseFloat(el('sellNextPackageAmountInput').value);
   const method = selectedSellNextPackageMethod;
   if(!patientName || !totalSessions || totalSessions < 2 || !amount){
-    el('sellNextPackageStatus').textContent = 'Enter the number of sessions (2+) and the amount first.';
+    el('sellNextPackageStatus').textContent = 'Enter the number of sessions (2+) and the amount paid now first.';
     return;
   }
   el('sellNextPackageStatus').textContent = 'Saving…';
@@ -6155,22 +6229,27 @@ async function sellNextPackage(){
     const pkgRes = await fetch(`${BACKEND_URL}/api/packages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0 })
+      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0, totalPrice, amountPaid: amount })
     });
     if(!pkgRes.ok){
       const errBody = await pkgRes.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${pkgRes.status}`);
     }
     const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
-    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions (for a future visit)`;
+    const remaining = totalPrice != null ? Math.max(0, totalPrice - amount) : 0;
+    const remainingSuffix = remaining > 0 ? ` — ${remaining} EGP remaining` : '';
+    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions (for a future visit)${remainingSuffix}`;
     const noteRes = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ text: noteText })
     });
     if(!noteRes.ok) throw new Error(`Server error ${noteRes.status}`);
-    el('sellNextPackageStatus').textContent = `Saved — new ${totalSessions}-session package on file (0 used), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
+    el('sellNextPackageStatus').textContent = remaining > 0
+      ? `Saved — new ${totalSessions}-session package on file (0 used). ${amount} EGP (${methodLabel}) counted as revenue, ${remaining} EGP still owed.`
+      : `Saved — new ${totalSessions}-session package on file (0 used), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
     el('sellNextPackageSessionsInput').value = '';
+    el('sellNextPackageTotalPriceInput').value = '';
     el('sellNextPackageAmountInput').value = '';
   }catch(e){
     console.error(e);
