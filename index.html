@@ -1123,6 +1123,13 @@
       </div>
 
       <div id="regPackageSection">
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg> Package policy check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone with a package that isn't finished yet, and whether the package policy was sent. The app can only record that you opened the WhatsApp message to send it — it can't see whether you pressed send there.</div>
+        <div id="packagePolicySummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
+        <div id="packagePolicyList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Register an existing package <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For a patient who already started a package before this system existed — no need to remember dates, just how many sessions they've used so far.</div>
@@ -2191,6 +2198,73 @@ async function loadIntakeFormForPatient(name){
   }catch(e){
     console.error('Intake form lookup failed:', e);
     notice.style.display = 'none';
+  }
+}
+
+async function markPackagePolicySent(pkgId, sent){
+  const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/policy-sent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify({ sent: sent !== false })
+  });
+  if(!res.ok){
+    const errBody = await res.json().catch(()=>({}));
+    throw new Error(errBody.error || `Server error ${res.status}`);
+  }
+}
+
+async function loadPackagePolicyCheck(){
+  if(!isApproved()) return;
+  const list = el('packagePolicyList');
+  const summary = el('packagePolicySummary');
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const pkgs = (await res.json()) || [];
+    const missing = pkgs.filter(p=> !p.policy_sent_at);
+    summary.textContent = pkgs.length === 0
+      ? 'No active packages right now.'
+      : `${pkgs.length - missing.length} of ${pkgs.length} active packages have the policy marked as sent.`;
+    if(missing.length === 0){
+      list.innerHTML = pkgs.length === 0 ? '' : '<div style="font-size:0.82rem;color:#1b8a4a;">Everyone with an active package has been sent the policy.</div>';
+      return;
+    }
+    list.innerHTML = missing.map(p=>{
+      const phone = p.patient_phone ? escapeHtml(p.patient_phone) : '<span style="color:var(--danger);">no phone on file</span>';
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(p.patient_name)}</span>
+          <span style="font-size:0.75rem;color:#5b6863;">${p.used_sessions} of ${p.total_sessions} used</span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;margin:2px 0 6px;">${phone}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${p.patient_phone ? `<button type="button" class="ghost policy-send-btn" data-id="${p.id}" data-phone="${escapeHtml(p.patient_phone)}" style="font-size:0.78rem;">Send policy on WhatsApp</button>` : ''}
+          <button type="button" class="ghost policy-mark-btn" data-id="${p.id}" style="font-size:0.78rem;">Already sent</button>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.policy-mark-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        try{ await markPackagePolicySent(btn.getAttribute('data-id')); loadPackagePolicyCheck(); }
+        catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
+      });
+    });
+    list.querySelectorAll('.policy-send-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        btn.disabled = true;
+        try{
+          await markPackagePolicySent(btn.getAttribute('data-id'));
+          const message = WHATSAPP_TEMPLATES.package_policy.build();
+          location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(btn.getAttribute('data-phone'))}?text=${encodeURIComponent(message)}`;
+        }catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
+      });
+    });
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -4839,6 +4913,7 @@ async function loadDashboardStats(){
   loadTransfers();
   loadOtherIncome();
   loadWithdrawals();
+  loadPackagePolicyCheck();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -6317,8 +6392,8 @@ async function sellNextPackage(){
     // If today's session already happened, it's session 1 of the new
     // package — consume it now so the count starts at 1, not 0.
     const countToday = el('sellNextPackageCountTodayCheckbox').checked;
+    const createdPkg = await pkgRes.json();
     if(countToday){
-      const createdPkg = await pkgRes.json();
       const useRes = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(createdPkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
       if(!useRes.ok) throw new Error(`Package saved, but counting today's session failed (server error ${useRes.status}).`);
     }
@@ -6337,6 +6412,11 @@ async function sellNextPackage(){
       ? `Saved — new ${totalSessions}-session package on file (${usedLabel}). ${amount} EGP (${methodLabel}) counted as revenue, ${remaining} EGP still owed.`
       : `Saved — new ${totalSessions}-session package on file (${usedLabel}), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
     el('sellNextPackageCountTodayCheckbox').checked = false;
+    const sellPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
+    if(sellPhone && createdPkg && createdPkg.id && confirm(`Package saved for ${patientName} — send the package validity & refund policy now?`)){
+      try{ await markPackagePolicySent(createdPkg.id); }catch(e){ console.error(e); }
+      location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(sellPhone)}?text=${encodeURIComponent(WHATSAPP_TEMPLATES.package_policy.build())}`;
+    }
     el('sellNextPackageSessionsInput').value = '';
     el('sellNextPackageTotalPriceInput').value = '';
     el('sellNextPackageAmountInput').value = '';
@@ -6554,6 +6634,7 @@ async function submitPayment(method){
       });
     }));
     let newPackageStarted = false;
+    let newPackageId = null;
     if(startsPackage && packageSessions >= 2 && patientName){
       const createRes = await fetch(`${BACKEND_URL}/api/packages`, {
         method: 'POST',
@@ -6564,6 +6645,7 @@ async function submitPayment(method){
         const pkg = await createRes.json();
         await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
         newPackageStarted = true;
+        newPackageId = pkg.id;
       }
     }
     el('patientDetailOverlay').style.display = 'none';
@@ -6572,6 +6654,7 @@ async function submitPayment(method){
       const patientPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
       if(patientPhone && confirm(`New package started for ${patientName} — send the package validity & refund policy now?`)){
         const message = WHATSAPP_TEMPLATES.package_policy.build();
+        if(newPackageId){ try{ await markPackagePolicySent(newPackageId); }catch(e){ console.error(e); } }
         location.href = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(patientPhone)}?text=${encodeURIComponent(message)}`;
       }else if(!patientPhone){
         el('scheduleStatus').textContent = 'New package started. (No phone on file — send the policy from the reminders list once you have one.)';
