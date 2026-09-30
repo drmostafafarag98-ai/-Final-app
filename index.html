@@ -1361,6 +1361,7 @@
                 </div>
               </div>
               <div style="font-size:0.72rem;color:#8a938e;margin-bottom:8px;">Leave "Paid now" equal to the total if they're paying in full. If they're paying part now, the rest will show as a remaining balance until you record it.</div>
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#5b6863;cursor:pointer;margin-bottom:8px;"><input type="checkbox" id="sellNextPackageCountTodayCheckbox"> Today's session was already done — count it as session 1 of this package</label>
               <button type="button" class="ghost" id="sellNextPackageBtn" style="width:100%;font-size:0.8rem;">Save new package + payment (0 sessions used yet)</button>
               <div id="sellNextPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
             </div>
@@ -4687,14 +4688,19 @@ function extractPaymentDetail(ev){
   // appointment that both started a package AND took a payment that day
   // should show the money, not just "Package — session 1 of X" (the
   // money is the important context for a month-end review).
+  // An appointment can carry more than one payment (e.g. a check-up paid
+  // on the spot PLUS a new package bought the same day), so list them all
+  // instead of stopping at the first one.
+  const paymentParts = [];
   for(const n of notes){
     const text = (n.text || '').trim();
     const cashMatch = text.match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
     if(cashMatch){
       const startsPackage = /starts a package of (\d+)/i.exec(text);
-      return `💰 ${cashMatch[1]} EGP (${cashMatch[2]})${startsPackage ? ` — starts package of ${startsPackage[1]}` : ''}`;
+      paymentParts.push(`${cashMatch[1]} EGP (${cashMatch[2]})${startsPackage ? ` — starts package of ${startsPackage[1]}` : ''}`);
     }
   }
+  if(paymentParts.length) return `💰 ${paymentParts.join(' + ')}`;
   for(const n of notes){
     const text = (n.text || '').trim();
     const packageMatch = text.match(/^covered by package.*?session\s*(\d+)\s*of\s*(\d+)/i);
@@ -5001,26 +5007,85 @@ async function calculatePayroll(){
       if(!key) return;
       const rule = matchPayrollRule(ev.doctor_name);
       const doctorIdentity = rule ? rule.label : (ev.doctor_name || 'Unassigned');
-      if(!packageDoctorsByPatient[key]) packageDoctorsByPatient[key] = { displayName: ev.patient_name, sessionsByDoctor: {}, creditedTo: null };
+      if(!packageDoctorsByPatient[key]) packageDoctorsByPatient[key] = { displayName: ev.patient_name, sessionsByDoctor: {}, creditedTo: null, payments: [] };
       const entry = packageDoctorsByPatient[key];
-      entry.sessionsByDoctor[doctorIdentity] = (entry.sessionsByDoctor[doctorIdentity] || 0) + 1;
+      // A package bought for a future visit hasn't had a session delivered yet.
+      if(!/for a future visit/i.test(packageNote.text || '')){
+        entry.sessionsByDoctor[doctorIdentity] = (entry.sessionsByDoctor[doctorIdentity] || 0) + 1;
+      }
       const cashMatch = (packageNote.text || '').match(/^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i);
       if(cashMatch){
         entry.creditedTo = { doctor: doctorIdentity, amount: cashMatch[1], method: cashMatch[2] };
+        const startsMatch = /starts a package of (\d+)/i.exec(packageNote.text || '');
+        const payAmount = parseFloat(cashMatch[1].replace(/,/g, ''));
+        // Only payments that actually count as revenue (paid, not free) can be re-split.
+        if(startsMatch && ev.paid && !ev.is_free && !isNaN(payAmount)){
+          entry.payments.push({ doctor: doctorIdentity, amount: payAmount, method: cashMatch[2], sessions: parseInt(startsMatch[1], 10) });
+        }
       }
     });
     const crossDoctorPatients = Object.values(packageDoctorsByPatient).filter(p=> Object.keys(p.sessionsByDoctor).length > 1);
+
+    // Split each shared package's money by sessions delivered: the package
+    // price ÷ its session count = value of one session, and each doctor
+    // earns that for every session THEY delivered. Whatever part of the
+    // price belongs to sessions not delivered yet stays with the doctor the
+    // payment was credited to. Total revenue never changes — money only
+    // moves between doctors, so this still matches the Dashboard.
+    const packageRevenueAdjustments = {};
+    crossDoctorPatients.forEach(p=>{
+      const doctors = Object.keys(p.sessionsByDoctor);
+      const allHaveRules = doctors.every(d=> PAYROLL_RULES.some(r=> r.label === d));
+      if(p.payments.length !== 1){
+        p.splitNote = p.payments.length === 0
+          ? 'No package payment recorded in this range, so there is nothing to split here.'
+          : 'More than one package payment in this range — split these by hand.';
+        return;
+      }
+      if(!allHaveRules){
+        p.splitNote = 'One of these doctors has no payroll rule, so this was not split automatically.';
+        return;
+      }
+      const pay = p.payments[0];
+      const totalSeen = Object.values(p.sessionsByDoctor).reduce((a,b)=> a+b, 0);
+      const unit = pay.amount / pay.sessions;
+      // If more sessions show up than the package holds (e.g. an earlier package's leftovers), scale down so we never hand out more than was paid.
+      const scale = totalSeen > pay.sessions ? pay.sessions / totalSeen : 1;
+      const shares = {};
+      let allocated = 0;
+      doctors.forEach(d=>{ shares[d] = p.sessionsByDoctor[d] * unit * scale; allocated += shares[d]; });
+      const undelivered = pay.amount - allocated;
+      shares[pay.doctor] = (shares[pay.doctor] || 0) + undelivered;
+      packageRevenueAdjustments[pay.doctor] = (packageRevenueAdjustments[pay.doctor] || 0) - pay.amount;
+      Object.entries(shares).forEach(([d, amt])=>{
+        packageRevenueAdjustments[d] = (packageRevenueAdjustments[d] || 0) + amt;
+      });
+      p.split = { pay, unit: pay.amount / pay.sessions, shares, undelivered, credited: pay.doctor };
+    });
     el('payrollWarnings').innerHTML = crossDoctorPatients.length === 0 ? '' : `<div style="background:#fbf0e0;border:1px solid #d9a441;border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;font-size:0.8rem;">
       <div style="font-weight:700;color:#8a5a1a;margin-bottom:4px;">⚠️ Package sessions split across doctors</div>
-      <div style="color:#5b6863;margin-bottom:8px;">These patients' package sessions in this range were seen by more than one doctor — the payment is credited only to whoever was on shift when it was recorded.</div>
+      <div style="color:#5b6863;margin-bottom:8px;">These patients' package sessions were seen by more than one doctor. Where possible, the package money has been split by sessions delivered (price ÷ sessions = value of one session) and the payroll below already includes that split. Total revenue is unchanged.</div>
       ${crossDoctorPatients.map(p=>{
-        const doctorLines = Object.entries(p.sessionsByDoctor).map(([doc, count])=>{
-          const isCredited = p.creditedTo && p.creditedTo.doctor === doc;
-          return `${escapeHtml(doc)} (${count} session${count>1?'s':''}${isCredited ? `, credited ${p.creditedTo.amount} EGP ${p.creditedTo.method}` : ''})`;
-        }).join(' · ');
+        const fmtE = n => Math.round(n).toLocaleString();
+        let body;
+        if(p.split){
+          const sp = p.split;
+          const lines = Object.entries(p.sessionsByDoctor).map(([doc, count])=>{
+            return `${escapeHtml(doc)}: ${count} session${count>1?'s':''} × ${fmtE(sp.unit)} = <strong>${fmtE(count * sp.unit * (Object.values(p.sessionsByDoctor).reduce((a,b)=>a+b,0) > sp.pay.sessions ? sp.pay.sessions / Object.values(p.sessionsByDoctor).reduce((a,b)=>a+b,0) : 1))} EGP</strong>`;
+          });
+          body = `<div style="color:#5b6863;font-size:0.76rem;">Package ${fmtE(sp.pay.amount)} EGP (${sp.pay.method}) ÷ ${sp.pay.sessions} sessions = ${fmtE(sp.unit)} EGP per session · payment was recorded under ${escapeHtml(sp.credited)}</div>
+          <div style="font-size:0.78rem;margin-top:2px;">${lines.join('<br>')}</div>
+          ${sp.undelivered > 0.5 ? `<div style="color:#8a938e;font-size:0.74rem;margin-top:2px;">${fmtE(sp.undelivered)} EGP covers sessions not delivered yet — kept with ${escapeHtml(sp.credited)} for now.</div>` : ''}`;
+        }else{
+          const doctorLines = Object.entries(p.sessionsByDoctor).map(([doc, count])=>{
+            const isCredited = p.creditedTo && p.creditedTo.doctor === doc;
+            return `${escapeHtml(doc)} (${count} session${count>1?'s':''}${isCredited ? `, credited ${p.creditedTo.amount} EGP ${p.creditedTo.method}` : ''})`;
+          }).join(' · ');
+          body = `<div style="color:#5b6863;font-size:0.76rem;">${doctorLines}</div><div style="color:#a33d3d;font-size:0.74rem;margin-top:2px;">${escapeHtml(p.splitNote || '')}</div>`;
+        }
         return `<div style="padding:4px 0;border-top:1px solid #eddcb8;">
           <strong>${escapeHtml(p.displayName)}</strong>
-          <div style="color:#5b6863;font-size:0.76rem;">${doctorLines}</div>
+          ${body}
         </div>`;
       }).join('')}
     </div>`;
@@ -5041,6 +5106,10 @@ async function calculatePayroll(){
         const amt = parseFloat(m[1].replace(/,/g, ''));
         if(!isNaN(amt)) revenueByKey[key] = (revenueByKey[key] || 0) + amt;
       });
+    });
+
+    Object.entries(packageRevenueAdjustments).forEach(([doc, delta])=>{
+      revenueByKey[doc] = (revenueByKey[doc] || 0) + delta;
     });
 
     const totalExpenses = expenseRows.reduce((sum,e)=> sum + parseFloat(e.amount || 0), 0);
@@ -6245,19 +6314,29 @@ async function sellNextPackage(){
       const errBody = await pkgRes.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${pkgRes.status}`);
     }
+    // If today's session already happened, it's session 1 of the new
+    // package — consume it now so the count starts at 1, not 0.
+    const countToday = el('sellNextPackageCountTodayCheckbox').checked;
+    if(countToday){
+      const createdPkg = await pkgRes.json();
+      const useRes = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(createdPkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
+      if(!useRes.ok) throw new Error(`Package saved, but counting today's session failed (server error ${useRes.status}).`);
+    }
     const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
     const remaining = totalPrice != null ? Math.max(0, totalPrice - amount) : 0;
     const remainingSuffix = remaining > 0 ? ` — ${remaining} EGP remaining` : '';
-    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions (for a future visit)${remainingSuffix}`;
+    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions${countToday ? '' : ' (for a future visit)'}${remainingSuffix}`;
     const noteRes = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
       body: JSON.stringify({ text: noteText })
     });
     if(!noteRes.ok) throw new Error(`Server error ${noteRes.status}`);
+    const usedLabel = countToday ? '1 used' : '0 used';
     el('sellNextPackageStatus').textContent = remaining > 0
-      ? `Saved — new ${totalSessions}-session package on file (0 used). ${amount} EGP (${methodLabel}) counted as revenue, ${remaining} EGP still owed.`
-      : `Saved — new ${totalSessions}-session package on file (0 used), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
+      ? `Saved — new ${totalSessions}-session package on file (${usedLabel}). ${amount} EGP (${methodLabel}) counted as revenue, ${remaining} EGP still owed.`
+      : `Saved — new ${totalSessions}-session package on file (${usedLabel}), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
+    el('sellNextPackageCountTodayCheckbox').checked = false;
     el('sellNextPackageSessionsInput').value = '';
     el('sellNextPackageTotalPriceInput').value = '';
     el('sellNextPackageAmountInput').value = '';
