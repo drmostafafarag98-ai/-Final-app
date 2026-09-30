@@ -1313,6 +1313,7 @@
 
         <div id="pdPanelPayment" class="pd-panel" style="display:none;flex:1;overflow-y:auto;flex-direction:column;">
           <span id="paymentPatientName" style="display:none;"></span>
+          <div id="paymentPackageStatus" style="display:none;margin:12px 16px 0;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;"></div>
           <div style="padding:14px 16px;">
             <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Tick every session this payment covers (unpaid sessions for this patient are listed below — untick any that aren't included).</div>
             <div id="paymentAppointmentsList"></div>
@@ -2226,6 +2227,7 @@ async function recordPackageBalancePayment(pkgId, patientName){
       });
     }
     el('packageBalanceStatus').textContent = `Saved — ${amount} EGP (${methodLabel}) counted as revenue.`;
+    loadPackageStatusForPatient(patientName, false, 'paymentPackageStatus');
     loadPackageStatusForPatient(patientName);
   }catch(e){
     console.error(e);
@@ -2235,18 +2237,22 @@ async function recordPackageBalancePayment(pkgId, patientName){
   }
 }
 
-async function loadPackageStatusForPatient(name, logToChat){
-  const badge = el('patientPackageStatus');
+async function loadPackageStatusForPatient(name, logToChat, targetId){
+  targetId = targetId || 'patientPackageStatus';
+  const inPaymentTab = targetId === 'paymentPackageStatus';
+  const badge = el(targetId);
   if(!name || !name.trim() || !isApproved()){
     badge.textContent = '';
+    if(inPaymentTab) badge.style.display = 'none';
     return;
   }
   try{
     const res = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
-    if(!res.ok){ badge.textContent = ''; return; }
+    if(!res.ok){ badge.textContent = ''; if(inPaymentTab) badge.style.display = 'none'; return; }
     const pkg = await res.json();
     if(!pkg){
       badge.textContent = '';
+      if(inPaymentTab) badge.style.display = 'none';
       return;
     }
     const remaining = pkg.total_sessions - pkg.used_sessions;
@@ -2257,17 +2263,21 @@ async function loadPackageStatusForPatient(name, logToChat){
           : ` · 💰 fully paid`)
       : '';
     badge.innerHTML = `🎁 Package: <strong>${pkg.used_sessions} of ${pkg.total_sessions}</strong> used — <strong>${remaining} remaining</strong>${moneyLine}` +
-      (moneyRemaining > 0 ? ` <button type="button" id="recordPackageBalanceBtn" data-pkg-id="${pkg.id}" data-remaining="${moneyRemaining}" style="margin-left:6px;font-size:0.72rem;padding:3px 9px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">Record payment</button><div id="packageBalanceFormBox" style="display:none;margin-top:8px;padding:8px;border:1px dashed var(--maroon);border-radius:var(--radius);background:var(--paper);"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="number" id="packageBalanceAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.82rem;"><div id="packageBalanceMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;"><button type="button" class="package-balance-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button><button type="button" class="package-balance-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button></div><button type="button" class="ghost" id="savePackageBalanceBtn" style="font-size:0.78rem;">Save</button></div><div id="packageBalanceStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div></div>` : '');
-    if(moneyRemaining > 0){
+      // The "Record payment" form lives in the Payment tab only, where the
+      // appointment the money gets logged against is unambiguous.
+      (inPaymentTab && moneyRemaining > 0 ? `<div style="margin-top:8px;"><button type="button" id="recordPackageBalanceBtn" style="font-size:0.78rem;padding:6px 12px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">Record a payment toward the ${moneyRemaining} EGP owed</button></div><div id="packageBalanceFormBox" style="display:none;margin-top:8px;padding:8px;border:1px dashed var(--maroon);border-radius:var(--radius);background:var(--panel);"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="number" id="packageBalanceAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);font-size:0.82rem;"><div id="packageBalanceMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;"><button type="button" class="package-balance-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button><button type="button" class="package-balance-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button></div><button type="button" class="ghost" id="savePackageBalanceBtn" style="font-size:0.78rem;">Save</button></div><div id="packageBalanceStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div></div>` : '');
+    if(inPaymentTab) badge.style.display = 'block';
+    if(inPaymentTab && moneyRemaining > 0){
+      selectedPackageBalanceMethod = 'cash';
       el('recordPackageBalanceBtn').addEventListener('click', ()=>{
         const box = el('packageBalanceFormBox');
         box.style.display = box.style.display === 'none' ? 'block' : 'none';
         el('packageBalanceAmountInput').value = moneyRemaining;
       });
-      document.querySelectorAll('.package-balance-method-btn').forEach(btn=>{
+      badge.querySelectorAll('.package-balance-method-btn').forEach(btn=>{
         btn.addEventListener('click', ()=>{
           selectedPackageBalanceMethod = btn.getAttribute('data-method');
-          document.querySelectorAll('.package-balance-method-btn').forEach(b=>{
+          badge.querySelectorAll('.package-balance-method-btn').forEach(b=>{
             const active = b === btn;
             b.style.background = active ? 'var(--maroon)' : 'transparent';
             b.style.color = active ? '#fff' : 'var(--ink)';
@@ -6321,6 +6331,7 @@ async function openPaymentOverlay(ev){
   el('paymentOverlayStatus').textContent = requestedMatch ? `Amount pre-filled from the payment request sent earlier (${requestedMatch[1]} EGP) — just pick the method below.` : 'Loading unpaid sessions…';
   el('paymentAppointmentsList').innerHTML = '';
   el('patientDetailOverlay').style.display = 'flex';
+  loadPackageStatusForPatient(ev.patient_name || '', false, 'paymentPackageStatus');
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/unpaid-by-patient?patientName=${encodeURIComponent(ev.patient_name || '')}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
