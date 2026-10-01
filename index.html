@@ -1014,6 +1014,29 @@
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> By doctor — this month <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Marked paid, no amount recorded <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Appointments that were ticked as paid (usually with "Just mark paid") but have no money recorded, so they don't count in Cash/InstaPay and don't show in "Not paid yet". Package sessions, free sessions and cancelled visits are left out. Review each one: open it and record the real payment, or mark it unpaid if nothing was paid.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="paidNoAmountFromInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.8rem;color:#5b6863;">to</span>
+          <input type="text" id="paidNoAmountToInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="paidNoAmountBtn">Show</button>
+        </div>
+        <div id="paidNoAmountSummary" style="font-size:0.85rem;font-weight:700;margin-bottom:8px;"></div>
+        <div id="paidNoAmountList"></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg> Patient payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Type part of a patient's name to see every appointment under any similar spelling, whether a payment is recorded on it, and whether the Dashboard counts it.</div>
+        <div style="display:flex;gap:8px;margin-bottom:10px;">
+          <input type="text" id="paymentCheckInput" placeholder="e.g. mina" style="flex:1;min-width:0;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="paymentCheckBtn">Check</button>
+        </div>
+        <div id="paymentCheckResults"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> Day Review (payments/packages, for month-end checks) <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;">
@@ -2236,6 +2259,187 @@ async function markPackagePolicySent(pkgId, sent){
   if(!res.ok){
     const errBody = await res.json().catch(()=>({}));
     throw new Error(errBody.error || `Server error ${res.status}`);
+  }
+}
+
+function ensurePaidNoAmountDefaults(){
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if(!el('paidNoAmountToInput').value) el('paidNoAmountToInput').value = fmt(today);
+  if(!el('paidNoAmountFromInput').value){
+    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 30);
+    el('paidNoAmountFromInput').value = fmt(from);
+  }
+}
+
+// An appointment counts as "paid with no amount" when it's ticked paid but
+// has no "Paid X EGP (Cash|InstaPay)" note — the same note the Dashboard
+// needs to count money — and isn't explained by a package, a free visit or
+// a cancellation.
+function paidWithoutAmountReason(ev){
+  if(ev.status === 'cancelled' || !ev.paid || ev.is_free) return null;
+  const notes = ev.notes || [];
+  const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+  if(notes.some(n=> paidNoteRe.test((n.text || '').trim()))) return null;
+  const allText = notes.map(n=> (n.text || '').toLowerCase()).join(' | ');
+  if(/covered by package|starts a package of|nothing paid yet|package:\s*\d+\s*of\s*\d+/.test(allText)) return null;
+  for(const n of notes){
+    const m = (n.text || '').trim().match(/^paid\s*\((cash|instapay)\)/i);
+    if(m) return `Marked paid by ${m[1]} but without an amount`;
+  }
+  return 'Ticked as paid with no payment note ("Just mark paid")';
+}
+
+async function loadPaidNoAmount(){
+  ensurePaidNoAmountDefaults();
+  const fromVal = el('paidNoAmountFromInput').value;
+  const toVal = el('paidNoAmountToInput').value;
+  const list = el('paidNoAmountList');
+  const summary = el('paidNoAmountSummary');
+  if(!fromVal || !toVal){ summary.textContent = ''; list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Pick both dates first.</div>'; return; }
+  summary.textContent = '';
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Checking…</div>';
+  try{
+    const start = new Date(fromVal + 'T00:00:00');
+    const end = new Date(toVal + 'T23:59:59');
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const flagged = items
+      .map(ev=> ({ ev, reason: paidWithoutAmountReason(ev) }))
+      .filter(x=> x.reason)
+      .sort((a,b)=> new Date(b.ev.start_time) - new Date(a.ev.start_time));
+    if(flagged.length === 0){
+      summary.style.color = '#1b8a4a';
+      summary.textContent = `All clear — checked ${items.length} appointments, none are marked paid without an amount.`;
+      list.innerHTML = '';
+      return;
+    }
+    summary.style.color = 'var(--danger)';
+    summary.textContent = `${flagged.length} appointment${flagged.length>1?'s':''} marked paid with no amount (out of ${items.length} checked)`;
+    list.innerHTML = flagged.map(({ev, reason})=>{
+      const d = new Date(ev.start_time);
+      const dateLabel = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+      return `<div style="padding:9px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+          <span style="font-size:0.74rem;color:#5b6863;">${escapeHtml(ev.doctor_name || 'Unassigned')}</span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(dateLabel)}</div>
+        <div style="font-size:0.78rem;color:#b8894f;font-weight:600;margin:2px 0 6px;">${escapeHtml(reason)}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="ghost paid-no-amount-open" data-id="${ev.id}" style="font-size:0.78rem;">Open</button>
+          <button type="button" class="ghost paid-no-amount-unpaid" data-id="${ev.id}" style="font-size:0.78rem;color:var(--danger);border-color:var(--danger);">Mark unpaid</button>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.paid-no-amount-open').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const found = flagged.find(x=> String(x.ev.id) === btn.getAttribute('data-id'));
+        if(found) openPatientDetail(found.ev, 'payment');
+      });
+    });
+    list.querySelectorAll('.paid-no-amount-unpaid').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const found = flagged.find(x=> String(x.ev.id) === btn.getAttribute('data-id'));
+        if(!found) return;
+        if(!confirm(`Mark ${found.ev.patient_name || 'this appointment'} as unpaid? It will go back to the "Not paid yet" list.`)) return;
+        btn.disabled = true;
+        await markAppointmentPaid(found.ev.id, null, null);
+        loadPaidNoAmount();
+      });
+    });
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not check: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+async function runPaymentCheck(){
+  const q = el('paymentCheckInput').value.trim();
+  const box = el('paymentCheckResults');
+  if(q.length < 2){
+    box.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Type at least 2 letters of the name.</div>';
+    return;
+  }
+  box.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Checking…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(q)}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    if(items.length === 0){
+      box.innerHTML = '<div style="font-size:0.82rem;color:#a33d3d;">No appointment found with that name. Deleted appointments are not searched — if one was deleted, look in the trash (owner only).</div>';
+      return;
+    }
+    // Same rule the Dashboard uses: any "Paid X EGP (Cash|InstaPay)" note
+    // on a non-cancelled appointment counts as money received.
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    let countedTotal = 0;
+    const names = new Set();
+    const rows = items.map(ev=>{
+      names.add((ev.patient_name || '').trim());
+      const notes = ev.notes || [];
+      let amt = 0;
+      const parts = [];
+      notes.forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(!m) return;
+        const a = parseFloat(m[1].replace(/,/g, ''));
+        if(isNaN(a)) return;
+        amt += a;
+        parts.push(`${m[1]} EGP (${m[2]})`);
+      });
+      const allText = notes.map(n=> (n.text || '').toLowerCase()).join(' | ');
+      let verdict, color;
+      if(ev.status === 'cancelled'){
+        verdict = amt > 0 ? `❌ Cancelled, but has a payment note (${parts.join(' + ')}) — cancelled appointments are NOT counted` : '❌ Cancelled';
+        color = '#a33d3d';
+      }else if(amt > 0){
+        verdict = `✅ Payment recorded: ${parts.join(' + ')} — counted in the totals`;
+        color = '#0b8043';
+        countedTotal += amt;
+      }else if(allText.includes('covered by package')){
+        verdict = '📦 Covered by a package — no money on this visit (it was counted when the package was bought)';
+        color = '#5b6863';
+      }else if(allText.includes('nothing paid yet')){
+        verdict = '📦 Package started, nothing paid yet';
+        color = '#b8894f';
+      }else if(ev.is_free){
+        verdict = '🆓 Marked free — no money';
+        color = '#5b6863';
+      }else if(ev.paid){
+        verdict = '⚠️ Marked paid, but NO amount was recorded — not counted in the money totals';
+        color = '#b8894f';
+      }else{
+        verdict = '💸 Unpaid — no payment recorded';
+        color = '#a33d3d';
+      }
+      const d = ev.start_time ? new Date(ev.start_time) : null;
+      const dateLabel = d ? d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric', year:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : 'No date';
+      const noteLines = notes.slice(0, 6).map(n=> `<div style="font-size:0.7rem;color:#8a938e;">• ${escapeHtml(String(n.text || '').slice(0, 120))}</div>`).join('');
+      return `<div class="payment-check-row" data-id="${ev.id}" style="padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(ev.patient_name || '(untitled)')}</span>
+          <span style="font-size:0.74rem;color:#5b6863;">${escapeHtml(ev.doctor_name || 'Unassigned')}</span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(dateLabel)}</div>
+        <div style="font-size:0.8rem;font-weight:600;color:${color};margin:2px 0;">${verdict}</div>
+        ${noteLines}
+      </div>`;
+    });
+    const nameList = [...names].filter(Boolean).map(n=> `"${escapeHtml(n)}"`).join(', ');
+    box.innerHTML = `<div style="font-size:0.82rem;margin-bottom:8px;"><strong>${items.length}</strong> appointment${items.length>1?'s':''}${items.length >= 30 ? ' (showing the 30 most recent)' : ''} under ${names.size} spelling${names.size>1?'s':''}: ${nameList}.<br>Money the Dashboard counts for these: <strong style="color:#0b8043;">${Math.round(countedTotal).toLocaleString()} EGP</strong></div>` + rows.join('');
+    box.querySelectorAll('.payment-check-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const ev = items.find(x=> String(x.id) === row.getAttribute('data-id'));
+        if(ev) openPatientDetail(ev, 'payment');
+      });
+    });
+  }catch(e){
+    console.error(e);
+    box.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not check: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -5198,6 +5402,7 @@ async function loadDashboardStats(){
   loadWithdrawals();
   loadPackagePolicyCheck();
   loadPackageOwed();
+  ensurePaidNoAmountDefaults();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -8268,7 +8473,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -9305,6 +9510,9 @@ document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setExpenseFilter(btn.getAttribute('data-filter')));
 });
 injectFinanceMonthNavs();
+el('paymentCheckBtn').addEventListener('click', runPaymentCheck);
+el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
+el('paymentCheckInput').addEventListener('keydown', e=>{ if(e.key === 'Enter') runPaymentCheck(); });
 document.querySelectorAll('.collapsible-title').forEach(title=>{
   const content = title.nextElementSibling;
   if(!content) return;
