@@ -1014,6 +1014,19 @@
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> By doctor — this month <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Looks for the same patient, same amount and same method recorded more than once — on one visit, on the same day, or entered within a few hours of each other. These are only <strong>suspects</strong>: check each one before deleting anything. It also shows the total the app has recorded per method, to compare with the real account.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="dupCheckFromInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.8rem;color:#5b6863;">to</span>
+          <input type="text" id="dupCheckToInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="dupCheckBtn">Check</button>
+        </div>
+        <div id="dupCheckSummary" style="font-size:0.85rem;margin-bottom:8px;"></div>
+        <div id="dupCheckList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Marked paid, no amount recorded <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Appointments that were ticked as paid (usually with "Just mark paid") but have no money recorded, so they don't count in Cash/InstaPay and don't show in "Not paid yet". Package sessions, free sessions and cancelled visits are left out. Review each one: open it and record the real payment, or mark it unpaid if nothing was paid.</div>
@@ -2259,6 +2272,134 @@ async function markPackagePolicySent(pkgId, sent){
   if(!res.ok){
     const errBody = await res.json().catch(()=>({}));
     throw new Error(errBody.error || `Server error ${res.status}`);
+  }
+}
+
+function ensureDupCheckDefaults(){
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if(!el('dupCheckToInput').value) el('dupCheckToInput').value = fmt(today);
+  if(!el('dupCheckFromInput').value) el('dupCheckFromInput').value = fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+}
+
+// Pure detection step (kept separate so it can be tested): given appointments,
+// returns every recorded payment and the groups that look like double entries.
+function findDuplicatePayments(items){
+  const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+  const records = [];
+  items.forEach(ev=>{
+    if(ev.status === 'cancelled') return;
+    (ev.notes || []).forEach(n=>{
+      const m = (n.text || '').trim().match(paidNoteRe);
+      if(!m) return;
+      const amount = parseFloat(m[1].replace(/,/g, ''));
+      if(isNaN(amount)) return;
+      const start = ev.start_time ? new Date(ev.start_time) : null;
+      records.push({
+        ev, amount, method: m[2].toLowerCase(),
+        at: n.at ? new Date(n.at) : null,
+        author: n.author || '',
+        day: start ? `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}` : ''
+      });
+    });
+  });
+  const groups = {};
+  records.forEach(r=>{
+    const key = `${(r.ev.patient_name || '').trim().toLowerCase()}|${r.amount}|${r.method}`;
+    (groups[key] = groups[key] || []).push(r);
+  });
+  const THREE_HOURS = 3 * 60 * 60 * 1000;
+  const suspects = [];
+  Object.values(groups).forEach(g=>{
+    if(g.length < 2) return;
+    // Connect entries that look like the same payment recorded twice.
+    const parent = g.map((_, i)=> i);
+    const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
+    const reasons = new Set();
+    for(let i = 0; i < g.length; i++){
+      for(let j = i + 1; j < g.length; j++){
+        const a = g[i], b = g[j];
+        let linked = false;
+        if(String(a.ev.id) === String(b.ev.id)){ reasons.add('on the same visit'); linked = true; }
+        else if(a.day && a.day === b.day){ reasons.add('on two visits the same day'); linked = true; }
+        if(a.at && b.at && Math.abs(a.at - b.at) <= THREE_HOURS){ reasons.add('entered within 3 hours of each other'); linked = true; }
+        if(linked) parent[find(i)] = find(j);
+      }
+    }
+    const comps = {};
+    g.forEach((r, i)=>{ (comps[find(i)] = comps[find(i)] || []).push(r); });
+    Object.values(comps).forEach(c=>{
+      if(c.length < 2) return;
+      c.sort((x, y)=> new Date(x.ev.start_time) - new Date(y.ev.start_time));
+      suspects.push({ rows: c, amount: c[0].amount, method: c[0].method, name: c[0].ev.patient_name || '(untitled)', reasons: [...reasons], extra: (c.length - 1) * c[0].amount });
+    });
+  });
+  suspects.sort((a, b)=> b.extra - a.extra);
+  return { records, suspects };
+}
+
+async function runDuplicatePaymentCheck(){
+  ensureDupCheckDefaults();
+  const fromVal = el('dupCheckFromInput').value;
+  const toVal = el('dupCheckToInput').value;
+  const list = el('dupCheckList');
+  const summary = el('dupCheckSummary');
+  if(!fromVal || !toVal){ summary.textContent = ''; list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Pick both dates first.</div>'; return; }
+  summary.textContent = '';
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Checking…</div>';
+  try{
+    const start = new Date(fromVal + 'T00:00:00');
+    const end = new Date(toVal + 'T23:59:59');
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const items = (await res.json()) || [];
+    const { records, suspects } = findDuplicatePayments(items);
+    const sumBy = method => records.filter(r=> r.method === method).reduce((s, r)=> s + r.amount, 0);
+    const countBy = method => records.filter(r=> r.method === method).length;
+    const extraBy = method => suspects.filter(s=> s.method === method).reduce((s, x)=> s + x.extra, 0);
+    const fmtN = n => Math.round(n).toLocaleString();
+    let html = `<div style="font-size:0.82rem;color:#5b6863;margin-bottom:6px;">Recorded in this range: <strong>InstaPay ${fmtN(sumBy('instapay'))} EGP</strong> (${countBy('instapay')} payments) · <strong>Cash ${fmtN(sumBy('cash'))} EGP</strong> (${countBy('cash')} payments). Cancelled visits are not included.</div>`;
+    if(suspects.length === 0){
+      summary.innerHTML = '<span style="color:#1b8a4a;font-weight:700;">No suspected double entries found.</span>';
+      list.innerHTML = html + '<div style="font-size:0.8rem;color:#5b6863;">So the extra InstaPay is probably something else: Cash recorded as InstaPay, a transfer, withdrawal or expense paid from InstaPay that was never logged, or a payment recorded under the wrong patient.</div>';
+      return;
+    }
+    summary.innerHTML = `<span style="color:var(--danger);font-weight:700;">${suspects.length} suspected double entr${suspects.length>1?'ies':'y'} — up to ${fmtN(suspects.reduce((s, x)=> s + x.extra, 0))} EGP counted extra</span> <span style="color:#5b6863;font-weight:400;">(InstaPay ${fmtN(extraBy('instapay'))} · Cash ${fmtN(extraBy('cash'))})</span>`;
+    html += suspects.map((s, idx)=>{
+      const rowsHtml = s.rows.map((r, ri)=>{
+        const d = new Date(r.ev.start_time);
+        const dateLabel = d.toLocaleDateString(undefined, {weekday:'short', month:'short', day:'numeric'}) + ' · ' + d.toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+        const rec = r.at ? r.at.toLocaleString(undefined, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 0;border-top:1px dashed var(--line);">
+          <div style="font-size:0.76rem;color:#5b6863;min-width:0;">
+            <div>${escapeHtml(dateLabel)} · ${escapeHtml(r.ev.doctor_name || 'Unassigned')}</div>
+            <div style="color:#8a938e;">recorded ${escapeHtml(rec)}${r.author ? ' by ' + escapeHtml(r.author) : ''}</div>
+          </div>
+          <button type="button" class="ghost dup-open-btn" data-s="${idx}" data-r="${ri}" style="font-size:0.74rem;flex-shrink:0;">Open notes</button>
+        </div>`;
+      }).join('');
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(s.name)}</span>
+          <span style="font-weight:700;color:var(--danger);font-size:0.86rem;">${fmtN(s.amount)} EGP (${s.method === 'instapay' ? 'InstaPay' : 'Cash'}) × ${s.rows.length}</span>
+        </div>
+        <div style="font-size:0.74rem;color:#b8894f;margin:2px 0 4px;">Looks duplicated: ${escapeHtml(s.reasons.join(', '))}</div>
+        ${rowsHtml}
+      </div>`;
+    }).join('');
+    list.innerHTML = html;
+    list.querySelectorAll('.dup-open-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const s = suspects[parseInt(btn.getAttribute('data-s'), 10)];
+        const r = s && s.rows[parseInt(btn.getAttribute('data-r'), 10)];
+        if(r) openPatientDetail(r.ev, 'chat');
+      });
+    });
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not check: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -5403,6 +5544,7 @@ async function loadDashboardStats(){
   loadPackagePolicyCheck();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
+  ensureDupCheckDefaults();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -8473,7 +8615,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -9512,6 +9654,7 @@ document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
 injectFinanceMonthNavs();
 el('paymentCheckBtn').addEventListener('click', runPaymentCheck);
 el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
+el('dupCheckBtn').addEventListener('click', runDuplicatePaymentCheck);
 el('paymentCheckInput').addEventListener('keydown', e=>{ if(e.key === 'Enter') runPaymentCheck(); });
 document.querySelectorAll('.collapsible-title').forEach(title=>{
   const content = title.nextElementSibling;
