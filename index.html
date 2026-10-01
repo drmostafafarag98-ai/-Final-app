@@ -756,6 +756,8 @@
     border-left:60px solid #b23b3b; border-top:60px solid transparent;
   }
   .inv-footer-text{ position:absolute; left:80px; right:18mm; bottom:10mm; font-size:0.8rem; color:#3a3a3a; display:flex; justify-content:space-between; }
+  @keyframes noteMicPulse{0%{box-shadow:0 0 0 0 rgba(217,48,37,0.55);}70%{box-shadow:0 0 0 12px rgba(217,48,37,0);}100%{box-shadow:0 0 0 0 rgba(217,48,37,0);}}
+  @keyframes noteMicBlink{0%,100%{opacity:1;}50%{opacity:0.25;}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1123,6 +1125,13 @@
       </div>
 
       <div id="regPackageSection">
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Package balances owed <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone who still owes part of a package price — including packages that are already finished. Only packages sold with a total price are tracked here. To record a payment, open the patient's appointment <strong>on the day they pay</strong> → Payment tab → Record payment (the money counts on that appointment's date).</div>
+        <div id="packageOwedSummary" style="font-size:0.85rem;font-weight:700;color:var(--danger);margin-bottom:8px;"></div>
+        <div id="packageOwedList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg> Package policy check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone with a package that isn't finished yet, and whether the package policy was sent. The app can only record that you opened the WhatsApp message to send it — it can't see whether you pressed send there.</div>
@@ -1272,7 +1281,14 @@
         <div style="padding:12px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0;">
           <textarea id="noteExpandTextarea" style="flex:1;min-height:220px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.86rem;line-height:1.6;font-family:inherit;resize:vertical;"></textarea>
           <div id="noteExpandTabStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
-          <div id="noteExpandTabActions" style="display:flex;gap:8px;margin-top:8px;">
+          <div id="noteExpandMicStrip" style="display:none;align-items:center;gap:8px;margin-top:8px;padding:8px 12px;border-radius:999px;background:#fdecea;color:#b3261e;font-size:0.82rem;">
+            <span style="width:9px;height:9px;border-radius:50%;background:#d93025;flex-shrink:0;animation:noteMicBlink 1s infinite;"></span>
+            <span id="noteExpandMicTimer" style="font-variant-numeric:tabular-nums;font-weight:700;">0:00</span>
+            <span style="flex:1;">Recording — tap the mic again to stop</span>
+            <button type="button" id="noteExpandMicCancelBtn" style="background:transparent;border:none;color:#b3261e;text-decoration:underline;cursor:pointer;font-size:0.8rem;">Cancel</button>
+          </div>
+          <div id="noteExpandTabActions" style="display:flex;gap:8px;margin-top:8px;align-items:center;">
+            <button type="button" id="noteExpandMicBtn" title="Record a voice note — it's typed into this session" style="width:46px;height:46px;border-radius:50%;border:none;background:var(--maroon);color:#fff;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg></button>
             <button type="button" class="primary" id="noteExpandSaveBtn" style="flex:1;">💾 Save</button>
             <button type="button" class="ghost" id="noteExpandDownloadTxtBtn" style="display:none;flex:1;">Download .txt</button>
             <button type="button" class="ghost" id="noteExpandDownloadPdfBtn" style="display:none;flex:1;">Download PDF</button>
@@ -1303,7 +1319,8 @@
     <div id="patientDetailOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:78;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:480px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-          <span style="font-weight:700;color:var(--maroon);" id="pdTitle">Patient</span>
+          <span style="font-weight:700;color:var(--maroon);flex:1;min-width:0;" id="pdTitle">Patient</span>
+          <button type="button" id="pdOpenDocsBtn" style="display:flex;align-items:center;gap:6px;margin-right:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);font-size:0.8rem;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> Notes</button>
           <button type="button" id="pdCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="display:flex;border-bottom:1px solid var(--line);">
@@ -1367,7 +1384,7 @@
                   <button type="button" class="sell-next-package-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button>
                 </div>
               </div>
-              <div style="font-size:0.72rem;color:#8a938e;margin-bottom:8px;">Leave "Paid now" equal to the total if they're paying in full. If they're paying part now, the rest will show as a remaining balance until you record it.</div>
+              <div style="font-size:0.72rem;color:#8a938e;margin-bottom:8px;">Leave "Paid now" equal to the total if they're paying in full. If they're paying part now, or nothing yet (type 0), the rest shows as a remaining balance until you record it.</div>
               <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;color:#5b6863;cursor:pointer;margin-bottom:8px;"><input type="checkbox" id="sellNextPackageCountTodayCheckbox"> Today's session was already done — count it as session 1 of this package</label>
               <button type="button" class="ghost" id="sellNextPackageBtn" style="width:100%;font-size:0.8rem;">Save new package + payment (0 sessions used yet)</button>
               <div id="sellNextPackageStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
@@ -2213,6 +2230,45 @@ async function markPackagePolicySent(pkgId, sent){
   }
 }
 
+async function loadPackageOwed(){
+  if(!isApproved()) return;
+  const list = el('packageOwedList');
+  const summary = el('packageOwedSummary');
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/owed`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const pkgs = (await res.json()) || [];
+    if(pkgs.length === 0){
+      summary.style.color = '#1b8a4a';
+      summary.textContent = 'Nobody owes anything on a package.';
+      list.innerHTML = '';
+      return;
+    }
+    summary.style.color = 'var(--danger)';
+    const grand = pkgs.reduce((sum, p)=> sum + p.owed, 0);
+    summary.textContent = `${pkgs.length} package${pkgs.length>1?'s':''} with a balance — ${Math.round(grand).toLocaleString()} EGP owed in total`;
+    list.innerHTML = pkgs.map(p=>{
+      const finished = p.used_sessions >= p.total_sessions;
+      const wa = p.patient_phone
+        ? `<a href="https://wa.me/${normalizeEgyptPhoneForWhatsApp(p.patient_phone)}" target="_blank" rel="noopener" style="color:var(--maroon);">${escapeHtml(p.patient_phone)}</a>`
+        : '<span style="color:var(--danger);">no phone on file</span>';
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(p.patient_name)}</span>
+          <span style="font-weight:700;color:var(--danger);font-size:0.9rem;">${Math.round(p.owed).toLocaleString()} EGP</span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;margin-top:2px;">Paid ${Math.round(Number(p.amount_paid || 0)).toLocaleString()} of ${Math.round(Number(p.total_price)).toLocaleString()} · ${p.used_sessions} of ${p.total_sessions} sessions used${finished ? ' · <strong>package finished</strong>' : ''}</div>
+        <div style="font-size:0.75rem;margin-top:2px;">${wa}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
 async function loadPackagePolicyCheck(){
   if(!isApproved()) return;
   const list = el('packagePolicyList');
@@ -2678,7 +2734,10 @@ let noteExpandActiveTabIndex = 0;
 let noteExpandSummaryText = '';
 let noteExpandSummaryLoading = false;
 
-function openNoteExpand(patientName, latestId){
+function openNoteExpand(patientName, latestId, opts){
+  opts = opts || {};
+  if(noteMicRecorder) cancelNoteExpandMic();
+  noteExpandActiveTabIndex = -1;
   noteExpandCurrentPatient = patientName;
   noteExpandCurrentLatestId = latestId;
   el('noteExpandTitle').textContent = patientName;
@@ -2687,16 +2746,22 @@ function openNoteExpand(patientName, latestId){
   el('noteExpandNameEditBox').style.display = 'none';
   el('noteExpandActionStatus').textContent = '';
 
-  const allIds = currentGridPatientGroups[patientName] || [latestId];
+  const allIds = (opts.ids || currentGridPatientGroups[patientName] || (latestId ? [latestId] : [])).filter(id=> id && sessions[id]);
   const sortedIds = [...allIds].sort((a,b)=> (sessions[a] && sessions[a].createdAt || 0) - (sessions[b] && sessions[b].createdAt || 0));
-  noteExpandTabs = sortedIds.map((id, i)=> ({ type: 'session', id, label: `Session ${i+1}` }));
+  noteExpandTabs = sortedIds.map((id, i)=> ({ type: 'session', id, label: noteExpandSessionLabel(id, i) }));
+  // Always offer a blank tab for writing a NEW session (e.g. today's visit)
+  // without leaving the popup. It only becomes a real session on Save.
+  noteExpandTabs.push({ type: 'new', date: opts.draftDate || todayStr(), sessionType: opts.draftType || (sortedIds.length ? 'followup' : 'assessment'), draftText: '' });
   noteExpandTabs.push({ type: 'summary' });
   noteExpandSummaryText = '';
   noteExpandSummaryLoading = false;
 
   el('noteExpandMergeBtn').style.display = sortedIds.length > 1 ? 'block' : 'none';
 
-  const defaultIndex = Math.max(0, noteExpandTabs.length - 2); // the latest real session, not Summary
+  const draftIndex = noteExpandTabs.length - 2;
+  let defaultIndex = Math.max(0, draftIndex - 1); // the latest real session
+  if(opts.selectId && sortedIds.includes(opts.selectId)) defaultIndex = sortedIds.indexOf(opts.selectId);
+  if(opts.openDraft || sortedIds.length === 0) defaultIndex = draftIndex;
   switchNoteExpandTab(defaultIndex);
   el('noteExpandOverlay').style.display = 'flex';
 
@@ -2711,7 +2776,7 @@ function openNoteExpandOnSummary(patientName, latestId){
 function renderNoteExpandTabBar(){
   const bar = el('noteExpandTabBar');
   bar.innerHTML = noteExpandTabs.map((tab, i)=>{
-    const label = tab.type === 'summary' ? '📋 Summary' : tab.label;
+    const label = tab.type === 'summary' ? '📋 Summary' : (tab.type === 'new' ? '＋ New session' : tab.label);
     const isActive = i === noteExpandActiveTabIndex;
     return `<button type="button" class="note-expand-tab-btn" data-idx="${i}" style="flex-shrink:0;padding:10px 14px;font-size:0.8rem;border:none;background:transparent;border-bottom:2px solid ${isActive ? 'var(--maroon)' : 'transparent'};color:${isActive ? 'var(--maroon)' : '#5b6863'};font-weight:${isActive ? '700' : '400'};cursor:pointer;white-space:nowrap;">${label}</button>`;
   }).join('');
@@ -2721,6 +2786,12 @@ function renderNoteExpandTabBar(){
 }
 
 function switchNoteExpandTab(index){
+  if(noteMicRecorder){
+    el('noteExpandTabStatus').textContent = 'Stop the recording first.';
+    return;
+  }
+  const leaving = noteExpandTabs[noteExpandActiveTabIndex];
+  if(leaving && leaving.type === 'new') leaving.draftText = el('noteExpandTextarea').value;
   noteExpandActiveTabIndex = index;
   renderNoteExpandTabBar();
   const tab = noteExpandTabs[index];
@@ -2733,7 +2804,19 @@ function switchNoteExpandTab(index){
     el('noteExpandDownloadPdfBtn').style.display = 'block';
     el('noteExpandGenerateBtn').style.display = 'none';
     el('noteExpandStartRecordingBtn').style.display = 'none';
+    el('noteExpandMicBtn').style.display = 'none';
+  }else if(tab.type === 'new'){
+    el('noteExpandTextarea').value = tab.draftText || '';
+    el('noteExpandTabStatus').textContent = `New session · ${tab.date} — write or record, then Save`;
+    el('noteExpandSaveBtn').style.display = 'block';
+    el('noteExpandDownloadTxtBtn').style.display = 'none';
+    el('noteExpandDownloadPdfBtn').style.display = 'none';
+    el('noteExpandGenerateBtn').style.display = 'none';
+    el('noteExpandStartRecordingBtn').style.display = 'none';
+    el('noteExpandMicBtn').style.display = 'flex';
+    setTimeout(()=> el('noteExpandTextarea').focus(), 50);
   }else{
+    el('noteExpandMicBtn').style.display = 'flex';
     const s = sessions[tab.id];
     const hasNote = s && !!s.note;
     const hasTranscript = s && (s.transcriptLines||[]).length > 0;
@@ -2749,6 +2832,7 @@ function switchNoteExpandTab(index){
 
 async function saveCurrentNoteExpandTab(){
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  if(tab && tab.type === 'new') return saveNewNoteExpandSession(tab);
   if(!tab || tab.type !== 'session') return;
   const s = sessions[tab.id];
   if(!s) return;
@@ -2769,12 +2853,198 @@ async function saveCurrentNoteExpandTab(){
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     s.note = newText;
+    try{ await localDB.set('session:' + tab.id, JSON.stringify(s)); }catch(e){ /* non-fatal */ }
     el('noteExpandTabStatus').textContent = 'Saved.';
     if(currentGridDoctorName) renderDoctorPatientsGrid();
   }catch(e){
     console.error(e);
     el('noteExpandTabStatus').textContent = 'Could not save: ' + (e.message || e);
   }
+}
+
+function noteExpandSessionLabel(id, i){
+  const s = sessions[id];
+  const d = s && s.date ? s.date.replace(/,\s*\d{4}$/, '') : '';
+  return `Session ${i+1}${d ? ' · ' + d : ''}`;
+}
+
+async function saveNewNoteExpandSession(tab){
+  const text = el('noteExpandTextarea').value.trim();
+  if(!text){
+    el('noteExpandTabStatus').textContent = 'Write or record something first.';
+    return;
+  }
+  const id = newSessionId();
+  const patientName = noteExpandCurrentPatient;
+  el('noteExpandTabStatus').textContent = 'Saving…';
+  el('noteExpandSaveBtn').disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ id, patientName, sessionDate: tab.date, sessionType: tab.sessionType, transcript: [], note: text })
+    });
+    if(!res.ok){
+      const errText = await res.text();
+      throw new Error(`Server error ${res.status}: ${errText.slice(0,150)}`);
+    }
+    const data = {
+      id, patientName, date: tab.date, sessionType: tab.sessionType, transcriptLines: [], note: text,
+      doctorName: (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || 'Unassigned',
+      createdAt: Date.now()
+    };
+    sessions[id] = data;
+    try{ await localDB.set('session:' + id, JSON.stringify(data)); }catch(e){ /* non-fatal */ }
+    // Turn the draft into a real session tab, and keep a fresh blank tab after it.
+    const idx = noteExpandTabs.indexOf(tab);
+    const realCount = noteExpandTabs.filter(t=> t.type === 'session').length;
+    noteExpandTabs.splice(idx, 1,
+      { type: 'session', id, label: noteExpandSessionLabel(id, realCount) },
+      { type: 'new', date: todayStr(), sessionType: 'followup', draftText: '' });
+    noteExpandActiveTabIndex = -1;
+    switchNoteExpandTab(idx);
+    el('noteExpandTabStatus').textContent = 'Saved as a new session.';
+    renderSessionList();
+    if(currentGridDoctorName) renderDoctorPatientsGrid();
+  }catch(e){
+    console.error(e);
+    el('noteExpandTabStatus').textContent = 'Could not save: ' + (e.message || e);
+  }finally{
+    el('noteExpandSaveBtn').disabled = false;
+  }
+}
+
+// ---- WhatsApp-style voice note inside the notes popup ----
+// Tap the mic to start, tap again to stop. The audio is transcribed and
+// the text is added to the open session, then saved automatically.
+let noteMicRecorder = null;
+let noteMicStream = null;
+let noteMicChunks = [];
+let noteMicTimer = null;
+let noteMicStartedAt = 0;
+let noteMicCancelled = false;
+let noteMicMime = 'audio/webm';
+
+function pickNoteMicMime(){
+  const options = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+  for(const m of options){ if(window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) return m; }
+  return '';
+}
+
+function setNoteMicUi(recording){
+  const btn = el('noteExpandMicBtn');
+  btn.style.background = recording ? '#d93025' : 'var(--maroon)';
+  btn.style.animation = recording ? 'noteMicPulse 1.4s infinite' : 'none';
+  btn.innerHTML = recording
+    ? '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>'
+    : '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="17" x2="12" y2="22"/></svg>';
+  el('noteExpandMicStrip').style.display = recording ? 'flex' : 'none';
+  el('noteExpandSaveBtn').disabled = recording;
+}
+
+function stopNoteMicTracks(){
+  if(noteMicTimer){ clearInterval(noteMicTimer); noteMicTimer = null; }
+  if(noteMicStream){ noteMicStream.getTracks().forEach(t=> t.stop()); noteMicStream = null; }
+}
+
+function cancelNoteExpandMic(){
+  if(!noteMicRecorder) return;
+  noteMicCancelled = true;
+  try{ noteMicRecorder.stop(); }catch(e){ /* already stopped */ }
+}
+
+async function toggleNoteExpandMic(){
+  if(noteMicRecorder){
+    try{ noteMicRecorder.stop(); }catch(e){ console.error(e); }
+    return;
+  }
+  const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  if(!tab || tab.type === 'summary') return;
+  if(!window.MediaRecorder || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    el('noteExpandTabStatus').textContent = 'This browser cannot record audio.';
+    return;
+  }
+  if(!isApproved()){
+    el('noteExpandTabStatus').textContent = 'Sign in and get approved first to use voice notes.';
+    return;
+  }
+  if(isRecording || isRecordingVoiceNote){
+    el('noteExpandTabStatus').textContent = 'Another recording is already running — stop it first.';
+    return;
+  }
+  try{
+    noteMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  }catch(e){
+    el('noteExpandTabStatus').textContent = 'Microphone permission was blocked — allow it in the browser and try again.';
+    return;
+  }
+  noteMicMime = pickNoteMicMime();
+  noteMicChunks = [];
+  noteMicCancelled = false;
+  noteMicRecorder = noteMicMime ? new MediaRecorder(noteMicStream, { mimeType: noteMicMime }) : new MediaRecorder(noteMicStream);
+  const recordingTab = tab;
+  noteMicRecorder.ondataavailable = e=>{ if(e.data && e.data.size > 0) noteMicChunks.push(e.data); };
+  noteMicRecorder.onstop = async ()=>{
+    const cancelled = noteMicCancelled;
+    const mime = (noteMicRecorder && noteMicRecorder.mimeType) || noteMicMime || 'audio/webm';
+    noteMicRecorder = null;
+    stopNoteMicTracks();
+    setNoteMicUi(false);
+    if(cancelled){ el('noteExpandTabStatus').textContent = 'Recording cancelled.'; return; }
+    const blob = new Blob(noteMicChunks, { type: mime });
+    if(blob.size < 1000){ el('noteExpandTabStatus').textContent = 'Recording was too short — try again.'; return; }
+    el('noteExpandTabStatus').textContent = 'Turning your voice note into text…';
+    el('noteExpandSaveBtn').disabled = true;
+    try{
+      // transcribePlainAudio reads the shared mime setting synchronously
+      // before its first await, so set it just for this call and restore it.
+      const previousMime = recordedMimeType;
+      recordedMimeType = mime.split(';')[0];
+      const pending = transcribePlainAudio(blob);
+      recordedMimeType = previousMime;
+      const text = (await pending || '').trim();
+      if(!text){ el('noteExpandTabStatus').textContent = 'No speech was picked up — try again closer to the mic.'; return; }
+      if(noteExpandTabs[noteExpandActiveTabIndex] !== recordingTab){ el('noteExpandTabStatus').textContent = 'The session changed while transcribing — nothing was added.'; return; }
+      const area = el('noteExpandTextarea');
+      const existing = area.value.replace(/\s+$/, '');
+      area.value = existing ? existing + '\n' + text : text;
+      el('noteExpandSaveBtn').disabled = false;
+      await saveCurrentNoteExpandTab();
+    }catch(e){
+      console.error(e);
+      el('noteExpandTabStatus').textContent = 'Could not transcribe: ' + (e.message || e);
+    }finally{
+      el('noteExpandSaveBtn').disabled = false;
+    }
+  };
+  noteMicRecorder.start();
+  noteMicStartedAt = Date.now();
+  setNoteMicUi(true);
+  el('noteExpandMicTimer').textContent = '0:00';
+  noteMicTimer = setInterval(()=>{
+    const secs = Math.floor((Date.now() - noteMicStartedAt) / 1000);
+    el('noteExpandMicTimer').textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+  }, 500);
+}
+
+// Open a patient's notes popup straight from an appointment. Picks the
+// session written for that appointment's date if there is one, otherwise
+// opens a blank "New session" tab dated to the appointment.
+function openPatientDocsFromAppointment(ev){
+  if(!ev || !ev.patient_name) return;
+  const name = ev.patient_name.trim();
+  const lower = name.toLowerCase();
+  const ids = Object.keys(sessions)
+    .filter(id=> ((sessions[id].patientName || '').trim().toLowerCase()) === lower)
+    .sort((a,b)=> (sessions[b].createdAt || 0) - (sessions[a].createdAt || 0));
+  const dateStr = ev.start_time
+    ? new Date(ev.start_time).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})
+    : todayStr();
+  const match = ids.find(id=> sessions[id].date === dateStr);
+  const draftType = ev.visit_type === 'checkup' ? 'assessment'
+    : ev.visit_type === 'recovery' ? 'recovery'
+    : (ids.length ? 'followup' : 'assessment');
+  openNoteExpand(name, ids[0] || null, { ids, draftDate: dateStr, draftType, selectId: match, openDraft: !match });
 }
 
 async function generateNoteExpandSummaryInBackground(patientName){
@@ -4780,6 +5050,10 @@ function extractPaymentDetail(ev){
     const packageMatch = text.match(/^covered by package.*?session\s*(\d+)\s*of\s*(\d+)/i);
     if(packageMatch) return `🎁 Package — session ${packageMatch[1]} of ${packageMatch[2]}`;
   }
+  for(const n of notes){
+    const owed = (n.text || '').trim().match(/^nothing paid yet.*starts a package of (\d+).*?,\s*([\d.,]+)\s*EGP owed/i);
+    if(owed) return `📦 Package of ${owed[1]} started — nothing paid yet (${owed[2]} EGP owed)`;
+  }
   if(ev.is_free) return '🆓 Free';
   return null;
 }
@@ -4914,6 +5188,7 @@ async function loadDashboardStats(){
   loadOtherIncome();
   loadWithdrawals();
   loadPackagePolicyCheck();
+  loadPackageOwed();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -5266,11 +5541,66 @@ function setIncomeMethod(method){
   });
 }
 
-async function loadOtherIncome(){
+// One month selector shared by Expenses, Other Income, Transfers and
+// Doctor Withdrawals: 0 = this month, -1 = last month, and so on.
+let financeMonthOffset = 0;
+
+function financeMonthRange(){
   const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  const first = new Date(now.getFullYear(), now.getMonth() + financeMonthOffset, 1);
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const monthName = first.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  return {
+    start: fmt(first),
+    end: fmt(last),
+    monthName,
+    label: financeMonthOffset === 0 ? 'This month' : monthName,
+    noun: financeMonthOffset === 0 ? 'this month' : `in ${monthName}`
+  };
+}
+
+function renderFinanceMonthNavs(){
+  const range = financeMonthRange();
+  document.querySelectorAll('.finance-month-nav').forEach(nav=>{
+    nav.innerHTML = `<button type="button" class="finance-month-prev" title="Previous month" style="width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;font-size:1.1rem;line-height:1;">‹</button>
+      <span style="font-size:0.85rem;font-weight:700;color:var(--ink);min-width:150px;text-align:center;">${escapeHtml(range.monthName)}${financeMonthOffset === 0 ? ' <span style="font-weight:400;color:#8a938e;">(this month)</span>' : ''}</span>
+      <button type="button" class="finance-month-next" title="Next month" ${financeMonthOffset === 0 ? 'disabled' : ''} style="width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--maroon);cursor:pointer;font-size:1.1rem;line-height:1;${financeMonthOffset === 0 ? 'opacity:0.35;cursor:default;' : ''}">›</button>
+      ${financeMonthOffset === 0 ? '' : '<button type="button" class="finance-month-reset" style="border:none;background:transparent;color:var(--maroon);text-decoration:underline;font-size:0.78rem;cursor:pointer;">Back to this month</button>'}`;
+    nav.querySelector('.finance-month-prev').addEventListener('click', ()=> setFinanceMonthOffset(financeMonthOffset - 1));
+    const next = nav.querySelector('.finance-month-next');
+    if(financeMonthOffset < 0) next.addEventListener('click', ()=> setFinanceMonthOffset(financeMonthOffset + 1));
+    const reset = nav.querySelector('.finance-month-reset');
+    if(reset) reset.addEventListener('click', ()=> setFinanceMonthOffset(0));
+  });
+}
+
+function setFinanceMonthOffset(offset){
+  financeMonthOffset = Math.min(0, offset);
+  renderFinanceMonthNavs();
+  loadExpenses();
+  loadOtherIncome();
+  loadTransfers();
+  loadWithdrawals();
+}
+
+function injectFinanceMonthNavs(){
+  ['incomeMonthTotal','expenseMonthTotal','transferList','withdrawalMonthTotal'].forEach(id=>{
+    const target = el(id);
+    if(!target || target.previousElementSibling && target.previousElementSibling.classList.contains('finance-month-nav')) return;
+    const nav = document.createElement('div');
+    nav.className = 'finance-month-nav';
+    nav.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap;';
+    target.insertAdjacentElement('beforebegin', nav);
+  });
+  renderFinanceMonthNavs();
+}
+
+async function loadOtherIncome(){
+  const range = financeMonthRange();
+  const monthStart = range.start;
+  const monthEndStr = range.end;
   el('incomeList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/other-income?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
@@ -5279,9 +5609,9 @@ async function loadOtherIncome(){
     const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const cashTotal = items.filter(e=> (e.payment_method || 'cash') === 'cash').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const instapayTotal = items.filter(e=> e.payment_method === 'instapay').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
-    el('incomeMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
+    el('incomeMonthTotal').textContent = `${range.label}: ${total.toLocaleString()} EGP (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
     if(items.length === 0){
-      el('incomeList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No other income logged this month.</div>';
+      el('incomeList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">No other income logged ${range.noun}.</div>`;
       return;
     }
     el('incomeList').innerHTML = items.map(e=>{
@@ -5379,17 +5709,16 @@ function setTransferDirection(from, to){
 }
 
 async function loadTransfers(){
-  const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  const range = financeMonthRange();
+  const monthStart = range.start;
+  const monthEndStr = range.end;
   el('transferList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/transfers?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     const items = (await res.json()) || [];
     if(items.length === 0){
-      el('transferList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No transfers logged this month.</div>';
+      el('transferList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">No transfers logged ${range.noun}.</div>`;
       return;
     }
     el('transferList').innerHTML = items.map(t=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
@@ -5458,19 +5787,18 @@ function populateWithdrawalDoctorSelect(){
 
 async function loadWithdrawals(){
   populateWithdrawalDoctorSelect();
-  const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  const range = financeMonthRange();
+  const monthStart = range.start;
+  const monthEndStr = range.end;
   el('withdrawalList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/doctor-withdrawals?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     const items = (await res.json()) || [];
     const total = items.reduce((sum, w)=> sum + parseFloat(w.amount || 0), 0);
-    el('withdrawalMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP withdrawn`;
+    el('withdrawalMonthTotal').textContent = `${range.label}: ${total.toLocaleString()} EGP withdrawn`;
     if(items.length === 0){
-      el('withdrawalList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No withdrawals logged this month.</div>';
+      el('withdrawalList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">No withdrawals logged ${range.noun}.</div>`;
       return;
     }
     el('withdrawalList').innerHTML = items.map(w=>{
@@ -5531,10 +5859,9 @@ async function addWithdrawal(){
 let selectedExpenseFilter = 'all';
 
 async function loadExpenses(){
-  const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0);
-  const monthEndStr = `${monthEnd.getFullYear()}-${String(monthEnd.getMonth()+1).padStart(2,'0')}-${String(monthEnd.getDate()).padStart(2,'0')}`;
+  const range = financeMonthRange();
+  const monthStart = range.start;
+  const monthEndStr = range.end;
   el('expenseList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/expenses?start=${monthStart}&end=${monthEndStr}`, { headers: authHeader() });
@@ -5544,7 +5871,7 @@ async function loadExpenses(){
     const total = items.reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const cashTotal = items.filter(e=> (e.payment_method || 'cash') === 'cash').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
     const instapayTotal = items.filter(e=> e.payment_method === 'instapay').reduce((sum, e)=> sum + parseFloat(e.amount || 0), 0);
-    el('expenseMonthTotal').textContent = `This month: ${total.toLocaleString()} EGP spent (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
+    el('expenseMonthTotal').textContent = `${range.label}: ${total.toLocaleString()} EGP spent (Cash: ${cashTotal.toLocaleString()}, InstaPay: ${instapayTotal.toLocaleString()})`;
     renderExpenseList();
   }catch(e){
     console.error(e);
@@ -5567,7 +5894,7 @@ function renderExpenseList(){
     ? lastExpenseItems
     : lastExpenseItems.filter(e=> (e.payment_method || 'cash') === selectedExpenseFilter);
   if(items.length === 0){
-    el('expenseList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">${lastExpenseItems.length === 0 ? 'No expenses logged this month.' : 'No expenses match this filter.'}</div>`;
+    el('expenseList').innerHTML = `<div style="font-size:0.8rem;color:#8a938e;">${lastExpenseItems.length === 0 ? `No expenses logged ${financeMonthRange().noun}.` : 'No expenses match this filter.'}</div>`;
     return;
   }
   el('expenseList').innerHTML = items.map(e=>{
@@ -6373,8 +6700,12 @@ async function sellNextPackage(){
   const totalPrice = totalPriceRaw ? parseFloat(totalPriceRaw) : null;
   const amount = parseFloat(el('sellNextPackageAmountInput').value);
   const method = selectedSellNextPackageMethod;
-  if(!patientName || !totalSessions || totalSessions < 2 || !amount){
-    el('sellNextPackageStatus').textContent = 'Enter the number of sessions (2+) and the amount paid now first.';
+  if(!patientName || !totalSessions || totalSessions < 2 || isNaN(amount) || amount < 0){
+    el('sellNextPackageStatus').textContent = 'Enter the number of sessions (2+) and the amount paid now (type 0 if nothing has been paid yet).';
+    return;
+  }
+  if(amount === 0 && !(totalPrice > 0)){
+    el('sellNextPackageStatus').textContent = 'Enter the total package price too, so the app knows how much is still owed.';
     return;
   }
   el('sellNextPackageStatus').textContent = 'Saving…';
@@ -6400,7 +6731,13 @@ async function sellNextPackage(){
     const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
     const remaining = totalPrice != null ? Math.max(0, totalPrice - amount) : 0;
     const remainingSuffix = remaining > 0 ? ` — ${remaining} EGP remaining` : '';
-    const noteText = `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions${countToday ? '' : ' (for a future visit)'}${remainingSuffix}`;
+    const nothingPaid = amount === 0;
+    // With nothing paid there is no revenue to record, so the note must NOT
+    // start with "Paid …" (that's what the money totals look for) — but it
+    // still says "starts a package of N" so the session is counted.
+    const noteText = nothingPaid
+      ? `Nothing paid yet — starts a package of ${totalSessions} sessions${countToday ? '' : ' (for a future visit)'}, ${totalPrice} EGP owed`
+      : `Paid ${amount} EGP (${methodLabel}) — starts a package of ${totalSessions} sessions${countToday ? '' : ' (for a future visit)'}${remainingSuffix}`;
     const noteRes = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}/notes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
@@ -6408,7 +6745,20 @@ async function sellNextPackage(){
     });
     if(!noteRes.ok) throw new Error(`Server error ${noteRes.status}`);
     const usedLabel = countToday ? '1 used' : '0 used';
-    el('sellNextPackageStatus').textContent = remaining > 0
+    // Today's session is now part of the package, so it's accounted for —
+    // the money still owed lives on the package (see the box at the top of
+    // this tab) instead of leaving the visit stuck in "Not paid yet".
+    if(nothingPaid && countToday){
+      await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(currentPaymentTarget.id)}`, {
+        method: 'PATCH',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paid: true })
+      });
+    }
+    loadPackageStatusForPatient(patientName, false, 'paymentPackageStatus');
+    el('sellNextPackageStatus').textContent = nothingPaid
+      ? `Saved — new ${totalSessions}-session package on file (${usedLabel}). Nothing paid yet: ${totalPrice} EGP owed — record each payment from the box at the top of this tab when it comes in.`
+      : remaining > 0
       ? `Saved — new ${totalSessions}-session package on file (${usedLabel}). ${amount} EGP (${methodLabel}) counted as revenue, ${remaining} EGP still owed.`
       : `Saved — new ${totalSessions}-session package on file (${usedLabel}), and today's ${amount} EGP (${methodLabel}) is counted as revenue.`;
     el('sellNextPackageCountTodayCheckbox').checked = false;
@@ -8945,6 +9295,7 @@ el('addTransferBtn').addEventListener('click', addTransfer);
 document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setExpenseFilter(btn.getAttribute('data-filter')));
 });
+injectFinanceMonthNavs();
 document.querySelectorAll('.collapsible-title').forEach(title=>{
   const content = title.nextElementSibling;
   if(!content) return;
@@ -9104,11 +9455,15 @@ el('doctorPatientsGridCloseBtn').addEventListener('click', ()=>{
 });
 el('doctorGridSearchInput').addEventListener('input', renderDoctorPatientsGrid);
 el('noteExpandCloseBtn').addEventListener('click', ()=>{
+  cancelNoteExpandMic();
   el('noteExpandOverlay').style.display = 'none';
 });
 el('noteExpandOverlay').addEventListener('click', (e)=>{
-  if(e.target.id === 'noteExpandOverlay') el('noteExpandOverlay').style.display = 'none';
+  if(e.target.id === 'noteExpandOverlay'){ cancelNoteExpandMic(); el('noteExpandOverlay').style.display = 'none'; }
 });
+el('noteExpandMicBtn').addEventListener('click', toggleNoteExpandMic);
+el('noteExpandMicCancelBtn').addEventListener('click', cancelNoteExpandMic);
+el('pdOpenDocsBtn').addEventListener('click', ()=> openPatientDocsFromAppointment(currentPaymentTarget));
 el('noteExpandGenerateBtn').addEventListener('click', ()=>{
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
   const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
@@ -9127,6 +9482,12 @@ el('noteExpandStartRecordingBtn').addEventListener('click', ()=>{
 });
 el('noteExpandDeleteBtn').addEventListener('click', ()=>{
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
+  if(tab && tab.type === 'new'){
+    tab.draftText = '';
+    el('noteExpandTextarea').value = '';
+    el('noteExpandTabStatus').textContent = 'Draft cleared (nothing was saved).';
+    return;
+  }
   const targetId = (tab && tab.type === 'session') ? tab.id : noteExpandCurrentLatestId;
   deleteSessionFromCard(targetId);
 });
