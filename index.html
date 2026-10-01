@@ -2117,6 +2117,15 @@ function patientSurgeryKey(name){
   return 'surgery_date:' + name.trim().toLowerCase();
 }
 
+// The search endpoint is a PARTIAL match ("zeinab" also finds "Zeinab Ali"
+// and "Mona Zeinab"), so anything that means "this exact patient" has to
+// filter its results — otherwise other people's visits and payments show
+// up under this patient.
+function onlyExactPatient(items, name){
+  const key = (name || '').trim().toLowerCase();
+  return (Array.isArray(items) ? items : []).filter(ev=> ((ev.patient_name || '').trim().toLowerCase()) === key);
+}
+
 async function loadPatientHistoryStatus(name){
   const badge = el('patientHistoryStatus');
   if(!name || !name.trim() || !isApproved()){
@@ -2126,8 +2135,8 @@ async function loadPatientHistoryStatus(name){
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
     if(!res.ok){ badge.textContent = ''; return; }
-    const items = await res.json();
-    const active = (Array.isArray(items) ? items : []).filter(ev=> ev.status !== 'cancelled');
+    const items = onlyExactPatient(await res.json(), name);
+    const active = items.filter(ev=> ev.status !== 'cancelled');
     if(active.length === 0){ badge.textContent = ''; return; }
     const byDoctor = {};
     active.forEach(ev=>{
@@ -2422,8 +2431,8 @@ async function loadPackageStatusForPatient(name, logToChat, targetId){
       const noteText = `Package: ${pkg.used_sessions} of ${pkg.total_sessions} used`;
       const searchRes = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name.trim())}`, { headers: authHeader() });
       if(searchRes.ok){
-        const matches = await searchRes.json();
-        const latestAppt = Array.isArray(matches) && matches[0];
+        const matches = onlyExactPatient(await searchRes.json(), name);
+        const latestAppt = matches[0];
         if(latestAppt){
           const alreadyLogged = (latestAppt.notes || []).some(n=> (n.text || '').trim() === noteText);
           if(!alreadyLogged){
@@ -5106,8 +5115,8 @@ async function openPatientHistoryPopup(name){
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments/search-by-patient?q=${encodeURIComponent(name)}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
-    const items = await res.json();
-    if(!Array.isArray(items) || items.length === 0){
+    const items = onlyExactPatient(await res.json(), name);
+    if(items.length === 0){
       el('patientHistoryBody').innerHTML = '<div style="font-size:0.85rem;color:#8a938e;">No appointment history found.</div>';
       return;
     }
