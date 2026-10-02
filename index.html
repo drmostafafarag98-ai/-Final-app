@@ -5105,7 +5105,7 @@ function applyLoginResult(doctor){
   signedInDoctor = doctor;
   updateSignInStatusUI();
   el('openTrashBtn').style.display = (signedInDoctor.role === 'owner') ? 'flex' : 'none';
-  el('payrollSectionWrap').style.display = (signedInDoctor.role === 'owner') ? 'block' : 'none';
+  el('payrollSectionWrap').style.display = hasClientPermission('view_payroll') ? 'block' : 'none';
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
     loadDashboardSummary();
@@ -6829,6 +6829,10 @@ function renderDoctorsRoster(items){
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="register_packages" ${d.permissions?.register_packages ? 'checked' : ''}>
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Backfill an existing/old package
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="view_payroll" ${d.permissions?.view_payroll ? 'checked' : ''}>
+            <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> View Doctor Payroll (everyone's pay)
           </label>
         </div>
       </div>` : ''}
