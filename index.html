@@ -1017,6 +1017,27 @@
         <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Money ledger (match with the bank) <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Every pound the app counts for one method, day by day: money <strong>in</strong> (patient payments, other income, transfers in) and money <strong>out</strong> (expenses, transfers out, doctor withdrawals). Put it next to your bank / InstaPay statement and find the day where the two stop agreeing. Type what the bank shows to see the difference.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <input type="text" id="ledgerFromInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.8rem;color:#5b6863;">to</span>
+          <input type="text" id="ledgerToInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <div id="ledgerMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;">
+            <button type="button" class="ledger-method-btn active" data-method="instapay" style="border:none;padding:7px 14px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">InstaPay</button>
+            <button type="button" class="ledger-method-btn" data-method="cash" style="border:none;padding:7px 14px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">Cash</button>
+          </div>
+          <button type="button" class="ghost" id="ledgerBtn">Show</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="number" id="ledgerBankInInput" placeholder="Bank: total received" style="width:150px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.8rem;">
+          <input type="number" id="ledgerBankOutInput" placeholder="Bank: total sent out" style="width:150px;padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.8rem;">
+        </div>
+        <div id="ledgerSummary" style="margin-bottom:10px;"></div>
+        <div id="ledgerList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Looks for the same patient (even if the name is spelled a little differently, like "mina" and "mina ishak"), same amount and same method recorded more than once — on one visit, on the same day, entered within a few hours of each other, or a big payment repeated within two weeks. These are only <strong>suspects</strong>: check each one before deleting anything. It also shows the total the app has recorded per method, to compare with the real account.</div>
@@ -2276,6 +2297,154 @@ async function markPackagePolicySent(pkgId, sent){
   if(!res.ok){
     const errBody = await res.json().catch(()=>({}));
     throw new Error(errBody.error || `Server error ${res.status}`);
+  }
+}
+
+let ledgerMethod = 'instapay';
+let ledgerTotals = null;
+
+function ensureLedgerDefaults(){
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if(!el('ledgerToInput').value) el('ledgerToInput').value = fmt(today);
+  if(!el('ledgerFromInput').value) el('ledgerFromInput').value = fmt(new Date(today.getFullYear(), today.getMonth() - 1, 1));
+}
+
+function setLedgerMethod(method){
+  ledgerMethod = method;
+  document.querySelectorAll('.ledger-method-btn').forEach(btn=>{
+    const active = btn.getAttribute('data-method') === method;
+    btn.classList.toggle('active', active);
+    btn.style.background = active ? 'var(--maroon)' : 'transparent';
+    btn.style.color = active ? '#fff' : 'var(--ink)';
+  });
+}
+
+// Shows the difference between the app and the numbers typed from the bank.
+function updateLedgerDiff(){
+  const box = el('ledgerDiff');
+  if(!box || !ledgerTotals) return;
+  const fmtN = n => Math.round(n).toLocaleString();
+  const bankIn = el('ledgerBankInInput').value;
+  const bankOut = el('ledgerBankOutInput').value;
+  const lines = [];
+  const diffLine = (name, appVal, bankVal)=>{
+    const d = appVal - parseFloat(bankVal);
+    const color = Math.abs(d) < 0.5 ? '#1b8a4a' : 'var(--danger)';
+    const text = Math.abs(d) < 0.5 ? 'matches' : (d > 0 ? `the app is ${fmtN(d)} EGP HIGHER` : `the app is ${fmtN(-d)} EGP LOWER`);
+    return `<div style="font-size:0.8rem;color:${color};font-weight:700;">${name}: ${text}</div>`;
+  };
+  if(bankIn !== '') lines.push(diffLine('Money in', ledgerTotals.totalIn, bankIn));
+  if(bankOut !== '') lines.push(diffLine('Money out', ledgerTotals.totalOut, bankOut));
+  box.innerHTML = lines.join('');
+}
+
+async function runMoneyLedger(){
+  ensureLedgerDefaults();
+  const fromVal = el('ledgerFromInput').value;
+  const toVal = el('ledgerToInput').value;
+  const list = el('ledgerList');
+  const summary = el('ledgerSummary');
+  if(!fromVal || !toVal){ summary.innerHTML = ''; list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Pick both dates first.</div>'; return; }
+  summary.innerHTML = '';
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  const method = ledgerMethod;
+  const methodLabel = method === 'instapay' ? 'InstaPay' : 'Cash';
+  try{
+    const start = new Date(fromVal + 'T00:00:00');
+    const end = new Date(toVal + 'T23:59:59');
+    const get = async url => { const r = await fetch(url, { headers: authHeader() }); if(!r.ok) throw new Error(`Server error ${r.status}`); return (await r.json()) || []; };
+    const [appts, expenses, incomes, transfers, withdrawals] = await Promise.all([
+      get(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`),
+      get(`${BACKEND_URL}/api/expenses?start=${fromVal}&end=${toVal}`),
+      get(`${BACKEND_URL}/api/other-income?start=${fromVal}&end=${toVal}`),
+      get(`${BACKEND_URL}/api/transfers?start=${fromVal}&end=${toVal}`),
+      get(`${BACKEND_URL}/api/doctor-withdrawals?start=${fromVal}&end=${toVal}`)
+    ]);
+    const entries = [];
+    const counts = { payments: 0, income: 0, transfersIn: 0, expenses: 0, transfersOut: 0, withdrawals: 0 };
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    appts.forEach(ev=>{
+      if(ev.status === 'cancelled' || !ev.start_time) return;
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(!m || m[2].toLowerCase() !== method) return;
+        const amt = parseFloat(m[1].replace(/,/g, ''));
+        if(isNaN(amt)) return;
+        const tag = /starts a package/i.test(n.text || '') ? ' · package' : (/package balance/i.test(n.text || '') ? ' · package balance' : '');
+        entries.push({ date: dayKey(new Date(ev.start_time)), dir: 'in', amount: amt, label: `${ev.patient_name || '(untitled)'}`, sub: `${ev.doctor_name || ''}${tag}`, kind: 'payment' });
+        counts.payments++;
+      });
+    });
+    incomes.forEach(i=>{
+      if((i.payment_method === 'instapay' ? 'instapay' : 'cash') !== method) return;
+      entries.push({ date: i.income_date, dir: 'in', amount: parseFloat(i.amount || 0), label: i.description || 'Other income', sub: 'other income', kind: 'income' });
+      counts.income++;
+    });
+    transfers.forEach(t=>{
+      const amt = parseFloat(t.amount || 0);
+      const fromCash = t.from_method === 'cash';
+      if(method === 'instapay'){
+        entries.push({ date: t.transfer_date, dir: fromCash ? 'in' : 'out', amount: amt, label: fromCash ? 'Transfer from Cash' : 'Transfer to Cash', sub: 'transfer', kind: 'transfer' });
+        fromCash ? counts.transfersIn++ : counts.transfersOut++;
+      }else{
+        entries.push({ date: t.transfer_date, dir: fromCash ? 'out' : 'in', amount: amt, label: fromCash ? 'Transfer to InstaPay' : 'Transfer from InstaPay', sub: 'transfer', kind: 'transfer' });
+        fromCash ? counts.transfersOut++ : counts.transfersIn++;
+      }
+    });
+    expenses.forEach(e=>{
+      if((e.payment_method === 'instapay' ? 'instapay' : 'cash') !== method) return;
+      entries.push({ date: e.expense_date, dir: 'out', amount: parseFloat(e.amount || 0), label: e.description || 'Expense', sub: 'expense', kind: 'expense' });
+      counts.expenses++;
+    });
+    withdrawals.forEach(w=>{
+      if((w.payment_method === 'instapay' ? 'instapay' : 'cash') !== method) return;
+      entries.push({ date: w.withdrawal_date, dir: 'out', amount: parseFloat(w.amount || 0), label: `${w.doctor_name || 'Doctor'} — withdrawal`, sub: 'withdrawal', kind: 'withdrawal' });
+      counts.withdrawals++;
+    });
+    const fmtN = n => Math.round(n).toLocaleString();
+    const totalIn = entries.filter(e=> e.dir === 'in').reduce((s, e)=> s + e.amount, 0);
+    const totalOut = entries.filter(e=> e.dir === 'out').reduce((s, e)=> s + e.amount, 0);
+    ledgerTotals = { totalIn, totalOut };
+    summary.innerHTML = `<div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;">
+      <div style="font-size:0.74rem;color:#5b6863;">${methodLabel} — ${escapeHtml(fromVal)} to ${escapeHtml(toVal)}</div>
+      <div style="display:flex;gap:18px;flex-wrap:wrap;margin-top:4px;">
+        <div><div style="font-size:0.72rem;color:#5b6863;">Money in</div><div style="font-size:1.1rem;font-weight:700;color:#0b8043;">${fmtN(totalIn)}</div></div>
+        <div><div style="font-size:0.72rem;color:#5b6863;">Money out</div><div style="font-size:1.1rem;font-weight:700;color:var(--danger);">${fmtN(totalOut)}</div></div>
+        <div><div style="font-size:0.72rem;color:#5b6863;">Net ${methodLabel}</div><div style="font-size:1.1rem;font-weight:700;color:var(--maroon);">${fmtN(totalIn - totalOut)}</div></div>
+      </div>
+      <div style="font-size:0.72rem;color:#8a938e;margin-top:6px;">In: ${counts.payments} patient payments · ${counts.income} other income · ${counts.transfersIn} transfers. Out: ${counts.expenses} expenses · ${counts.transfersOut} transfers · ${counts.withdrawals} withdrawals. The Net equals the Net ${methodLabel} card for the same dates.</div>
+      <div id="ledgerDiff" style="margin-top:8px;"></div>
+    </div>`;
+    updateLedgerDiff();
+    if(entries.length === 0){
+      list.innerHTML = `<div style="font-size:0.8rem;color:#8a938e;margin-top:10px;">Nothing recorded in ${methodLabel} for these dates.</div>`;
+      return;
+    }
+    const byDay = {};
+    entries.forEach(e=>{ (byDay[e.date] = byDay[e.date] || []).push(e); });
+    list.innerHTML = Object.keys(byDay).sort().map(day=>{
+      const rows = byDay[day];
+      const dIn = rows.filter(r=> r.dir === 'in').reduce((s, r)=> s + r.amount, 0);
+      const dOut = rows.filter(r=> r.dir === 'out').reduce((s, r)=> s + r.amount, 0);
+      const [y, mo, dd] = day.split('-').map(Number);
+      const dayLabel = new Date(y, mo - 1, dd).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+      return `<div style="margin-top:12px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;padding:6px 0;border-bottom:2px solid var(--line);">
+          <span style="font-weight:700;font-size:0.86rem;">${escapeHtml(dayLabel)}</span>
+          <span style="font-size:0.76rem;color:#5b6863;">in <strong style="color:#0b8043;">${fmtN(dIn)}</strong>${dOut ? ` · out <strong style="color:var(--danger);">${fmtN(dOut)}</strong>` : ''}</span>
+        </div>
+        ${rows.map(r=> `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid var(--line);">
+          <span style="min-width:0;font-size:0.8rem;">${escapeHtml(r.label)}<span style="color:#8a938e;font-size:0.72rem;"> ${r.sub ? '· ' + escapeHtml(r.sub) : ''}</span></span>
+          <span style="font-size:0.82rem;font-weight:600;white-space:nowrap;color:${r.dir === 'in' ? '#0b8043' : 'var(--danger)'};">${r.dir === 'in' ? '+' : '−'}${fmtN(r.amount)}</span>
+        </div>`).join('')}
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    summary.innerHTML = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -5338,7 +5507,11 @@ async function fetchStatsForRange(start, end){
     const netInstapay = netInstapayBeforeIncome + instapayIncome;
     const otherIncomeTotal = cashIncome + instapayIncome;
 
-    return { total: active.length, sentCount, sentItems, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, checkupCount, recoveryCount, regularSessionCount, checkupItems, recoveryItems, regularSessionItems, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
+    const breakdown = {
+      cash: { collected: cashTotal, otherIncome: cashIncome, transfersIn: cashIn, expenses: cashExpenses, transfersOut: cashOut, withdrawals: cashWithdrawn, net: netCash },
+      instapay: { collected: instapayTotal, otherIncome: instapayIncome, transfersIn: instapayIn, expenses: instapayExpenses, transfersOut: instapayOut, withdrawals: instapayWithdrawn, net: netInstapay }
+    };
+    return { breakdown, total: active.length, sentCount, sentItems, confirmedCount, paidCount, unpaidCount, unpaidItems, cancelledCount, checkupCount, recoveryCount, regularSessionCount, checkupItems, recoveryItems, regularSessionItems, cashTotal, instapayTotal, cashItems, instapayItems, moneyTotal: cashTotal + instapayTotal + otherIncomeTotal, expensesTotal, cashExpenses, instapayExpenses, otherIncomeTotal, netCash, netInstapay, netAfterExpenses: (cashTotal + instapayTotal + otherIncomeTotal) - expensesTotal };
   }catch(e){
     console.error('Stats fetch failed:', e);
     return null;
@@ -5390,8 +5563,8 @@ function renderStatsRow(prefix, stats){
       { label: 'Total collected (EGP)', num: fmt(stats.moneyTotal), icon: ICONS.coins, bg: '#fbf0e0', fg: '#b8894f' },
       { label: 'Cash (EGP)', num: fmt(stats.cashTotal), icon: ICONS.cash, bg: 'var(--badge-green-bg)', fg: 'var(--badge-green-fg)', clickKey: 'cash' },
       { label: 'InstaPay (EGP)', num: fmt(stats.instapayTotal), icon: ICONS.instapay, bg: 'var(--badge-blue-bg)', fg: 'var(--badge-blue-fg)', clickKey: 'instapay' },
-      { label: 'Net Cash (after cash expenses)', num: fmt(stats.netCash), icon: ICONS.scale, bg: netCashColor.bg, fg: netCashColor.fg },
-      { label: 'Net InstaPay (after instapay expenses)', num: fmt(stats.netInstapay), icon: ICONS.scale, bg: netInstapayColor.bg, fg: netInstapayColor.fg },
+      { label: 'Net Cash (after cash expenses)', num: fmt(stats.netCash), icon: ICONS.scale, bg: netCashColor.bg, fg: netCashColor.fg, clickKey: 'netcash' },
+      { label: 'Net InstaPay (after instapay expenses)', num: fmt(stats.netInstapay), icon: ICONS.scale, bg: netInstapayColor.bg, fg: netInstapayColor.fg, clickKey: 'netinstapay' },
     );
   }
   row.innerHTML = cards.map((c,i)=> `<div class="dashboard-card" ${c.clickKey ? `data-click-key="${c.clickKey}"` : ''} style="${c.clickKey ? '' : 'cursor:default;'}">
@@ -5404,6 +5577,8 @@ function renderStatsRow(prefix, stats){
   </div>`).join('');
   row.querySelectorAll('[data-click-key]').forEach(cardEl=>{
     const key = cardEl.getAttribute('data-click-key');
+    if(key === 'netcash') cardEl.addEventListener('click', ()=> openNetBreakdownPopup(stats, 'cash'));
+    if(key === 'netinstapay') cardEl.addEventListener('click', ()=> openNetBreakdownPopup(stats, 'instapay'));
     if(key === 'sent') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.sentItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Confirmation sent</span>', 'No confirmations sent in this range.', '#2563a8', 'history'));
     if(key === 'unpaid') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.unpaidItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Not paid yet</span>', 'Nobody unpaid in this range.', '#a33d3d'));
     if(key === 'session') cardEl.addEventListener('click', ()=> openPatientListPopup(stats.regularSessionItems || [], '<span style="display:inline-flex;align-items:center;gap:6px;">' + ICONS.session + ' Sessions</span>', 'No regular sessions in this range.', '#1c6b64', 'history'));
@@ -5578,6 +5753,34 @@ async function openPatientHistoryPopup(name){
 
 let unpaidListItems = [];
 
+// Shows exactly what Net Cash / Net InstaPay is made of, so a number that
+// moves can be traced to the one component that changed.
+function openNetBreakdownPopup(stats, which){
+  const b = stats.breakdown && stats.breakdown[which];
+  if(!b) return;
+  const label = which === 'cash' ? 'Cash' : 'InstaPay';
+  const fmtN = n => Math.round(n).toLocaleString();
+  const row = (sign, text, value)=> `<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);${value === 0 ? 'opacity:0.45;' : ''}">
+      <span style="font-size:0.85rem;"><span style="display:inline-block;width:18px;font-weight:700;color:${sign === '+' ? '#0b8043' : '#a33d3d'};">${sign === '+' ? '+' : '−'}</span>${text}</span>
+      <span style="font-size:0.85rem;font-weight:600;white-space:nowrap;">${fmtN(value)}</span>
+    </div>`;
+  el('intakeListOverlay').style.display = 'none';
+  el('unpaidListTitle').innerHTML = `Net ${label} — what it is made of`;
+  el('unpaidListTitle').style.color = 'var(--maroon)';
+  el('unpaidListBody').innerHTML = `
+    ${row('+', `${label} paid by patients`, b.collected)}
+    ${row('+', `Other income (${label})`, b.otherIncome)}
+    ${row('+', `Transfers in`, b.transfersIn)}
+    ${row('-', `${label} expenses`, b.expenses)}
+    ${row('-', `Transfers out`, b.transfersOut)}
+    ${row('-', `Doctor withdrawals (${label})`, b.withdrawals)}
+    <div style="display:flex;justify-content:space-between;padding:12px 0 4px;font-weight:700;">
+      <span>Net ${label}</span><span style="color:var(--maroon);">${fmtN(b.net)} EGP</span>
+    </div>
+    <div style="font-size:0.74rem;color:#8a938e;margin-top:6px;">Every line is counted by the date of the appointment, expense, transfer or withdrawal itself — not the day it was typed in. So editing or deleting an old entry changes the month it belongs to.</div>`;
+  el('unpaidListOverlay').style.display = 'flex';
+}
+
 function openPatientListPopup(items, title, emptyMessage, titleColor, clickTab){
   el('intakeListOverlay').style.display = 'none'; // reuse-safety: close if open
   el('unpaidListTitle').innerHTML = title;
@@ -5633,6 +5836,7 @@ async function loadDashboardStats(){
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
   ensureDupCheckDefaults();
+  ensureLedgerDefaults();
   if(!el('exportFromDate').value){
     const pad2 = n=> String(n).padStart(2,'0');
     el('exportFromDate').value = `${monthStart.getFullYear()}-${pad2(monthStart.getMonth()+1)}-${pad2(monthStart.getDate())}`;
@@ -8705,7 +8909,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -9745,6 +9949,10 @@ injectFinanceMonthNavs();
 el('paymentCheckBtn').addEventListener('click', runPaymentCheck);
 el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
 el('dupCheckBtn').addEventListener('click', runDuplicatePaymentCheck);
+el('ledgerBtn').addEventListener('click', runMoneyLedger);
+document.querySelectorAll('.ledger-method-btn').forEach(btn=> btn.addEventListener('click', ()=> setLedgerMethod(btn.getAttribute('data-method'))));
+el('ledgerBankInInput').addEventListener('input', updateLedgerDiff);
+el('ledgerBankOutInput').addEventListener('input', updateLedgerDiff);
 el('paymentCheckInput').addEventListener('keydown', e=>{ if(e.key === 'Enter') runPaymentCheck(); });
 document.querySelectorAll('.collapsible-title').forEach(title=>{
   const content = title.nextElementSibling;
