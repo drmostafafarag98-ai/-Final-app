@@ -6091,18 +6091,31 @@ async function calculatePayroll(){
     const revenueByKey = {};
     const sessionsByKey = {};
     const unmatchedNames = {};
+    // Kept alongside revenue so the payroll can show WHY its number differs
+    // from the By-doctor table: that table counts every payment note, while
+    // payroll only counts notes on appointments ticked paid (and not free).
+    const collectedByKey = {};
+    const excludedByKey = {};
+    const excludedItemsByKey = {};
     active.forEach(ev=>{
       const doctorName = ev.doctor_name || 'Unassigned';
       const rule = matchPayrollRule(doctorName);
       const key = rule ? rule.label : `unmatched:${doctorName.trim().toLowerCase()}`;
       if(!rule) unmatchedNames[key] = doctorName;
       sessionsByKey[key] = (sessionsByKey[key] || 0) + 1;
-      if(!ev.paid || ev.is_free) return;
+      const notCounted = !ev.paid || ev.is_free;
       (ev.notes || []).forEach(n=>{
         const m = (n.text || '').trim().match(paidNoteRe);
         if(!m) return;
         const amt = parseFloat(m[1].replace(/,/g, ''));
-        if(!isNaN(amt)) revenueByKey[key] = (revenueByKey[key] || 0) + amt;
+        if(isNaN(amt)) return;
+        collectedByKey[key] = (collectedByKey[key] || 0) + amt;
+        if(notCounted){
+          excludedByKey[key] = (excludedByKey[key] || 0) + amt;
+          (excludedItemsByKey[key] = excludedItemsByKey[key] || []).push({ name: ev.patient_name || '(untitled)', amount: amt, why: ev.is_free ? 'marked free' : 'not marked paid' });
+        }else{
+          revenueByKey[key] = (revenueByKey[key] || 0) + amt;
+        }
       });
     });
 
@@ -6136,7 +6149,8 @@ async function calculatePayroll(){
         formula = `Fixed ${rule.fixed} + ${rule.rate}/session × ${sessionCount} sessions`;
       }
       totalPayout += basePay;
-      const row = { doctorName: rule.label, revenue, sessionCount, basePay, formula, isPartner: rule.kind === 'partner' };
+      const row = { doctorName: rule.label, revenue, sessionCount, basePay, formula, isPartner: rule.kind === 'partner',
+        collected: collectedByKey[key] || 0, excluded: excludedByKey[key] || 0, excludedItems: excludedItemsByKey[key] || [], splitAdj: packageRevenueAdjustments[key] || 0 };
       rows.push(row);
       if(rule.kind === 'partner') partnerRows.push(row);
     });
@@ -6170,6 +6184,7 @@ async function calculatePayroll(){
       </div>
       <div style="font-size:0.76rem;color:#5b6863;margin-top:2px;">${escapeHtml(row.formula)}</div>
       <div style="font-size:0.76rem;color:#8a938e;margin-top:2px;">Revenue: ${fmt(row.revenue)} EGP · ${row.sessionCount} session(s)${row.profitShare != null ? ` · profit share: ${fmt(row.profitShare)} EGP` : ''}</div>
+      ${row.collected !== undefined ? `<div style="font-size:0.72rem;color:#8a938e;margin-top:3px;">Payments recorded on this doctor's visits (the By-doctor table number): <strong>${fmt(row.collected)}</strong>${row.excluded > 0.5 ? ` · not counted here: <strong style="color:var(--danger);">−${fmt(row.excluded)}</strong> (${escapeHtml(row.excludedItems.slice(0, 5).map(x=> `${x.name} ${fmt(x.amount)} — ${x.why}`).join('; '))}${row.excludedItems.length > 5 ? '…' : ''})` : ''}${Math.abs(row.splitAdj) > 0.5 ? ` · package split between doctors: <strong>${row.splitAdj > 0 ? '+' : '−'}${fmt(Math.abs(row.splitAdj))}</strong>` : ''}</div>` : ''}
       ${withdrawn > 0 ? `<div style="font-size:0.76rem;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);color:${remaining < 0 ? 'var(--danger)' : '#1b8a4a'};">Withdrawn so far: ${fmt(withdrawn)} EGP · ${remaining < 0 ? `Over by ${fmt(Math.abs(remaining))} EGP` : `Remaining: ${fmt(remaining)} EGP`}</div>` : ''}
     </div>`;
     }).join('');
@@ -6631,8 +6646,20 @@ async function loadDoctorStatsThisMonth(){
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
     const byDoctor = {};
     doctorPaidAppointmentsByName = {};
+    // The same doctor is often typed a few ways ("Dr Youssef", "dr youssef",
+    // "Dr. Youssef"). Group by the payroll rule when there is one, otherwise
+    // by the lower-cased name, so one doctor never splits into several rows.
+    const displayByLower = {};
+    const canonicalDoctorName = raw => {
+      const clean = (raw || '').trim() || 'Unassigned';
+      const rule = matchPayrollRule(clean);
+      if(rule) return rule.label;
+      const key = clean.toLowerCase();
+      if(!displayByLower[key]) displayByLower[key] = clean;
+      return displayByLower[key];
+    };
     active.forEach(ev=>{
-      const name = ev.doctor_name || 'Unassigned';
+      const name = canonicalDoctorName(ev.doctor_name);
       if(!byDoctor[name]) byDoctor[name] = { count: 0, money: 0 };
       byDoctor[name].count++;
       (ev.notes || []).forEach(n=>{
