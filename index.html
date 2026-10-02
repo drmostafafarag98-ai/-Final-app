@@ -1011,8 +1011,11 @@
         <div id="manualSendStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;"></div>
       </div>
 
-      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> By doctor — this month <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> <span id="doctorStatsTitleText">By doctor — this month</span> <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div>
+        <div class="finance-month-nav" style="display:flex;align-items:center;justify-content:center;gap:10px;margin:4px 0 12px;flex-wrap:wrap;"></div>
+        <div id="doctorStatsTable" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:20px;"></div>
+      </div>
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
@@ -6024,6 +6027,7 @@ function setFinanceMonthOffset(offset){
   loadOtherIncome();
   loadTransfers();
   loadWithdrawals();
+  loadDoctorStatsThisMonth();
 }
 
 function injectFinanceMonthNavs(){
@@ -6411,9 +6415,10 @@ async function addExpense(){
 async function loadDoctorStatsThisMonth(){
   const table = el('doctorStatsTable');
   table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">Loading…</div>';
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0,0,0);
-  const monthEnd = new Date(now.getFullYear(), now.getMonth()+1, 0, 23,59,59);
+  const range = financeMonthRange();
+  const monthStart = new Date(range.start + 'T00:00:00');
+  const monthEnd = new Date(range.end + 'T23:59:59');
+  el('doctorStatsTitleText').textContent = financeMonthOffset === 0 ? 'By doctor — this month' : `By doctor — ${range.monthName}`;
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
@@ -6440,7 +6445,7 @@ async function loadDoctorStatsThisMonth(){
     });
     const rows = Object.entries(byDoctor).sort((a,b)=> b[1].count - a[1].count);
     if(rows.length === 0){
-      table.innerHTML = '<div style="padding:14px;font-size:0.8rem;color:#8a938e;">No sessions this month yet.</div>';
+      table.innerHTML = `<div style="padding:14px;font-size:0.8rem;color:#8a938e;">No sessions ${range.noun}${financeMonthOffset === 0 ? ' yet' : ''}.</div>`;
       return;
     }
     table.innerHTML = `<table style="width:100%;border-collapse:collapse;">
