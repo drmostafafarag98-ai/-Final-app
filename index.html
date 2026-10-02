@@ -1056,6 +1056,7 @@
           <input type="text" id="dayReviewDateInput" inputmode="none" style="padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--paper);font-size:0.85rem;">
           <button type="button" class="ghost" id="dayReviewGoBtn">Show</button>
         </div>
+        <div id="dayReviewSummary"></div>
         <div id="dayReviewList"></div>
       </div>
 
@@ -5478,6 +5479,7 @@ async function loadDayReview(){
   }
   const dayStart = new Date(dateVal + 'T00:00:00');
   const dayEnd = new Date(dateVal + 'T23:59:59');
+  el('dayReviewSummary').innerHTML = '';
   el('dayReviewList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(dayStart.toISOString())}&end=${encodeURIComponent(dayEnd.toISOString())}`, { headers: authHeader() });
@@ -5487,6 +5489,31 @@ async function loadDayReview(){
       el('dayReviewList').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No appointments this day.</div>';
       return;
     }
+    // Day total — same rule the Dashboard uses: every "Paid X EGP (Cash|InstaPay)"
+    // note on a non-cancelled appointment of this day counts as money received.
+    const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    let cashSum = 0, instapaySum = 0, cancelledCount = 0, unpaidCount = 0, paymentCount = 0;
+    items.forEach(ev=>{
+      if(ev.status === 'cancelled'){ cancelledCount++; return; }
+      let gotMoney = false;
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(paidNoteRe);
+        if(!m) return;
+        const amt = parseFloat(m[1].replace(/,/g, ''));
+        if(isNaN(amt)) return;
+        if(m[2].toLowerCase() === 'instapay') instapaySum += amt; else cashSum += amt;
+        paymentCount++;
+        gotMoney = true;
+      });
+      if(!gotMoney && !extractPaymentDetail(ev)) unpaidCount++;
+    });
+    const fmtMoney = n => Math.round(n).toLocaleString();
+    el('dayReviewSummary').innerHTML = `<div style="background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:10px;">
+      <div style="font-size:0.74rem;color:#5b6863;">Total collected this day</div>
+      <div style="font-size:1.35rem;font-weight:700;color:var(--maroon);">${fmtMoney(cashSum + instapaySum)} EGP</div>
+      <div style="font-size:0.8rem;color:#5b6863;margin-top:2px;">Cash <strong>${fmtMoney(cashSum)}</strong> · InstaPay <strong>${fmtMoney(instapaySum)}</strong></div>
+      <div style="font-size:0.74rem;color:#8a938e;margin-top:4px;">${items.length - cancelledCount} appointment${items.length - cancelledCount === 1 ? '' : 's'} · ${paymentCount} payment${paymentCount === 1 ? '' : 's'} recorded${cancelledCount ? ` · ${cancelledCount} cancelled (not counted)` : ''}${unpaidCount ? ` · <span style="color:var(--danger);font-weight:700;">${unpaidCount} unpaid</span>` : ''}</div>
+    </div>`;
     el('dayReviewList').innerHTML = items.map(ev=>{
       const timeLabel = new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
       let statusLabel, statusColor;
