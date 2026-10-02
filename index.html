@@ -1016,7 +1016,7 @@
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Looks for the same patient, same amount and same method recorded more than once — on one visit, on the same day, or entered within a few hours of each other. These are only <strong>suspects</strong>: check each one before deleting anything. It also shows the total the app has recorded per method, to compare with the real account.</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Looks for the same patient (even if the name is spelled a little differently, like "mina" and "mina ishak"), same amount and same method recorded more than once — on one visit, on the same day, entered within a few hours of each other, or a big payment repeated within two weeks. These are only <strong>suspects</strong>: check each one before deleting anything. It also shows the total the app has recorded per method, to compare with the real account.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
           <input type="text" id="dupCheckFromInput" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <span style="font-size:0.8rem;color:#5b6863;">to</span>
@@ -1163,7 +1163,7 @@
       <div id="regPackageSection">
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> Package balances owed <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone who still owes part of a package price — including packages that are already finished. Only packages sold with a total price are tracked here. To record a payment, open the patient's appointment <strong>on the day they pay</strong> → Payment tab → Record payment (the money counts on that appointment's date).</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone who still owes part of a package price — including packages that are already finished. Only packages sold with a total price are tracked here. To record a NEW payment, open the patient's appointment <strong>on the day they pay</strong> → Payment tab → Record payment (the money counts on that appointment's date). If the payment is ALREADY recorded on an appointment but the balance here didn't change, use the buttons under the name — they only fix the balance and add no money.</div>
         <div id="packageOwedSummary" style="font-size:0.85rem;font-weight:700;color:var(--danger);margin-bottom:8px;"></div>
         <div id="packageOwedList"></div>
       </div>
@@ -2285,8 +2285,12 @@ function ensureDupCheckDefaults(){
 
 // Pure detection step (kept separate so it can be tested): given appointments,
 // returns every recorded payment and the groups that look like double entries.
+// Names are compared loosely ("mina" vs "mina ishak"): the same payment is
+// often recorded again under a slightly different spelling of the name.
 function findDuplicatePayments(items){
   const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+  const norm = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const namesSimilar = (a, b) => a === b || (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a)));
   const records = [];
   items.forEach(ev=>{
     if(ev.status === 'cancelled') return;
@@ -2298,41 +2302,55 @@ function findDuplicatePayments(items){
       const start = ev.start_time ? new Date(ev.start_time) : null;
       records.push({
         ev, amount, method: m[2].toLowerCase(),
+        name: norm(ev.patient_name),
         at: n.at ? new Date(n.at) : null,
         author: n.author || '',
+        start,
         day: start ? `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}` : ''
       });
     });
   });
   const groups = {};
   records.forEach(r=>{
-    const key = `${(r.ev.patient_name || '').trim().toLowerCase()}|${r.amount}|${r.method}`;
+    const key = `${r.amount}|${r.method}`;
     (groups[key] = groups[key] || []).push(r);
   });
   const THREE_HOURS = 3 * 60 * 60 * 1000;
+  const TWO_WEEKS = 14 * 24 * 60 * 60 * 1000;
+  const BIG_PAYMENT = 1000; // only big payments (packages) are compared across days when the spelling differs
   const suspects = [];
   Object.values(groups).forEach(g=>{
     if(g.length < 2) return;
-    // Connect entries that look like the same payment recorded twice.
     const parent = g.map((_, i)=> i);
     const find = i => parent[i] === i ? i : (parent[i] = find(parent[i]));
-    const reasons = new Set();
+    const pairReasons = [];
     for(let i = 0; i < g.length; i++){
       for(let j = i + 1; j < g.length; j++){
         const a = g[i], b = g[j];
-        let linked = false;
-        if(String(a.ev.id) === String(b.ev.id)){ reasons.add('on the same visit'); linked = true; }
-        else if(a.day && a.day === b.day){ reasons.add('on two visits the same day'); linked = true; }
-        if(a.at && b.at && Math.abs(a.at - b.at) <= THREE_HOURS){ reasons.add('entered within 3 hours of each other'); linked = true; }
-        if(linked) parent[find(i)] = find(j);
+        const sameVisit = String(a.ev.id) === String(b.ev.id);
+        if(!sameVisit && !namesSimilar(a.name, b.name)) continue;
+        const reasons = [];
+        if(sameVisit) reasons.push('on the same visit');
+        else if(a.day && a.day === b.day) reasons.push('on two visits the same day');
+        if(a.at && b.at && Math.abs(a.at - b.at) <= THREE_HOURS) reasons.push('entered within 3 hours of each other');
+        if(!sameVisit && a.name !== b.name && a.amount >= BIG_PAYMENT && a.start && b.start && Math.abs(a.start - b.start) <= TWO_WEEKS){
+          reasons.push(`same amount under two spellings of the name ("${(a.ev.patient_name || '').trim()}" / "${(b.ev.patient_name || '').trim()}")`);
+        }
+        if(reasons.length){
+          pairReasons.push({ i, j, reasons });
+          parent[find(i)] = find(j);
+        }
       }
     }
     const comps = {};
-    g.forEach((r, i)=>{ (comps[find(i)] = comps[find(i)] || []).push(r); });
-    Object.values(comps).forEach(c=>{
-      if(c.length < 2) return;
-      c.sort((x, y)=> new Date(x.ev.start_time) - new Date(y.ev.start_time));
-      suspects.push({ rows: c, amount: c[0].amount, method: c[0].method, name: c[0].ev.patient_name || '(untitled)', reasons: [...reasons], extra: (c.length - 1) * c[0].amount });
+    g.forEach((r, i)=>{ (comps[find(i)] = comps[find(i)] || []).push(i); });
+    Object.entries(comps).forEach(([root, idxs])=>{
+      if(idxs.length < 2) return;
+      const rows = idxs.map(i=> g[i]).sort((x, y)=> new Date(x.ev.start_time) - new Date(y.ev.start_time));
+      const reasonSet = new Set();
+      pairReasons.forEach(pr=>{ if(find(pr.i) === find(parseInt(root, 10))) pr.reasons.forEach(r=> reasonSet.add(r)); });
+      const names = [...new Set(rows.map(r=> (r.ev.patient_name || '').trim()).filter(Boolean))];
+      suspects.push({ rows, amount: rows[0].amount, method: rows[0].method, name: names.join(' / ') || '(untitled)', reasons: [...reasonSet], extra: (rows.length - 1) * rows[0].amount });
     });
   });
   suspects.sort((a, b)=> b.extra - a.extra);
@@ -2614,12 +2632,52 @@ async function loadPackageOwed(){
         </div>
         <div style="font-size:0.75rem;color:#5b6863;margin-top:2px;">Paid ${Math.round(Number(p.amount_paid || 0)).toLocaleString()} of ${Math.round(Number(p.total_price)).toLocaleString()} · ${p.used_sessions} of ${p.total_sessions} sessions used${finished ? ' · <strong>package finished</strong>' : ''}</div>
         <div style="font-size:0.75rem;margin-top:2px;">${wa}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          <button type="button" class="ghost package-settle-btn" data-id="${p.id}" data-total="${Number(p.total_price)}" style="font-size:0.74rem;">Money already recorded — mark fully paid</button>
+          <button type="button" class="ghost package-setpaid-btn" data-id="${p.id}" data-total="${Number(p.total_price)}" data-paid="${Number(p.amount_paid || 0)}" style="font-size:0.74rem;">Set amount paid…</button>
+        </div>
       </div>`;
     }).join('');
+    list.querySelectorAll('.package-settle-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> setPackageAmountPaid(btn.getAttribute('data-id'), parseFloat(btn.getAttribute('data-total')), btn, true));
+    });
+    list.querySelectorAll('.package-setpaid-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const total = parseFloat(btn.getAttribute('data-total'));
+        const answer = prompt(`How much of the ${Math.round(total).toLocaleString()} EGP has ALREADY been recorded as paid? (this does not add any money to the totals)`, btn.getAttribute('data-paid'));
+        if(answer === null) return;
+        const value = parseFloat(answer);
+        if(isNaN(value) || value < 0 || value > total){ alert(`Enter a number between 0 and ${total}.`); return; }
+        setPackageAmountPaid(btn.getAttribute('data-id'), value, btn, false);
+      });
+    });
   }catch(e){
     console.error(e);
     summary.textContent = '';
     list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+
+// Fixes only the package's "paid so far" figure. It never records money —
+// use it when the payment is already on an appointment (a normal Cash/InstaPay
+// payment or a typed note doesn't update the package balance by itself).
+async function setPackageAmountPaid(pkgId, amountPaid, btn, askConfirm){
+  if(askConfirm && !confirm('Only do this if the payment is ALREADY recorded on an appointment (it will not add any money to Cash/InstaPay). Mark this package as fully paid?')) return;
+  btn.disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/set-paid`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ amountPaid })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    loadPackageOwed();
+  }catch(e){
+    btn.disabled = false;
+    alert('Could not save: ' + (e.message || e));
   }
 }
 
