@@ -6051,11 +6051,11 @@ async function calculatePayroll(){
     });
     const crossDoctorPatients = Object.values(packageDoctorsByPatient).filter(p=> Object.keys(p.sessionsByDoctor).length > 1);
 
-    // Split each shared package's money by sessions delivered: the package
-    // price ÷ its session count = value of one session, and each doctor
-    // earns that for every session THEY delivered. Whatever part of the
-    // price belongs to sessions not delivered yet stays with the doctor the
-    // payment was credited to. Total revenue never changes — money only
+    // INFORMATION ONLY (not applied to payroll): how each shared package's
+    // money would split by sessions delivered — package price ÷ its session
+    // count = value of one session, each doctor earns that for every session
+    // THEY delivered, and the part for undelivered sessions stays with the
+    // doctor the payment was credited to. Total revenue never changes — money only
     // moves between doctors, so this still matches the Dashboard.
     const packageRevenueAdjustments = {};
     crossDoctorPatients.forEach(p=>{
@@ -6089,7 +6089,7 @@ async function calculatePayroll(){
     });
     el('payrollWarnings').innerHTML = crossDoctorPatients.length === 0 ? '' : `<div style="background:#fbf0e0;border:1px solid #d9a441;border-radius:var(--radius);padding:10px 12px;margin-bottom:12px;font-size:0.8rem;">
       <div style="font-weight:700;color:#8a5a1a;margin-bottom:4px;">⚠️ Package sessions split across doctors</div>
-      <div style="color:#5b6863;margin-bottom:8px;">These patients' package sessions were seen by more than one doctor. Where possible, the package money has been split by sessions delivered (price ÷ sessions = value of one session) and the payroll below already includes that split. Total revenue is unchanged.</div>
+      <div style="color:#5b6863;margin-bottom:8px;">These patients' package sessions were seen by more than one doctor. Below is how the package money <strong>would</strong> split by sessions delivered (price ÷ sessions = value of one session). <strong>For information only — it is NOT included in the payroll numbers.</strong> Adjust by hand if you want to share it.</div>
       ${crossDoctorPatients.map(p=>{
         const fmtE = n => Math.round(n).toLocaleString();
         let body;
@@ -6146,9 +6146,9 @@ async function calculatePayroll(){
       });
     });
 
-    Object.entries(packageRevenueAdjustments).forEach(([doc, delta])=>{
-      revenueByKey[doc] = (revenueByKey[doc] || 0) + delta;
-    });
+    // packageRevenueAdjustments is shown as information only (the orange
+    // card and each doctor's line). It is deliberately NOT added to
+    // revenueByKey: the owner splits shared packages by hand.
 
     const totalExpenses = expenseRows.reduce((sum,e)=> sum + parseFloat(e.amount || 0), 0);
     const totalRevenue = Object.values(revenueByKey).reduce((a,b)=> a+b, 0) + otherIncomeTotal;
@@ -6216,7 +6216,7 @@ async function calculatePayroll(){
       </div>
       <div style="font-size:0.76rem;color:#5b6863;margin-top:2px;">${escapeHtml(row.formula)}</div>
       <div style="font-size:0.76rem;color:#8a938e;margin-top:2px;">Revenue: ${fmt(row.revenue)} EGP · ${row.sessionCount} session(s)${row.profitShare != null ? ` · profit share: ${fmt(row.profitShare)} EGP` : ''}</div>
-      ${row.collected !== undefined ? `<div style="font-size:0.72rem;color:#8a938e;margin-top:3px;">Payments recorded on this doctor's visits (the By-doctor table number): <strong>${fmt(row.collected)}</strong>${row.excluded > 0.5 ? ` · not counted here: <strong style="color:var(--danger);">−${fmt(row.excluded)}</strong>` : ''}${Math.abs(row.splitAdj) > 0.5 ? ` · package split between doctors: <strong>${row.splitAdj > 0 ? '+' : '−'}${fmt(Math.abs(row.splitAdj))}</strong>` : ''}</div>
+      ${row.collected !== undefined ? `<div style="font-size:0.72rem;color:#8a938e;margin-top:3px;">Payments recorded on this doctor's visits (the By-doctor table number): <strong>${fmt(row.collected)}</strong>${row.excluded > 0.5 ? ` · not counted here: <strong style="color:var(--danger);">−${fmt(row.excluded)}</strong>` : ''}${Math.abs(row.splitAdj) > 0.5 ? ` · suggested package split (not applied): <strong>${row.splitAdj > 0 ? '+' : '−'}${fmt(Math.abs(row.splitAdj))}</strong>` : ''}</div>
       ${(row.excludedItems || []).slice(0, 8).map(x=> `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;padding:4px 8px;background:#fdf3f2;border-radius:8px;"><span style="font-size:0.74rem;color:#a33d3d;">${escapeHtml(x.name)} · ${fmt(x.amount)} EGP — ${escapeHtml(x.why)}</span><button type="button" class="ghost payroll-fix-btn" data-id="${escapeHtml(String(x.id))}" data-why="${escapeHtml(x.why)}" style="font-size:0.72rem;padding:4px 10px;flex-shrink:0;">Count it</button></div>`).join('')}` : ''}
       ${withdrawn > 0 ? `<div style="font-size:0.76rem;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);color:${remaining < 0 ? 'var(--danger)' : '#1b8a4a'};">Withdrawn so far: ${fmt(withdrawn)} EGP · ${remaining < 0 ? `Over by ${fmt(Math.abs(remaining))} EGP` : `Remaining: ${fmt(remaining)} EGP`}</div>` : ''}
     </div>`;
