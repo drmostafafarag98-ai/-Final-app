@@ -1892,7 +1892,7 @@ const DEFAULT_KEYTERMS = [
   // real-time boosting. Anatomy, joints, and exercise names are still
   // fully covered by COMPREHENSIVE_TERMS in the post-transcription
   // correction pass below, which has no token limit.
-  "Spurling's test","cervical compression test","traction test","upper limb tension test",
+  "Spurling's test","cervical compression test","traction test","upper limb tension test","Adson's test","Roos test",
   "Neer's test","Hawkins-Kennedy test","empty can test","drop arm test","Speed's test",
   "Cozen's test","Mill's test","Tinel's sign","Phalen's test","Finkelstein's test",
   "straight leg raise test","slump test","Gaenslen's test","FABER test","Trendelenburg test",
@@ -1908,7 +1908,7 @@ const DEFAULT_KEYTERMS = [
 const COMPREHENSIVE_TERMS = [
   // Special tests
   "Spurling's test","cervical compression test","cervical distraction test","traction test",
-  "vertebral artery test","Sharp-Purser test","upper limb tension test","neurodynamic test",
+  "vertebral artery test","Sharp-Purser test","upper limb tension test","neurodynamic test","Adson's test","Roos test","arm abduction test",
   "Neer's test","Hawkins-Kennedy test","empty can test","full can test","drop arm test",
   "Speed's test","Yergason's test","apprehension test","relocation test","sulcus sign",
   "O'Brien's test","cross body adduction test","painful arc test","Cozen's test","Mill's test",
@@ -1938,7 +1938,7 @@ const COMPREHENSIVE_TERMS = [
   // Named exercises
   "clamshell exercise","lat pull down","scapular retraction","scapular protraction",
   "shoulder retraction","shoulder flexion","shoulder abduction","shoulder adduction",
-  "shoulder external rotation","shoulder internal rotation","chin tuck","cervical extension",
+  "shoulder external rotation","shoulder internal rotation","chin tuck","neural glide","cervical extension",
   "cervical flexion","hip extension","hip flexion","hip abduction","hip adduction",
   "hip internal rotation","hip external rotation","knee extension","knee flexion",
   "terminal knee extension","dynamic knee bulges","resisted dorsiflexion","ankle inversion",
@@ -1964,7 +1964,7 @@ const COMPREHENSIVE_TERMS = [
 const EXERCISE_LIBRARY = {
   "Shoulder": ["Shoulder flexion","Shoulder abduction","Shoulder adduction","Shoulder external rotation","Shoulder external rotation (standing)","Shoulder external rotation (side-lying)","Shoulder internal rotation","Scapular retraction","Scapular protraction","Wall push-ups","Shoulder shrugs","Rows","Lat pull down","Lower trap activation","High plank weight shifting","High plank on Bosu ball","Hand walks (elephant walk)","Shoulder proprioception training","Scap push (supine)","Scap push (quadruped)","Scap push (standing)"],
   "Elbow / Wrist / Hand": ["Elbow flexion","Elbow flexion (concentric)","Elbow flexion (eccentric)","Elbow flexion (isometric)","Elbow extension","Elbow extension (concentric)","Elbow extension (eccentric)","Elbow extension (isometric)","Wrist flexion","Wrist flexion (concentric)","Wrist flexion (eccentric)","Wrist flexion (isometric)","Wrist extension","Wrist extension (concentric)","Wrist extension (eccentric)","Wrist extension (isometric)","Forearm pronation","Forearm pronation (concentric)","Forearm pronation (eccentric)","Forearm pronation (isometric)","Forearm supination","Forearm supination (concentric)","Forearm supination (eccentric)","Forearm supination (isometric)","Grip strengthening","Grip strengthening (concentric)","Grip strengthening (isometric)"],
-  "Cervical": ["Chin tuck","Cervical extension","Cervical flexion","Upper trapezius stretch","Levator scapulae stretch","Sternocleidomastoid (SCM) stretch","Scalene stretch","Suboccipital stretch","Cervical flexion stretch","Cervical extension stretch","Cervical rotation stretch","Cervical lateral flexion stretch"],
+  "Cervical": ["Chin tuck","Cervical extension","Cervical flexion","Upper trapezius stretch","Levator scapulae stretch","Sternocleidomastoid (SCM) stretch","Scalene stretch","Suboccipital stretch","Cervical flexion stretch","Cervical extension stretch","Cervical rotation stretch","Cervical lateral flexion stretch","Neural glide"],
   "Core / Spine": ["Pelvic tilts","Dead bug","Side plank","Plank","Bird dog","Cat-cow stretch","Abdominal bracing","Core stabilization","McKenzie extension","McKenzie flexion","Codman's exercise","Williams flexion exercises","R1 rotation","R2 rotation","Core stabilization — Grade 1 (static bracing)","Core stabilization — Grade 2 (single-limb movement)","Core stabilization — Grade 3 (bilateral/dynamic limb movement)","Core stabilization — Grade 4 (functional/dynamic loading)"],
   "Hip": ["Hip flexion","Hip extension","Hip abduction","Hip adduction","Hip internal rotation","Hip external rotation","Hip thrust","Fire hydrants","Clamshell exercise","Single leg clamshell","Side-lying leg raises","Bridging","Deadlift","Single leg deadlift","Straight leg raise (front)","Straight leg raise (back)","Straight leg raise (side)","Isometric adductor squeeze (Hölmich protocol)","Standing resisted hip adduction (Hölmich protocol)","Sliding adductor exercise (Hölmich protocol)","Copenhagen adduction exercise"],
   "Knee": ["Quad sets","Straight leg raise","Knee extension","Terminal knee extension","Squats","Mini squats","Lunges","Step-ups","Step downs","Wall sits","Hamstring curls","Hamstring kicks","Popliteus rotation","Askling Extender exercise","Askling Diver exercise","Askling Glider exercise"],
@@ -1977,7 +1977,7 @@ const EXERCISE_LIBRARY = {
 // pick which tests were performed and positive by hand, sidestepping ASR
 // errors on these exact, high-stakes clinical terms.
 const SPECIAL_TESTS_LIBRARY = {
-  "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test","Sharp-Purser test","Alar ligament stress test","Anterior shear test","Posterior shear test"],
+  "Cervical / Neuro": ["Spurling's test","Cervical compression test","Cervical distraction test","Upper limb tension test","Sharp-Purser test","Alar ligament stress test","Anterior shear test","Posterior shear test","Adson's test","Roos test","Arm abduction test"],
   "Shoulder": ["Neer's test","Hawkins-Kennedy test","Empty can test","Full can test","Drop arm test","Speed's test","Yergason's test","O'Brien's test","Painful arc test","Scapular Assistance Test (SAT)","Apprehension test","Relocation test","Sulcus sign","Cross-body adduction test","Lift-off test","Belly press test","Scapular dyskinesis","Thoracic mobility limitations","Internal rotation resistance","Subscapularis stretch"],
   "Elbow": ["Cozen's test","Mill's test","Milking test (UCL)","Valgus stress test (elbow)","Varus stress test (elbow)","Tinel's sign (elbow / cubital tunnel)"],
   "Wrist / Hand": ["Tinel's sign","Phalen's test","Finkelstein's test"],
