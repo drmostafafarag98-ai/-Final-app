@@ -7765,6 +7765,8 @@ function renderScheduleList(events){
     const colorHex = isCancelled ? '#c0392b' : isNoShow ? '#b8894f' : (CALENDAR_COLOR_HEX[ev.doctor_color] || '#0f8a7a');
     const isMine = doctorColorId && ev.doctor_color === doctorColorId;
     const isPaid = !!ev.paid;
+    const isArrived = !!ev.arrived_at && !isCancelled && !isNoShow;
+    const arrivedTime = isArrived ? new Date(ev.arrived_at).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
 
     // Visit-type pill: checkup→Assessment (blue), recovery→Recovery (teal); plain sessions get no pill at all
     let visitPill = '';
@@ -7788,11 +7790,13 @@ function renderScheduleList(events){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">! Unpaid</span>`;
     }
 
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:6px;padding:6px 9px;margin-bottom:4px;border-radius:9px;background:${isCancelled ? 'var(--badge-red-bg)' : 'var(--panel)'};box-shadow:var(--card-shadow);border-left:3px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:6px;padding:6px 9px;margin-bottom:4px;border-radius:9px;background:${isCancelled ? 'var(--badge-red-bg)' : (isArrived ? '#dff3e4' : 'var(--panel)')};box-shadow:var(--card-shadow);border-left:3px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
       <span style="font-size:0.66rem;color:#5b6863;min-width:42px;flex-shrink:0;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.82rem;font-weight:700;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
       ${visitPill}
+      ${isArrived ? `<span class="pill-badge" style="background:#1f7a3f;color:#fff;">● Arrived ${escapeHtml(arrivedTime)}</span>` : ''}
       ${statusPill}
+      ${(isCancelled || isNoShow) ? '' : `<button type="button" class="arrived-toggle-btn" data-id="${ev.id}" title="${isArrived ? 'Undo arrival' : 'Patient arrived'}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid ${isArrived ? '#1f7a3f' : '#9fb5aa'};background:${isArrived ? '#1f7a3f' : 'transparent'};color:${isArrived ? '#fff' : '#5b6863'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
       <span style="color:#a9b3ae;font-size:0.9rem;flex-shrink:0;">›</span>
     </div>`;
   }
@@ -7838,6 +7842,32 @@ function renderScheduleList(events){
       const id = row.getAttribute('data-id');
       const ev = events.find(x=> String(x.id) === String(id));
       if(ev) openPatientDetail(ev);
+    });
+  });
+  container.querySelectorAll('.arrived-toggle-btn').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      e.stopPropagation();
+      const ev = events.find(x=> String(x.id) === String(btn.getAttribute('data-id')));
+      if(!ev) return;
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(ev.id)}`, {
+          method: 'PATCH',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ arrived: !ev.arrived_at })
+        });
+        if(!res.ok){
+          const errBody = await res.json().catch(()=>({}));
+          throw new Error(errBody.error || `Server error ${res.status}`);
+        }
+        const rows = await res.json();
+        const updated = Array.isArray(rows) ? rows[0] : rows;
+        ev.arrived_at = updated ? updated.arrived_at : (ev.arrived_at ? null : new Date().toISOString());
+        renderScheduleList(events);
+      }catch(err){
+        btn.disabled = false;
+        alert('Could not save: ' + (err.message || err));
+      }
     });
   });
 }
