@@ -6854,6 +6854,11 @@ function renderDoctorsRoster(items){
         <button type="button" class="ghost set-password-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Set</button>
         <button type="button" class="ghost copy-password-btn" data-email="${d.email}" title="Copy email + password so you can save it somewhere before it's gone" style="font-size:0.72rem;padding:3px 8px;display:inline-flex;align-items:center;gap:4px;"><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy</button>
       </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);align-items:center;">
+        <span style="font-size:0.72rem;color:#8a938e;">WhatsApp number (for "patient arrived" messages):</span>
+        <input type="text" class="doctor-phone-input" data-email="${d.email}" value="${escapeHtml(d.phone || '')}" placeholder="01xxxxxxxxx" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--paper);width:130px;">
+        <button type="button" class="ghost doctor-phone-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Save</button>
+      </div>
       ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;align-items:center;">
         <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
@@ -6909,6 +6914,31 @@ function renderDoctorsRoster(items){
         });
         setDoctorPermissions(email, permissions);
       });
+    });
+  });
+  container.querySelectorAll('.doctor-phone-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const email = btn.getAttribute('data-email');
+      const input = container.querySelector(`.doctor-phone-input[data-email="${email}"]`);
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/phone`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ phone: input.value })
+        });
+        if(!res.ok){
+          const errBody = await res.json().catch(()=>({}));
+          throw new Error(errBody.error || `Server error ${res.status}`);
+        }
+        btn.textContent = 'Saved ✓';
+        setTimeout(()=>{ btn.textContent = 'Save'; }, 1500);
+        loadQuickBookDoctorOptions(); // refresh the cached numbers used by the arrival message
+      }catch(e){
+        alert('Could not save the number: ' + (e.message || e));
+      }finally{
+        btn.disabled = false;
+      }
     });
   });
   container.querySelectorAll('.dashboard-access-checkbox').forEach(cb=>{
@@ -7736,6 +7766,137 @@ async function submitPayment(method){
   }
 }
 
+// ---- Arrival alerts ----
+// When the secretary ticks a patient as arrived, the assigned doctor's open
+// app notices within ~25 seconds and shows a banner with a short beep and
+// a vibration. It only works while the app is open on the doctor's device
+// (no push notifications — those are deliberately not used).
+let arrivalAudioCtx = null;
+let arrivalPolling = false;
+
+function unlockArrivalAudio(){
+  try{
+    arrivalAudioCtx = arrivalAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    if(arrivalAudioCtx.state === 'suspended') arrivalAudioCtx.resume();
+  }catch(e){ /* sound is optional */ }
+}
+
+function playArrivalBeep(){
+  try{
+    unlockArrivalAudio();
+    if(!arrivalAudioCtx) return;
+    const t0 = arrivalAudioCtx.currentTime;
+    [[880, 0], [1175, 0.2]].forEach(([freq, off])=>{
+      const osc = arrivalAudioCtx.createOscillator();
+      const gain = arrivalAudioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + off);
+      gain.gain.exponentialRampToValueAtTime(0.3, t0 + off + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + off + 0.18);
+      osc.connect(gain);
+      gain.connect(arrivalAudioCtx.destination);
+      osc.start(t0 + off);
+      osc.stop(t0 + off + 0.2);
+    });
+  }catch(e){ /* sound is optional */ }
+  try{ if(navigator.vibrate) navigator.vibrate([200, 100, 200]); }catch(e){ /* vibration is optional */ }
+}
+
+function showArrivalAlert(ev){
+  let host = document.getElementById('arrivalAlertHost');
+  if(!host){
+    host = document.createElement('div');
+    host.id = 'arrivalAlertHost';
+    host.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(94vw,420px);';
+    document.body.appendChild(host);
+  }
+  const t = new Date(ev.arrived_at).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#1f7a3f;color:#fff;border-radius:14px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,0.3);display:flex;align-items:center;gap:10px;cursor:pointer;';
+  card.innerHTML = `<span style="font-size:1.2rem;">●</span>
+    <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(ev.patient_name || 'Patient')} arrived</div>
+    <div style="font-size:0.78rem;opacity:0.9;">${escapeHtml(t)} · tap to open</div></div>
+    <button type="button" class="arrival-dismiss" style="background:rgba(255,255,255,0.22);border:none;color:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;">OK</button>`;
+  card.addEventListener('click', (e)=>{
+    const dismissOnly = e.target.closest('.arrival-dismiss');
+    card.remove();
+    if(!dismissOnly) openPatientDetail(ev, 'history');
+  });
+  host.appendChild(card);
+  setTimeout(()=>{ if(card.isConnected) card.remove(); }, 120000);
+  playArrivalBeep();
+}
+
+async function checkPatientArrivals(){
+  if(arrivalPolling) return;
+  if(!signedInDoctor || !isApproved() || signedInDoctor.role === 'secretary') return;
+  arrivalPolling = true;
+  try{
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+    const res = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok) return;
+    const items = (await res.json()) || [];
+    const storeKey = 'arrivalSeen:' + dayKey(now);
+    let seen = [];
+    try{ seen = JSON.parse(localStorage.getItem(storeKey) || '[]'); }catch(e){ seen = []; }
+    const ownName = (signedInDoctor.name || signedInDoctor.email || '').trim().toLowerCase();
+    items.forEach(ev=>{
+      if(!ev.arrived_at || ev.status === 'cancelled' || ev.status === 'no_show') return;
+      const mine = (doctorColorId && ev.doctor_color === doctorColorId) || ((ev.doctor_name || '').trim().toLowerCase() === ownName);
+      if(!mine) return;
+      const key = `${ev.id}:${ev.arrived_at}`;
+      if(seen.includes(key)) return;
+      seen.push(key);
+      // Only alert for people who are probably still waiting.
+      if(Date.now() - new Date(ev.arrived_at).getTime() <= 30 * 60 * 1000) showArrivalAlert(ev);
+    });
+    try{ localStorage.setItem(storeKey, JSON.stringify(seen.slice(-200))); }catch(e){ /* storage is optional */ }
+  }catch(e){
+    /* a dropped connection is normal — try again next round */
+  }finally{
+    arrivalPolling = false;
+  }
+}
+
+// ---- "Patient arrived" WhatsApp message to the assigned doctor ----
+const ARRIVAL_AR_NAMES = { youssef:'يوسف', yousef:'يوسف', marwa:'مروة', mostafa:'مصطفى', mustafa:'مصطفى', omnia:'أمنية', omnya:'أمنية', menna:'منة', zeinab:'زينب' };
+const ARRIVAL_FEMALE = new Set(['marwa','omnia','omnya','menna','zeinab','vara','nada','mona','sara','salma','nour','hana','doaa','dina','rana','yara','mariam','maryam','eman','asmaa','esraa','aya','heba','nermin','noha','rania','shaimaa','shahd','rawan']);
+const ARRIVAL_MALE = new Set(['mostafa','mustafa','youssef','yousef','joseph','ahmed','mohamed','mahmoud','omar','ali','ibrahim','hassan','khaled','karim','amr','tarek','sherif','hesham','osama']);
+
+function buildArrivalMessage(ev, doc){
+  const rawName = ((doc && doc.name) || ev.doctor_name || '').trim();
+  const tokens = rawName.split(/\s+/).filter(t=> !/^(dr\.?|doctor|د\.?|دكتور|دكتورة)$/i.test(t));
+  const first = (tokens[0] || rawName || '').trim();
+  const key = first.toLowerCase();
+  const title = ARRIVAL_FEMALE.has(key) ? 'دكتورة' : (ARRIVAL_MALE.has(key) ? 'دكتور' : 'د.');
+  const nameAr = ARRIVAL_AR_NAMES[key] || first;
+  const fmtTime = iso => new Date(iso).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
+  const typeAr = ev.visit_type === 'checkup' ? 'كشف' : (ev.visit_type === 'recovery' ? 'ريكفري' : 'جلسة');
+  return `${title} ${nameAr} 👋\nالعيان ${ev.patient_name || ''} وصل العيادة دلوقتي (${fmtTime(ev.arrived_at)}) ✅\nالموعد: ${ev.start_time ? fmtTime(ev.start_time) : ''} · ${typeAr}`;
+}
+
+function findDoctorForAppointment(ev){
+  const docs = Object.values(quickBookDoctorsByEmail || {});
+  const nm = (ev.doctor_name || '').trim().toLowerCase();
+  return docs.find(d=> (d.name || '').trim().toLowerCase() === nm)
+    || docs.find(d=> ev.doctor_color && d.color === ev.doctor_color)
+    || null;
+}
+
+function notifyDoctorOnWhatsApp(ev){
+  const doc = findDoctorForAppointment(ev);
+  if(!doc || !doc.phone){
+    alert(`No WhatsApp number is saved for ${ev.doctor_name || 'this doctor'}. The owner can add it in Manage Doctors.`);
+    return;
+  }
+  const url = `https://wa.me/${normalizeEgyptPhoneForWhatsApp(doc.phone)}?text=${encodeURIComponent(buildArrivalMessage(ev, doc))}`;
+  const w = window.open(url, '_blank');
+  if(!w) location.href = url;
+}
+
 function renderScheduleList(events){
   el('scheduleDateLabel').textContent = calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
   el('deleteAllDayAppointmentsBtn').style.display = (signedInDoctor && signedInDoctor.role === 'owner') ? 'inline-block' : 'none';
@@ -7797,6 +7958,7 @@ function renderScheduleList(events){
       ${isArrived ? `<span class="pill-badge" style="background:#1f7a3f;color:#fff;">● Arrived ${escapeHtml(arrivedTime)}</span>` : ''}
       ${statusPill}
       ${(isCancelled || isNoShow) ? '' : `<button type="button" class="arrived-toggle-btn" data-id="${ev.id}" title="${isArrived ? 'Undo arrival' : 'Patient arrived'}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid ${isArrived ? '#1f7a3f' : '#9fb5aa'};background:${isArrived ? '#1f7a3f' : 'transparent'};color:${isArrived ? '#fff' : '#5b6863'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
+      ${(isArrived && (signedInDoctor && (signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary' || hasClientPermission('send_whatsapp')))) ? `<button type="button" class="arrival-wa-btn" data-id="${ev.id}" title="Tell the doctor on WhatsApp" style="width:30px;height:30px;border-radius:50%;border:1.5px solid #25a35a;background:#25a35a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>` : ''}
       <span style="color:#a9b3ae;font-size:0.9rem;flex-shrink:0;">›</span>
     </div>`;
   }
@@ -7842,6 +8004,13 @@ function renderScheduleList(events){
       const id = row.getAttribute('data-id');
       const ev = events.find(x=> String(x.id) === String(id));
       if(ev) openPatientDetail(ev);
+    });
+  });
+  container.querySelectorAll('.arrival-wa-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const ev = events.find(x=> String(x.id) === String(btn.getAttribute('data-id')));
+      if(ev) notifyDoctorOnWhatsApp(ev);
     });
   });
   container.querySelectorAll('.arrived-toggle-btn').forEach(btn=>{
@@ -10041,6 +10210,9 @@ document.querySelectorAll('.expense-filter-btn').forEach(btn=>{
   btn.addEventListener('click', ()=> setExpenseFilter(btn.getAttribute('data-filter')));
 });
 injectFinanceMonthNavs();
+document.addEventListener('click', unlockArrivalAudio, { once: true });
+setTimeout(checkPatientArrivals, 5000);
+setInterval(checkPatientArrivals, 25000);
 el('paymentCheckBtn').addEventListener('click', runPaymentCheck);
 el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
 el('dupCheckBtn').addEventListener('click', runDuplicatePaymentCheck);
