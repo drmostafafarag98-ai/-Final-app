@@ -2909,6 +2909,58 @@ async function loadPackagePolicyCheck(){
   }
 }
 
+// Warns before a NEW package is created for someone who already has a running
+// one (same name, or a spelling variant such as "mina" / "mina ishak") — the
+// usual cause of duplicate packages and wrong session counts.
+async function confirmNoSimilarActivePackage(patientName){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
+    if(!res.ok) return true;
+    const pkgs = (await res.json()) || [];
+    // Compare loosely: ignore case, and the "el"/"al" prefix on a name
+    // ("tantawy" and "eltantawy" are the same family name).
+    const norm = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ').split(' ').map(w=> w.replace(/^(el|al)(?=[a-z]{3,})/, '')).join(' ');
+    const me = norm(patientName);
+    const similar = pkgs.filter(p=>{
+      const n = norm(p.patient_name);
+      return n === me || (me.length >= 3 && n.length >= 3 && (n.includes(me) || me.includes(n)));
+    });
+    if(similar.length === 0) return true;
+    const lines = similar.map(p=> `• ${p.patient_name}: ${p.used_sessions} of ${p.total_sessions} sessions used`).join('\n');
+    return confirm(`This patient already has an active package:\n${lines}\n\nA NEW package waits its turn behind it (sessions are taken from the older one first).\n\nOK = create the new package anyway (they are buying the next one)\nCancel = stop (for example, this payment was already recorded)`);
+  }catch(e){
+    return true; // never block a payment because this check failed
+  }
+}
+
+// Manual correction of a package's used-session count. The app only counts
+// button taps, so it can't know about free sessions or a visit that really
+// belonged to the previous package — this lets the owner/secretary set it.
+async function fixPackageSessionCount(pkg, patientName){
+  const answer = prompt(`How many sessions has ${patientName} really used from this ${pkg.total_sessions}-session package?\n(Count only the sessions this package actually covered.)\n\nThe app currently says ${pkg.used_sessions}.`, String(pkg.used_sessions));
+  if(answer === null) return;
+  const value = parseInt(answer, 10);
+  if(isNaN(value) || value < 0 || value > pkg.total_sessions){
+    alert(`Enter a whole number between 0 and ${pkg.total_sessions}.`);
+    return;
+  }
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/set-used`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...authHeader() },
+      body: JSON.stringify({ usedSessions: value })
+    });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    loadPackageStatusForPatient(patientName, false, 'paymentPackageStatus');
+    loadPackageStatusForPatient(patientName);
+  }catch(e){
+    alert('Could not save the count: ' + (e.message || e));
+  }
+}
+
 let selectedPackageBalanceMethod = 'cash';
 
 // Records an installment toward an active package's total_price (the
@@ -2982,6 +3034,10 @@ async function loadPackageStatusForPatient(name, logToChat, targetId){
       // The "Record payment" form lives in the Payment tab only, where the
       // appointment the money gets logged against is unambiguous.
       (inPaymentTab && moneyRemaining > 0 ? `<div style="margin-top:8px;"><button type="button" id="recordPackageBalanceBtn" style="font-size:0.78rem;padding:6px 12px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);cursor:pointer;">Record a payment toward the ${moneyRemaining} EGP owed</button></div><div id="packageBalanceFormBox" style="display:none;margin-top:8px;padding:8px;border:1px dashed var(--maroon);border-radius:var(--radius);background:var(--panel);"><div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><input type="number" id="packageBalanceAmountInput" placeholder="Amount (EGP)" style="width:110px;padding:7px 8px;border:1px solid var(--line);border-radius:6px;background:var(--paper);font-size:0.82rem;"><div id="packageBalanceMethodToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;"><button type="button" class="package-balance-method-btn active" data-method="cash" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash</button><button type="button" class="package-balance-method-btn" data-method="instapay" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay</button></div><button type="button" class="ghost" id="savePackageBalanceBtn" style="font-size:0.78rem;">Save</button></div><div id="packageBalanceStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div></div>` : '');
+    if(inPaymentTab){
+      badge.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;"><button type="button" id="fixPackageCountBtn" style="font-size:0.74rem;padding:5px 11px;border-radius:999px;border:1px solid #9fb5aa;background:transparent;color:#5b6863;cursor:pointer;">Fix session count</button></div>`);
+      el('fixPackageCountBtn').addEventListener('click', ()=> fixPackageSessionCount(pkg, name.trim()));
+    }
     if(inPaymentTab) badge.style.display = 'block';
     if(inPaymentTab && moneyRemaining > 0){
       selectedPackageBalanceMethod = 'cash';
@@ -6816,9 +6872,39 @@ async function loadDoctorsRoster(){
   }
 }
 
+function telegramSetupBoxHtml(){
+  if(!signedInDoctor || signedInDoctor.role !== 'owner') return '';
+  return `<div style="border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:12px;background:var(--paper);">
+    <div style="font-weight:700;font-size:0.82rem;color:var(--maroon);margin-bottom:4px;">Telegram alerts ("patient arrived")</div>
+    <div style="font-size:0.74rem;color:#5b6863;margin-bottom:8px;">One-time setup: create the bot with @BotFather, put its token on the server as TELEGRAM_BOT_TOKEN, then tap Connect. After that, copy each doctor's own link below and send it to them — they open it once and tap Start.</div>
+    <button type="button" class="ghost" id="telegramConnectBtn">Connect Telegram bot</button>
+    <div id="telegramConnectStatus" style="font-size:0.74rem;margin-top:6px;color:#5b6863;"></div>
+  </div>`;
+}
+
+async function connectTelegramBot(){
+  const btn = el('telegramConnectBtn');
+  const status = el('telegramConnectStatus');
+  btn.disabled = true;
+  status.style.color = '#5b6863';
+  status.textContent = 'Connecting…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/telegram/setup`, { method: 'POST', headers: authHeader() });
+    const body = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(body.error || `Server error ${res.status}`);
+    status.style.color = '#1b8a4a';
+    status.textContent = `Connected ✓ — bot @${body.botUsername}`;
+  }catch(e){
+    status.style.color = 'var(--danger)';
+    status.textContent = e.message || String(e);
+  }finally{
+    btn.disabled = false;
+  }
+}
+
 function renderDoctorsRoster(items){
   const container = el('doctorsList');
-  container.innerHTML = items.map(d=>{
+  container.innerHTML = telegramSetupBoxHtml() + items.map(d=>{
     const statusColor = d.status === 'approved' ? '#0b8043' : d.status === 'pending' ? '#b8894f' : '#a33d3d';
     let actions = '';
     if(d.status === 'pending'){
@@ -6859,6 +6945,12 @@ function renderDoctorsRoster(items){
         <input type="text" class="doctor-phone-input" data-email="${d.email}" value="${escapeHtml(d.phone || '')}" placeholder="01xxxxxxxxx" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--paper);width:130px;">
         <button type="button" class="ghost doctor-phone-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Save</button>
       </div>
+      ${d.status === 'approved' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;">
+        <span style="font-size:0.72rem;color:#8a938e;">Telegram alerts:</span>
+        <span style="font-size:0.72rem;font-weight:700;color:${d.telegram_chat_id ? '#0b8043' : '#a33d3d'};">${d.telegram_chat_id ? 'Linked ✓' : 'Not linked'}</span>
+        <button type="button" class="ghost telegram-link-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Copy link</button>
+        ${d.telegram_chat_id ? `<button type="button" class="ghost telegram-test-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Send test</button>` : ''}
+      </div>` : ''}
       ${d.role !== 'owner' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;align-items:center;">
         <label style="font-size:0.72rem;color:#8a938e;display:flex;align-items:center;gap:5px;cursor:pointer;">
           <input type="checkbox" class="dashboard-access-checkbox" data-email="${d.email}" ${d.can_view_dashboard ? 'checked' : ''}>
@@ -6914,6 +7006,45 @@ function renderDoctorsRoster(items){
         });
         setDoctorPermissions(email, permissions);
       });
+    });
+  });
+  const tgConnect = el('telegramConnectBtn');
+  if(tgConnect) tgConnect.addEventListener('click', connectTelegramBot);
+  container.querySelectorAll('.telegram-link-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/telegram/link/${encodeURIComponent(btn.getAttribute('data-email'))}`, { headers: authHeader() });
+        const body = await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(body.error || `Server error ${res.status}`);
+        try{
+          await navigator.clipboard.writeText(body.url);
+          btn.textContent = 'Link copied ✓';
+          setTimeout(()=>{ btn.textContent = 'Copy link'; }, 2000);
+        }catch(copyErr){
+          prompt('Copy this link and send it to the doctor:', body.url);
+        }
+      }catch(e){
+        alert('Could not get the link: ' + (e.message || e));
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  });
+  container.querySelectorAll('.telegram-test-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/telegram/test/${encodeURIComponent(btn.getAttribute('data-email'))}`, { method: 'POST', headers: authHeader() });
+        const body = await res.json().catch(()=>({}));
+        if(!res.ok) throw new Error(body.error || `Server error ${res.status}`);
+        btn.textContent = 'Sent ✓';
+        setTimeout(()=>{ btn.textContent = 'Send test'; }, 2000);
+      }catch(e){
+        alert('Could not send the test: ' + (e.message || e));
+      }finally{
+        btn.disabled = false;
+      }
     });
   });
   container.querySelectorAll('.doctor-phone-btn').forEach(btn=>{
@@ -7453,6 +7584,11 @@ async function sellNextPackage(){
     el('sellNextPackageStatus').textContent = 'Enter the total package price too, so the app knows how much is still owed.';
     return;
   }
+  el('sellNextPackageStatus').textContent = 'Checking for an existing package…';
+  if(!(await confirmNoSimilarActivePackage(patientName))){
+    el('sellNextPackageStatus').textContent = 'Cancelled — nothing was saved.';
+    return;
+  }
   el('sellNextPackageStatus').textContent = 'Saving…';
   el('sellNextPackageBtn').disabled = true;
   try{
@@ -7702,6 +7838,15 @@ async function submitPayment(method){
   // ---- Cash / InstaPay: normal payment, optionally starting a new package ----
   const startsPackage = el('paymentIsPackageCheckbox').checked;
   const packageSessions = parseInt(el('paymentPackageSessionsInput').value, 10) || 0;
+  if(startsPackage && packageSessions >= 2 && patientName){
+    el('paymentOverlayStatus').textContent = 'Checking for an existing package…';
+    const proceed = await confirmNoSimilarActivePackage(patientName);
+    if(!proceed){
+      el('paymentOverlayStatus').textContent = 'Cancelled — nothing was saved.';
+      return;
+    }
+    el('paymentOverlayStatus').textContent = 'Saving…';
+  }
   // Only ONE appointment carries the actual amount in its note (so money
   // totals never double-count a single payment across several sessions);
   // the rest just get a reference note pointing at it.
