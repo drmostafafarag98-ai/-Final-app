@@ -3631,6 +3631,7 @@ async function toggleNoteExpandMic(){
     noteMicRecorder = null;
     stopNoteMicTracks();
     setNoteMicUi(false);
+    releaseWakeLock();
     if(cancelled){ el('noteExpandTabStatus').textContent = 'Recording cancelled.'; return; }
     const blob = new Blob(noteMicChunks, { type: mime });
     if(blob.size < 1000){ el('noteExpandTabStatus').textContent = 'Recording was too short — try again.'; return; }
@@ -3661,6 +3662,7 @@ async function toggleNoteExpandMic(){
   noteMicRecorder.start();
   noteMicStartedAt = Date.now();
   setNoteMicUi(true);
+  acquireWakeLock(); // same as the main recording: a locked screen would cut the recording
   el('noteExpandMicTimer').textContent = '0:00';
   noteMicTimer = setInterval(()=>{
     const secs = Math.floor((Date.now() - noteMicStartedAt) / 1000);
@@ -4049,7 +4051,7 @@ async function releaseWakeLock(){
 // switcher). Re-acquire it automatically when the page becomes visible
 // again while still recording, so a brief switch doesn't permanently lose it.
 document.addEventListener('visibilitychange', async ()=>{
-  if(document.visibilityState === 'visible' && (isRecording || isRecordingVoiceNote) && !wakeLock){
+  if(document.visibilityState === 'visible' && (isRecording || isRecordingVoiceNote || noteMicRecorder) && !wakeLock){
     await acquireWakeLock();
   }
 });
@@ -7595,7 +7597,7 @@ async function sellNextPackage(){
     const pkgRes = await fetch(`${BACKEND_URL}/api/packages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0, totalPrice, amountPaid: amount })
+      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0, totalPrice, amountPaid: amount, confirmDuplicate: true })
     });
     if(!pkgRes.ok){
       const errBody = await pkgRes.json().catch(()=>({}));
@@ -7774,9 +7776,16 @@ async function submitPayment(method){
   // ---- Package button: consume from this patient's active package ----
   if(isPackage){
     try{
-      const lookupRes = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(patientName)}`, { headers: authHeader() });
+      const lookupRes = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(patientName)}&allowSimilar=1`, { headers: authHeader() });
       if(!lookupRes.ok) throw new Error(`Server error ${lookupRes.status}`);
       const pkg = await lookupRes.json();
+      if(pkg && pkg.matched_by_similar_name){
+        const sameOne = confirm(`There is no package under "${patientName}", but there is one under "${pkg.patient_name}" (${pkg.used_sessions} of ${pkg.total_sessions} used).\n\nIs this the same patient?\n\nOK = yes, use that package\nCancel = no, stop`);
+        if(!sameOne){
+          el('paymentOverlayStatus').textContent = 'Cancelled — nothing was saved.';
+          return;
+        }
+      }
       if(!pkg){
         if(hasClientPermission('register_packages')){
           el('paymentOverlayStatus').textContent = `${patientName} has no active package on file.`;
@@ -7879,13 +7888,16 @@ async function submitPayment(method){
       const createRes = await fetch(`${BACKEND_URL}/api/packages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ patientName, totalSessions: packageSessions })
+        body: JSON.stringify({ patientName, totalSessions: packageSessions, confirmDuplicate: true })
       });
       if(createRes.ok){
         const pkg = await createRes.json();
         await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
         newPackageStarted = true;
         newPackageId = pkg.id;
+      }else{
+        const createErr = await createRes.json().catch(()=>({}));
+        alert('⚠️ The payment was saved, but the new package was NOT created:\n\n' + (createErr.error || ('Server error ' + createRes.status)));
       }
     }
     el('patientDetailOverlay').style.display = 'none';
