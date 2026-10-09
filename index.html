@@ -1193,6 +1193,13 @@
         <div id="packageOwedList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Active packages <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Every patient whose package is not finished yet. The ones with the fewest sessions left are at the top. If a number looks wrong, open the patient → Payment tab → Fix session count.</div>
+        <div id="packageActiveSummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
+        <div id="packageActiveList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg> Package policy check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone with a package that isn't finished yet, and whether the package policy was sent. The app can only record that you opened the WhatsApp message to send it — it can't see whether you pressed send there.</div>
@@ -2851,6 +2858,36 @@ async function setPackageAmountPaid(pkgId, amountPaid, btn, askConfirm){
   }catch(e){
     btn.disabled = false;
     alert('Could not save: ' + (e.message || e));
+  }
+}
+
+async function loadActivePackages(){
+  if(!isApproved()) return;
+  const list = el('packageActiveList');
+  const summary = el('packageActiveSummary');
+  if(!list || !summary) return;
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const pkgs = ((await res.json()) || []).slice().sort((a,b)=> (a.total_sessions - a.used_sessions) - (b.total_sessions - b.used_sessions));
+    summary.textContent = pkgs.length === 0 ? 'No active packages right now.' : `${pkgs.length} patient${pkgs.length>1?'s':''} with an active package`;
+    list.innerHTML = pkgs.map(p=>{
+      const left = p.total_sessions - p.used_sessions;
+      const leftColor = left <= 2 ? 'var(--danger)' : '#1b8a4a';
+      const phone = p.patient_phone ? escapeHtml(p.patient_phone) : '<span style="color:var(--danger);">no phone on file</span>';
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(p.patient_name)}</span>
+          <span style="font-size:0.75rem;color:#5b6863;">${p.used_sessions} of ${p.total_sessions} used · <strong style="color:${leftColor};">${left} left</strong></span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;margin-top:2px;">${phone}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
 
@@ -5891,6 +5928,7 @@ async function loadDashboardStats(){
   loadOtherIncome();
   loadWithdrawals();
   loadPackagePolicyCheck();
+  loadActivePackages();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
   ensureDupCheckDefaults();
