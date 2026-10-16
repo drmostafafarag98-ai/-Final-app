@@ -1193,18 +1193,30 @@
         <div id="packageOwedList"></div>
       </div>
 
-      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Active packages <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Every patient whose package is not finished yet. The ones with the fewest sessions left are at the top. If a number looks wrong, open the patient → Payment tab → Fix session count.</div>
-        <div id="packageActiveSummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
-        <div id="packageActiveList"></div>
-      </div>
-
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 15 11 17 15 13"/></svg> Package policy check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone with a package that isn't finished yet, and whether the package policy was sent. The app can only record that you opened the WhatsApp message to send it — it can't see whether you pressed send there.</div>
         <div id="packagePolicySummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
         <div id="packagePolicyList"></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Package follow-up (not coming) <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Patients who still have sessions left in their package, haven't been in for a while, and have no visit booked. Message them, then record what they said so you know who to chase and who is not continuing.</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <label style="font-size:0.8rem;color:#5b6863;">Not seen for
+            <select id="dormantDaysSelect" style="padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.8rem;">
+              <option value="10">10+ days</option>
+              <option value="14" selected>14+ days</option>
+              <option value="21">21+ days</option>
+              <option value="30">30+ days</option>
+              <option value="60">60+ days</option>
+            </select>
+          </label>
+          <label style="font-size:0.8rem;color:#5b6863;display:flex;align-items:center;gap:4px;"><input type="checkbox" id="dormantShowDoneCheck"> Also show "not continuing"</label>
+        </div>
+        <div id="dormantSummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
+        <div id="dormantList"></div>
       </div>
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13"/><path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C11 3 12 8 12 8s1-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg> Register an existing package <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -1240,6 +1252,13 @@
     </div>
     <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button>
     <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button>
+    <div id="undocBanner" style="display:none;background:var(--panel);border:1px solid var(--maroon);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="undocTitle" style="flex:1;font-size:0.84rem;font-weight:700;color:var(--maroon);cursor:pointer;"></span>
+        <select id="undocDaySelect" style="padding:4px 6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.76rem;"><option value="0">Today</option><option value="1">Yesterday</option><option value="2">2 days ago</option></select>
+      </div>
+      <div id="undocList" style="display:none;margin-top:8px;"></div>
+    </div>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1728,9 +1747,10 @@
     </div>
 
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
-    <div class="section-title" style="margin-top:0;">Attached images (X-rays, imaging, etc.)</div>
+    <div class="section-title" style="margin-top:0;">Attached images &amp; videos (X-rays, imaging, exercise clips…)</div>
     <div style="margin-bottom:0;">
-      <input type="file" id="imageUploadInput" accept="image/*" multiple style="font-size:0.85rem;margin-bottom:8px;">
+      <input type="file" id="imageUploadInput" accept="image/*,video/*" multiple style="font-size:0.85rem;margin-bottom:4px;">
+      <div style="font-size:0.72rem;color:#8a938e;margin-bottom:8px;">Videos: up to 50 MB each (about 30–60 seconds from a phone) — keep clips short.</div>
       <div id="imageGallery" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
     </div>
     </div>
@@ -2814,10 +2834,14 @@ async function loadPackageOwed(){
         <div style="font-size:0.75rem;margin-top:2px;">${wa}</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
           <button type="button" class="ghost package-settle-btn" data-id="${p.id}" data-total="${Number(p.total_price)}" style="font-size:0.74rem;">Money already recorded — mark fully paid</button>
+          <button type="button" class="ghost package-link-btn" data-id="${p.id}" data-phone="${escapeHtml(p.patient_phone || '')}" data-name="${escapeHtml(p.patient_name)}" style="font-size:0.74rem;">🔗 Send balance link</button>
           <button type="button" class="ghost package-setpaid-btn" data-id="${p.id}" data-total="${Number(p.total_price)}" data-paid="${Number(p.amount_paid || 0)}" style="font-size:0.74rem;">Set amount paid…</button>
         </div>
       </div>`;
     }).join('');
+    list.querySelectorAll('.package-link-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=> sendPackageBalanceLink(btn.getAttribute('data-id'), btn.getAttribute('data-phone'), btn.getAttribute('data-name'), btn));
+    });
     list.querySelectorAll('.package-settle-btn').forEach(btn=>{
       btn.addEventListener('click', ()=> setPackageAmountPaid(btn.getAttribute('data-id'), parseFloat(btn.getAttribute('data-total')), btn, true));
     });
@@ -2861,35 +2885,125 @@ async function setPackageAmountPaid(pkgId, amountPaid, btn, askConfirm){
   }
 }
 
-async function loadActivePackages(){
+// ---- Package follow-up: patients with sessions left who stopped coming ----
+const DORMANT_STATUS_LABELS = {
+  contacted: ['📨 Messaged', '#8a6d1b'],
+  continuing: ['✅ Will continue', '#1b8a4a'],
+  not_continuing: ['❌ Not continuing', '#a33'],
+  no_answer: ['📵 No answer', '#5b6863']
+};
+function dormantAgoText(iso){
+  if(!iso) return '';
+  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  return d <= 0 ? 'today' : (d === 1 ? 'yesterday' : `${d} days ago`);
+}
+function buildDormantMessage(p){
+  const name = (p.patient_name || '').trim();
+  const left = p.total_sessions - p.used_sessions;
+  return `أهلاً ${name} 🌷\nإزيك؟ معاك عيادة Empower.\nلسه ليك ${left} ${left <= 10 ? 'جلسات' : 'جلسة'} في الباكدج بتاعك، وعاوزين نطمن عليك ونعرف حالتك بعد آخر جلسة.\nتحب نحجزلك ميعاد تكمل فيه؟ ولو ظروفك مش مناسبة قولنا عشان نظبطها معاك.\nشكراً 🌷`;
+}
+async function setPackageFollowup(id, status, note){
+  const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(id)}/followup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeader() },
+    body: JSON.stringify({ status, note })
+  });
+  if(!res.ok){
+    const errBody = await res.json().catch(()=>({}));
+    throw new Error(errBody.error || `Server error ${res.status}`);
+  }
+}
+async function loadDormantPackages(){
   if(!isApproved()) return;
-  const list = el('packageActiveList');
-  const summary = el('packageActiveSummary');
+  const list = el('dormantList');
+  const summary = el('dormantSummary');
   if(!list || !summary) return;
+  const days = parseInt(el('dormantDaysSelect').value, 10) || 14;
+  const showDone = el('dormantShowDoneCheck').checked;
   list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
-    const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
+    const res = await fetch(`${BACKEND_URL}/api/packages/dormant?days=${days}`, { headers: authHeader() });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
-    const pkgs = ((await res.json()) || []).slice().sort((a,b)=> (a.total_sessions - a.used_sessions) - (b.total_sessions - b.used_sessions));
-    summary.textContent = pkgs.length === 0 ? 'No active packages right now.' : `${pkgs.length} patient${pkgs.length>1?'s':''} with an active package`;
+    const all = (await res.json()) || [];
+    const hidden = all.filter(p=> p.followup_status === 'not_continuing').length;
+    const pkgs = showDone ? all : all.filter(p=> p.followup_status !== 'not_continuing');
+    const waiting = pkgs.filter(p=> !p.followup_status).length;
+    summary.textContent = all.length === 0
+      ? 'Nobody with sessions left has been away this long. 👍'
+      : `${pkgs.length} patient${pkgs.length===1?'':'s'} to follow up (${waiting} not contacted yet)${(!showDone && hidden) ? ` · ${hidden} marked not continuing (hidden)` : ''}`;
+    if(pkgs.length === 0){ list.innerHTML = ''; return; }
     list.innerHTML = pkgs.map(p=>{
       const left = p.total_sessions - p.used_sessions;
-      const leftColor = left <= 2 ? 'var(--danger)' : '#1b8a4a';
+      const st = p.followup_status ? DORMANT_STATUS_LABELS[p.followup_status] : null;
+      const lastTxt = p.last_visit
+        ? `Last visit ${new Date(p.last_visit).toLocaleDateString('en-GB',{day:'numeric',month:'short'})} (${p.days_since} days ago)`
+        : `No visit since the package was bought (${p.days_since} days ago)`;
+      const badge = st ? `<span style="font-size:0.72rem;font-weight:700;color:${st[1]};">${st[0]} · ${dormantAgoText(p.followup_at)}</span>` : '';
       const phone = p.patient_phone ? escapeHtml(p.patient_phone) : '<span style="color:var(--danger);">no phone on file</span>';
-      return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--line);">
         <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
           <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(p.patient_name)}</span>
-          <span style="font-size:0.75rem;color:#5b6863;">${p.used_sessions} of ${p.total_sessions} used · <strong style="color:${leftColor};">${left} left</strong></span>
+          <span style="font-size:0.78rem;font-weight:700;color:var(--maroon);">${left} session${left===1?'':'s'} left</span>
         </div>
+        <div style="font-size:0.75rem;color:#5b6863;margin-top:2px;">${lastTxt} · ${p.used_sessions} of ${p.total_sessions} used</div>
         <div style="font-size:0.75rem;color:#5b6863;margin-top:2px;">${phone}</div>
+        ${badge ? `<div style="margin-top:4px;">${badge}</div>` : ''}
+        ${p.followup_note ? `<div style="font-size:0.76rem;color:#3b4a44;margin-top:2px;">📝 ${escapeHtml(p.followup_note)}</div>` : ''}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
+          ${p.patient_phone ? `<button type="button" class="ghost dormant-wa-btn" data-id="${p.id}" style="font-size:0.76rem;">💬 WhatsApp</button>` : ''}
+          <button type="button" class="ghost dormant-link-btn" data-id="${p.id}" style="font-size:0.76rem;">🔗 Balance link</button>
+          <button type="button" class="ghost dormant-set-btn" data-id="${p.id}" data-status="continuing" style="font-size:0.76rem;">✅ Will continue</button>
+          <button type="button" class="ghost dormant-set-btn" data-id="${p.id}" data-status="no_answer" style="font-size:0.76rem;">📵 No answer</button>
+          <button type="button" class="ghost dormant-set-btn" data-id="${p.id}" data-status="not_continuing" style="font-size:0.76rem;">❌ Not continuing</button>
+          ${p.followup_status ? `<button type="button" class="ghost dormant-set-btn" data-id="${p.id}" data-status="" style="font-size:0.76rem;">↩ Clear</button>` : ''}
+        </div>
       </div>`;
     }).join('');
+    const byId = new Map(pkgs.map(p=>[String(p.id), p]));
+    list.querySelectorAll('.dormant-wa-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const p = byId.get(btn.getAttribute('data-id'));
+        btn.disabled = true;
+        try{
+          await setPackageFollowup(p.id, 'contacted', p.followup_note || null);
+          window.open(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(p.patient_phone)}?text=${encodeURIComponent(buildDormantMessage(p))}`, '_blank');
+          loadDormantPackages();
+        }catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
+      });
+    });
+    list.querySelectorAll('.dormant-link-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const p = byId.get(btn.getAttribute('data-id'));
+        sendPackageBalanceLink(p.id, p.patient_phone, p.patient_name, btn);
+      });
+    });
+    list.querySelectorAll('.dormant-set-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const p = byId.get(btn.getAttribute('data-id'));
+        const status = btn.getAttribute('data-status') || null;
+        let note = null;
+        if(status){
+          const answer = prompt(`Add a short note for ${p.patient_name}? (optional — e.g. "travelling until the 20th")`, p.followup_note || '');
+          if(answer === null) return;
+          note = answer;
+        }
+        btn.disabled = true;
+        try{ await setPackageFollowup(p.id, status, note); loadDormantPackages(); }
+        catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
+      });
+    });
   }catch(e){
     console.error(e);
     summary.textContent = '';
     list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
   }
 }
+document.addEventListener('DOMContentLoaded', ()=>{
+  const d = document.getElementById('dormantDaysSelect');
+  const c = document.getElementById('dormantShowDoneCheck');
+  if(d) d.addEventListener('change', loadDormantPackages);
+  if(c) c.addEventListener('change', loadDormantPackages);
+});
 
 async function loadPackagePolicyCheck(){
   if(!isApproved()) return;
@@ -3042,6 +3156,30 @@ async function recordPackageBalancePayment(pkgId, patientName){
   }
 }
 
+// Creates (once) the patient's private "my package" link and opens WhatsApp with it.
+async function sendPackageBalanceLink(pkgId, phone, name, btn){
+  if(btn) btn.disabled = true;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: authHeader() });
+    if(!res.ok){
+      const errBody = await res.json().catch(()=>({}));
+      throw new Error(errBody.error || `Server error ${res.status}`);
+    }
+    const { url } = await res.json();
+    const msg = `أهلاً ${name} 🌷\nتقدر تتابع جلساتك المتبقية في الباكدج والمبلغ المتبقي في أي وقت من اللينك ده (بيتحدّث لوحده):\n${url}`;
+    if(phone){
+      window.open(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`, '_blank');
+    } else {
+      try{ await navigator.clipboard.writeText(url); alert('No phone on file — the link was copied:\n' + url); }
+      catch(e){ prompt('No phone on file — copy this link:', url); }
+    }
+  }catch(e){
+    alert('Could not create the link: ' + (e.message || e));
+  }finally{
+    if(btn) btn.disabled = false;
+  }
+}
+
 async function loadPackageStatusForPatient(name, logToChat, targetId){
   targetId = targetId || 'patientPackageStatus';
   const inPaymentTab = targetId === 'paymentPackageStatus';
@@ -3074,6 +3212,10 @@ async function loadPackageStatusForPatient(name, logToChat, targetId){
     if(inPaymentTab){
       badge.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;"><button type="button" id="fixPackageCountBtn" style="font-size:0.74rem;padding:5px 11px;border-radius:999px;border:1px solid #9fb5aa;background:transparent;color:#5b6863;cursor:pointer;">Fix session count</button></div>`);
       el('fixPackageCountBtn').addEventListener('click', ()=> fixPackageSessionCount(pkg, name.trim()));
+    }
+    if(inPaymentTab){
+      badge.insertAdjacentHTML('beforeend', `<div style="margin-top:8px;"><button type="button" id="sendPackageLinkBtn" style="font-size:0.74rem;padding:5px 11px;border-radius:999px;border:1px solid #9fb5aa;background:transparent;color:#5b6863;cursor:pointer;">🔗 Send patient their balance link</button></div>`);
+      el('sendPackageLinkBtn').addEventListener('click', e=> sendPackageBalanceLink(pkg.id, currentPaymentTarget ? currentPaymentTarget.patient_phone : '', name.trim(), e.currentTarget));
     }
     if(inPaymentTab) badge.style.display = 'block';
     if(inPaymentTab && moneyRemaining > 0){
@@ -5927,8 +6069,8 @@ async function loadDashboardStats(){
   loadTransfers();
   loadOtherIncome();
   loadWithdrawals();
+  loadDormantPackages();
   loadPackagePolicyCheck();
-  loadActivePackages();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
   ensureDupCheckDefaults();
@@ -7635,7 +7777,7 @@ async function sellNextPackage(){
     const pkgRes = await fetch(`${BACKEND_URL}/api/packages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0, totalPrice, amountPaid: amount, confirmDuplicate: true })
+      body: JSON.stringify({ patientName, totalSessions, startingUsed: 0, totalPrice, amountPaid: amount })
     });
     if(!pkgRes.ok){
       const errBody = await pkgRes.json().catch(()=>({}));
@@ -7814,16 +7956,9 @@ async function submitPayment(method){
   // ---- Package button: consume from this patient's active package ----
   if(isPackage){
     try{
-      const lookupRes = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(patientName)}&allowSimilar=1`, { headers: authHeader() });
+      const lookupRes = await fetch(`${BACKEND_URL}/api/packages/active-by-patient?patientName=${encodeURIComponent(patientName)}`, { headers: authHeader() });
       if(!lookupRes.ok) throw new Error(`Server error ${lookupRes.status}`);
       const pkg = await lookupRes.json();
-      if(pkg && pkg.matched_by_similar_name){
-        const sameOne = confirm(`There is no package under "${patientName}", but there is one under "${pkg.patient_name}" (${pkg.used_sessions} of ${pkg.total_sessions} used).\n\nIs this the same patient?\n\nOK = yes, use that package\nCancel = no, stop`);
-        if(!sameOne){
-          el('paymentOverlayStatus').textContent = 'Cancelled — nothing was saved.';
-          return;
-        }
-      }
       if(!pkg){
         if(hasClientPermission('register_packages')){
           el('paymentOverlayStatus').textContent = `${patientName} has no active package on file.`;
@@ -7926,16 +8061,13 @@ async function submitPayment(method){
       const createRes = await fetch(`${BACKEND_URL}/api/packages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ patientName, totalSessions: packageSessions, confirmDuplicate: true })
+        body: JSON.stringify({ patientName, totalSessions: packageSessions })
       });
       if(createRes.ok){
         const pkg = await createRes.json();
         await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkg.id)}/use-session`, { method: 'POST', headers: authHeader() });
         newPackageStarted = true;
         newPackageId = pkg.id;
-      }else{
-        const createErr = await createRes.json().catch(()=>({}));
-        alert('⚠️ The payment was saved, but the new package was NOT created:\n\n' + (createErr.error || ('Server error ' + createRes.status)));
       }
     }
     el('patientDetailOverlay').style.display = 'none';
@@ -10115,6 +10247,23 @@ async function uploadImageToServer(sessionId, file){
   return res.json();
 }
 
+const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+function isVideoName(name){ return /\.(mp4|mov|webm|m4v|3gp|mkv)$/i.test(name || ''); }
+async function uploadVideoToServer(sessionId, file){
+  const res = await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/videos?filename=${encodeURIComponent(file.name || 'video')}`, {
+    method: 'POST',
+    headers: { 'Content-Type': file.type || 'video/mp4', ...authHeader() },
+    body: file
+  });
+  if(!res.ok){
+    let msg = '';
+    try{ msg = (await res.json()).error || ''; }catch(e){}
+    if(res.status === 413) msg = 'video is bigger than 50 MB';
+    throw new Error(msg || `Server error ${res.status}`);
+  }
+  return res.json();
+}
+
 async function renderImageGallery(sessionId){
   const gallery = el('imageGallery');
   gallery.innerHTML = '';
@@ -10128,12 +10277,15 @@ async function renderImageGallery(sessionId){
           const wrap = document.createElement('div');
           wrap.style.cssText = 'position:relative;width:90px;';
           wrap.innerHTML = `
-            <img src="${img.url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;">
+            ${isVideoName(img.filename)
+              ? `<video src="${img.url}#t=0.1" preload="metadata" muted playsinline style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;background:#000;"></video><span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#fff;font-size:1.4rem;text-shadow:0 0 6px #000;pointer-events:none;">▶</span>`
+              : `<img src="${img.url}" style="width:90px;height:90px;object-fit:cover;border-radius:8px;border:1px solid var(--line);cursor:pointer;">`}
             <button type="button" style="position:absolute;top:2px;right:2px;background:rgba(163,61,61,0.9);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:0.7rem;cursor:pointer;line-height:1;">×</button>
           `;
-          wrap.querySelector('img').addEventListener('click', ()=> window.open(img.url, '_blank'));
+          wrap.querySelector('img,video').addEventListener('click', ()=> window.open(img.url, '_blank'));
           wrap.querySelector('button').addEventListener('click', async (e)=>{
             e.stopPropagation();
+            if(isVideoName(img.filename) && !confirm('Delete this video?')) return;
             try{
               await fetch(`${BACKEND_URL}/api/sessions/${encodeURIComponent(sessionId)}/images`, {
                 method: 'DELETE',
@@ -10182,7 +10334,22 @@ async function handleImageUpload(fileList){
   const canSync = isApproved();
   let localCount = 0;
   let serverCount = 0;
+  let videoCount = 0;
+  const videoProblems = [];
   for(const file of fileList){
+    if((file.type || '').startsWith('video/')){
+      if(!canSync){ videoProblems.push(`${file.name}: sign in first (videos are stored on the clinic server)`); continue; }
+      if(file.size > MAX_VIDEO_BYTES){ videoProblems.push(`${file.name}: ${(file.size/1048576).toFixed(0)} MB is over the 50 MB limit — trim it or record a shorter clip`); continue; }
+      try{
+        el('status').textContent = `Uploading video ${file.name} (${(file.size/1048576).toFixed(1)} MB)… keep this page open`;
+        await uploadVideoToServer(activeSessionId, file);
+        videoCount++;
+      }catch(e){
+        console.error('Video upload failed for', file.name, e);
+        videoProblems.push(`${file.name}: ${e.message || e}`);
+      }
+      continue;
+    }
     try{
       await imageDB.add(activeSessionId, file, file.type); // always keep a fast local copy too
       localCount++;
@@ -10199,6 +10366,12 @@ async function handleImageUpload(fileList){
     }
   }
   renderImageGallery(activeSessionId);
+  if(videoCount > 0 || videoProblems.length > 0){
+    const imgTotal = fileList.length - videoCount - videoProblems.length;
+    el('status').textContent = (videoCount ? `Added ${videoCount} video(s). ` : '') + (imgTotal > 0 ? `Images: ${serverCount} synced, ${localCount} saved locally. ` : '') + (videoProblems.length ? `Not uploaded — ${videoProblems.join('; ')}` : '');
+    if(videoProblems.length) alert('Some videos were not uploaded:\n' + videoProblems.join('\n'));
+    return;
+  }
   if(!canSync){
     el('status').textContent = `Added ${localCount} image(s) — saved on this device only. Sign in and get approved to sync images across devices.`;
   } else if(serverCount === fileList.length){
@@ -10313,6 +10486,61 @@ el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatien
 // Documentation owns the Sessions sidebar (☰ button in the header) — it
 // only makes sense while looking at patient notes, so it's hidden while
 // the Calendar view is active instead of floating globally.
+// ---- Documentation reminder: visits that happened but have no session note yet ----
+async function loadUndocumentedVisits(){
+  const box = el('undocBanner');
+  if(!box) return;
+  if(!signedInDoctor || !isApproved() || signedInDoctor.role === 'secretary'){ box.style.display = 'none'; return; }
+  const back = parseInt(el('undocDaySelect').value, 10) || 0;
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - back, 23, 59, 59);
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/undocumented?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok){ box.style.display = 'none'; return; }
+    const items = (await res.json()) || [];
+    const dayWord = back === 0 ? 'today' : (back === 1 ? 'yesterday' : '2 days ago');
+    box.style.display = 'block';
+    const title = el('undocTitle');
+    const list = el('undocList');
+    if(items.length === 0){
+      title.style.color = '#1b8a4a';
+      title.textContent = `✅ All visits from ${dayWord} are documented`;
+      list.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    title.style.color = 'var(--maroon)';
+    title.textContent = `📝 ${items.length} visit${items.length>1?'s':''} from ${dayWord} not documented yet — tap to see`;
+    const byId = new Map(items.map(i=>[String(i.id), i]));
+    list.innerHTML = items.map(i=>{
+      const t = new Date(i.start_time).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+      const kind = i.visit_type === 'checkup' ? 'Check-up' : (i.visit_type === 'recovery' ? 'Recovery' : 'Session');
+      return `<div class="undoc-row" data-id="${i.id}" style="display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--line);cursor:pointer;">
+        <span style="font-size:0.86rem;font-weight:600;">${escapeHtml(i.patient_name || '')}</span>
+        <span style="font-size:0.74rem;color:#5b6863;text-align:right;">${t} · ${kind}${i.doctor_name ? ' · ' + escapeHtml(i.doctor_name) : ''}</span>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.undoc-row').forEach(row=>{
+      row.addEventListener('click', ()=>{
+        const ev = byId.get(row.getAttribute('data-id'));
+        if(ev) openPatientDocsFromAppointment(ev);
+      });
+    });
+  }catch(e){
+    console.error('Undocumented visits failed:', e);
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const t = document.getElementById('undocTitle');
+  const d = document.getElementById('undocDaySelect');
+  if(t) t.addEventListener('click', ()=>{
+    const l = document.getElementById('undocList');
+    if(l && l.innerHTML) l.style.display = l.style.display === 'none' ? 'block' : 'none';
+  });
+  if(d) d.addEventListener('change', loadUndocumentedVisits);
+});
+
 function switchMainView(view){
   el('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   el('dashboardStatsView').style.display = view === 'dashboard' ? 'block' : 'none';
@@ -10326,6 +10554,7 @@ function switchMainView(view){
   }
   if(view === 'calendar'){
     calViewMonth = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), 1);
+    loadUndocumentedVisits();
     loadMonthAndDay();
     loadQuickBookDoctorOptions();
     loadKnownPatients();
