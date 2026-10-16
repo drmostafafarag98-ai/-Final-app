@@ -10628,6 +10628,76 @@ document.addEventListener('DOMContentLoaded', ()=>{
   setInterval(()=>{ if(document.visibilityState === 'visible') loadUndocumentedVisits(); }, 10 * 60 * 1000);
 });
 
+// ---- Dashboard tabs: the long list of sections is split into 4 groups ----
+const DASH_TABS = [
+  { id:'overview', label:'Overview' },
+  { id:'money', label:'Money' },
+  { id:'patients', label:'Patients & packages' },
+  { id:'checks', label:'Checks' }
+];
+const DASH_TITLE_GROUPS = [
+  ['Today','overview'], ['This month','overview'], ['This year','overview'], ['Custom range','overview'],
+  ['Send manually','patients'],
+  ['By doctor','money'], ['Money ledger','money'], ['Day Review','money'], ['Doctor Payroll','money'], ['Other Income','money'],
+  ['Expenses','money'], ['Doctor Withdrawals','money'], ['Cash','money'], ['Export','money'],
+  ['Package','patients'], ['Send package link','patients'], ['Register an existing package','patients'],
+  ['Duplicate payment check','checks'], ['Marked paid','checks'], ['Patient payment check','checks']
+];
+function setupDashboardTabs(){
+  const dash = document.getElementById('dashboardStatsView');
+  if(!dash || document.getElementById('dashTabBar')) return;
+  const style = document.createElement('style');
+  style.textContent = '.dgroup-hidden{display:none !important;} #dashTabBar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;margin-bottom:6px;position:sticky;top:0;background:var(--paper);z-index:5;} #dashTabBar button{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;} #dashTabBar button.active{background:var(--maroon);color:#fff;border-color:var(--maroon);}';
+  document.head.appendChild(style);
+  const groupOf = (txt, fallback)=>{
+    const t = (txt || '').replace(/\s+/g,' ').trim();
+    const hit = DASH_TITLE_GROUPS.find(([prefix])=> t.startsWith(prefix));
+    return hit ? hit[1] : fallback;
+  };
+  let current = 'overview';
+  const walk = (parent)=>{
+    Array.from(parent.children).forEach(child=>{
+      if(child.id === 'dashTabBar') return;
+      if(child.classList.contains('section-title')){
+        current = groupOf(child.textContent, current);
+        child.dataset.dgroup = current;
+      } else if(child.id === 'payrollSectionWrap'){
+        current = 'money';
+        child.dataset.dgroup = 'money';
+      } else if(child.id === 'regPackageSection'){
+        walk(child);
+      } else {
+        child.dataset.dgroup = current;
+      }
+    });
+  };
+  walk(dash);
+  const bar = document.createElement('div');
+  bar.id = 'dashTabBar';
+  DASH_TABS.forEach(t=>{
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.tab = t.id;
+    b.textContent = t.label;
+    b.addEventListener('click', ()=> showDashboardTab(t.id));
+    bar.appendChild(b);
+  });
+  dash.insertBefore(bar, dash.firstChild);
+  let saved = 'overview';
+  try{ saved = localStorage.getItem('dashTab') || 'overview'; }catch(e){}
+  showDashboardTab(DASH_TABS.some(t=>t.id === saved) ? saved : 'overview');
+}
+function showDashboardTab(id){
+  const dash = document.getElementById('dashboardStatsView');
+  if(!dash) return;
+  dash.querySelectorAll('[data-dgroup]').forEach(node=>{
+    node.classList.toggle('dgroup-hidden', node.dataset.dgroup !== id);
+  });
+  document.querySelectorAll('#dashTabBar button').forEach(b=> b.classList.toggle('active', b.dataset.tab === id));
+  try{ localStorage.setItem('dashTab', id); }catch(e){}
+}
+document.addEventListener('DOMContentLoaded', setupDashboardTabs);
+
 function switchMainView(view){
   loadUndocumentedVisits();
   el('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
