@@ -1207,6 +1207,14 @@
         <div id="packagePolicyList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Send package link to patients <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Everyone with sessions left in their package. Tap <strong>Send</strong> next to a name — WhatsApp opens with the message ready, you press send there, and the name moves to "sent". The app can only record that WhatsApp was opened, not that you pressed send.</div>
+        <label style="font-size:0.8rem;color:#5b6863;display:flex;align-items:center;gap:4px;margin-bottom:8px;"><input type="checkbox" id="shareLinkShowSentCheck"> Also show those already sent</label>
+        <div id="shareLinkSummary" style="font-size:0.85rem;font-weight:700;color:var(--maroon);margin-bottom:8px;"></div>
+        <div id="shareLinkList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg> Package follow-up (not coming) <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Patients who still have sessions left in their package, haven't been in for a while, and have no visit booked. Message them, then record what they said so you know who to chase and who is not continuing.</div>
@@ -2885,6 +2893,57 @@ async function setPackageAmountPaid(pkgId, amountPaid, btn, askConfirm){
   }
 }
 
+// ---- Bulk: send every patient with sessions left their package link, one tap each ----
+async function loadShareLinkList(){
+  if(!isApproved()) return;
+  const list = el('shareLinkList');
+  const summary = el('shareLinkSummary');
+  if(!list || !summary) return;
+  const showSent = el('shareLinkShowSentCheck').checked;
+  list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const all = (await res.json()) || [];
+    const unsent = all.filter(p=> !p.share_sent_at);
+    const shown = showSent ? all : unsent;
+    summary.textContent = all.length === 0
+      ? 'No active packages right now.'
+      : `${all.length - unsent.length} of ${all.length} active packages have been sent the link.`;
+    if(shown.length === 0){
+      list.innerHTML = all.length === 0 ? '' : '<div style="font-size:0.82rem;color:#1b8a4a;">Everyone has been sent their link. ✅</div>';
+      return;
+    }
+    list.innerHTML = shown.map(p=>{
+      const left = p.total_sessions - p.used_sessions;
+      const phone = p.patient_phone ? escapeHtml(p.patient_phone) : '<span style="color:var(--danger);">no phone on file</span>';
+      const sentTxt = p.share_sent_at ? `<span style="font-size:0.72rem;color:#1b8a4a;font-weight:700;">✓ sent ${new Date(p.share_sent_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'})}</span>` : '';
+      return `<div style="padding:8px 0;border-bottom:1px solid var(--line);">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+          <span style="font-weight:600;font-size:0.88rem;">${escapeHtml(p.patient_name)}</span>
+          <span style="font-size:0.75rem;color:#5b6863;">${left} left of ${p.total_sessions}</span>
+        </div>
+        <div style="font-size:0.75rem;color:#5b6863;margin:2px 0 6px;">${phone} ${sentTxt}</div>
+        ${p.patient_phone ? `<button type="button" class="ghost sharelink-send-btn" data-id="${p.id}" data-phone="${escapeHtml(p.patient_phone)}" data-name="${escapeHtml(p.patient_name)}" style="font-size:0.78rem;">💬 ${p.share_sent_at ? 'Send again' : 'Send'}</button>` : ''}
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.sharelink-send-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        await sendPackageBalanceLink(btn.getAttribute('data-id'), btn.getAttribute('data-phone'), btn.getAttribute('data-name'), btn, true);
+        loadShareLinkList();
+      });
+    });
+  }catch(e){
+    console.error(e);
+    summary.textContent = '';
+    list.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const c = document.getElementById('shareLinkShowSentCheck');
+  if(c) c.addEventListener('change', loadShareLinkList);
+});
+
 // ---- Package follow-up: patients with sessions left who stopped coming ----
 const DORMANT_STATUS_LABELS = {
   contacted: ['📨 Messaged', '#8a6d1b'],
@@ -3157,10 +3216,10 @@ async function recordPackageBalancePayment(pkgId, patientName){
 }
 
 // Creates (once) the patient's private "my package" link and opens WhatsApp with it.
-async function sendPackageBalanceLink(pkgId, phone, name, btn){
+async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
   if(btn) btn.disabled = true;
   try{
-    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: authHeader() });
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ markSent: !!markSent }) });
     if(!res.ok){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
@@ -6071,6 +6130,7 @@ async function loadDashboardStats(){
   loadOtherIncome();
   loadWithdrawals();
   loadDormantPackages();
+  loadShareLinkList();
   loadPackagePolicyCheck();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
