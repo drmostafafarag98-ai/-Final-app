@@ -2925,8 +2925,25 @@ async function loadShareLinkList(){
         </div>
         <div style="font-size:0.75rem;color:#5b6863;margin:2px 0 6px;">${phone} ${sentTxt}</div>
         ${p.patient_phone ? `<button type="button" class="ghost sharelink-send-btn" data-id="${p.id}" data-phone="${escapeHtml(p.patient_phone)}" data-name="${escapeHtml(p.patient_name)}" style="font-size:0.78rem;">💬 ${p.share_sent_at ? 'Send again' : 'Send'}</button>` : ''}
+        <button type="button" class="ghost sharelink-start-btn" data-id="${p.id}" data-start="${p.start_date ? String(p.start_date).slice(0,10) : ''}" style="font-size:0.74rem;">📅 ${p.start_date ? 'Start: ' + String(p.start_date).slice(0,10) : 'Set start date'}</button>
       </div>`;
     }).join('');
+    list.querySelectorAll('.sharelink-start-btn').forEach(btn=>{
+      btn.addEventListener('click', async ()=>{
+        const answer = prompt('Date of the FIRST session of this package (YYYY-MM-DD). The patient page counts the validity from it.\nLeave empty to go back to the automatic date.', btn.getAttribute('data-start') || '');
+        if(answer === null) return;
+        const value = answer.trim();
+        if(value && !/^\d{4}-\d{2}-\d{2}$/.test(value)){ alert('Write it like 2026-10-05'); return; }
+        btn.disabled = true;
+        try{
+          const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(btn.getAttribute('data-id'))}/start-date`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ date: value || null })
+          });
+          if(!res.ok){ const b = await res.json().catch(()=>({})); throw new Error(b.error || `Server error ${res.status}`); }
+          loadShareLinkList();
+        }catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
+      });
+    });
     list.querySelectorAll('.sharelink-send-btn').forEach(btn=>{
       btn.addEventListener('click', async ()=>{
         await sendPackageBalanceLink(btn.getAttribute('data-id'), btn.getAttribute('data-phone'), btn.getAttribute('data-name'), btn, true);
