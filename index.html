@@ -758,6 +758,24 @@
   .inv-footer-text{ position:absolute; left:80px; right:18mm; bottom:10mm; font-size:0.8rem; color:#3a3a3a; display:flex; justify-content:space-between; }
   @keyframes noteMicPulse{0%{box-shadow:0 0 0 0 rgba(217,48,37,0.55);}70%{box-shadow:0 0 0 12px rgba(217,48,37,0);}100%{box-shadow:0 0 0 0 rgba(217,48,37,0);}}
   @keyframes noteMicBlink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+  /* ---- iPhone (home-screen app): keep everything BELOW the status bar (time / battery) ----
+     The app draws full-screen with a translucent status bar, so without this the header
+     slides underneath the clock. env(safe-area-inset-top) is 0 on desktop/Android, so
+     nothing changes there. */
+  body{ padding-top:env(safe-area-inset-top); }
+  body::before{
+    content:""; position:fixed; top:0; left:0; right:0;
+    height:env(safe-area-inset-top);
+    background:var(--paper);
+    z-index:10000; pointer-events:none;
+  }
+  @media (prefers-color-scheme: dark){ body::before{ background:#000; } }
+  #doctorPatientsGridOverlay{ padding-top:env(safe-area-inset-top); box-sizing:border-box; }
+  #mainNavBar{ padding-top:calc(10px + env(safe-area-inset-top)); }
+  .sidebar, .admin-drawer{ padding-top:calc(18px + env(safe-area-inset-top)); }
+  #dayScheduleOverlay, #noteExpandOverlay, #patientDetailOverlay, #unpaidListOverlay, #intakeListOverlay,
+  #trashOverlay, #timeTreeImportOverlay, #miniDatePickerOverlay, #quickBookOverlay, #patientSummaryOverlay,
+  #prescriptionOverlay, #invoiceOverlay{ padding-top:calc(16px + env(safe-area-inset-top)) !important; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -8331,7 +8349,7 @@ function showArrivalAlert(ev){
   if(!host){
     host = document.createElement('div');
     host.id = 'arrivalAlertHost';
-    host.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(94vw,420px);';
+    host.style.cssText = 'position:fixed;top:calc(10px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(94vw,420px);';
     document.body.appendChild(host);
   }
   const t = new Date(ev.arrived_at).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'});
@@ -10766,7 +10784,7 @@ function setupDashboardTabs(){
   const dash = document.getElementById('dashboardStatsView');
   if(!dash || document.getElementById('dashTabBar')) return;
   const style = document.createElement('style');
-  style.textContent = '.dgroup-hidden{display:none !important;} #dashTabBar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;margin-bottom:6px;position:sticky;top:0;background:var(--paper);z-index:5;} #dashTabBar button{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;} #dashTabBar button.active{background:var(--maroon);color:#fff;border-color:var(--maroon);}';
+  style.textContent = '.dgroup-hidden{display:none !important;} #dashTabBar{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;margin-bottom:6px;position:sticky;top:env(safe-area-inset-top);background:var(--paper);z-index:5;} #dashTabBar button{flex:0 0 auto;padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font-size:0.82rem;font-weight:600;cursor:pointer;white-space:nowrap;} #dashTabBar button.active{background:var(--maroon);color:#fff;border-color:var(--maroon);}';
   document.head.appendChild(style);
   const groupOf = (txt, fallback)=>{
     const t = (txt || '').replace(/\s+/g,' ').trim();
