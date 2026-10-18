@@ -3212,7 +3212,7 @@ async function loadApplicants(){
       el('applyCsvBtn').addEventListener('click', async ()=>{
         const rows = applicantsFiltered();
         const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
-        const csv = ['Name,Phone,Graduation year,University,Area,Commute,Can commit 6 days,Works elsewhere,Works details,Experience,Availability,Courses,Status,Rating,Notes'].concat(rows.map(a=> [a.full_name,a.phone,a.graduation_year,a.university,a.area==='Other'?(a.area_other||'Other'):a.area,a.commute,a.can_commit_6_days?'yes':'no',a.works_elsewhere?'yes':'no',a.works_details,a.experience,a.availability,a.courses,a.status,a.rating,a.owner_notes].map(q).join(','))).join('\n');
+        const csv = ['Name,Phone,Graduation year,University,Area,Commute,Can commit 6 days,Works elsewhere,Works details,Experience,Availability,Status,Rating,Notes'].concat(rows.map(a=> [a.full_name,a.phone,a.graduation_year,a.university,a.area==='Other'?(a.area_other||'Other'):a.area,a.commute,a.can_commit_6_days?'yes':'no',a.works_elsewhere?'yes':'no',a.works_details,a.experience,a.availability,a.status,a.rating,a.owner_notes].map(q).join(','))).join('\n');
         try{ await navigator.clipboard.writeText(csv); alert('CSV copied. Paste it into Excel or send it to Claude.'); }catch(e){ prompt('Copy this:', csv); }
       });
     }
@@ -3258,7 +3258,6 @@ function renderApplicants(){
       </div>
       <div style="font-size:0.78rem;color:#5b6863;margin-top:3px;">${a.works_elsewhere ? '<strong style="color:var(--danger);">Works elsewhere</strong>' + (a.works_details ? ': ' + escapeHtml(a.works_details) : '') : 'Not working elsewhere'}${a.university ? ' · ' + escapeHtml(a.university) : ''}${a.experience ? ' · ' + escapeHtml(a.experience) : ''}</div>
       ${a.availability ? `<div style="font-size:0.78rem;color:#5b6863;margin-top:2px;">Availability: ${escapeHtml(a.availability)}</div>` : ''}
-      ${a.courses ? `<div style="font-size:0.78rem;color:#5b6863;margin-top:2px;">Courses: ${escapeHtml(a.courses)}</div>` : ''}
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:8px;">
         <a href="https://wa.me/${wa}" target="_blank" rel="noopener" style="font-size:0.78rem;">WhatsApp ${escapeHtml(a.phone)}</a>
         <button type="button" class="ghost apply-cv" style="font-size:0.75rem;padding:5px 10px;">Open CV</button>
