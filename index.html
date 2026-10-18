@@ -7358,6 +7358,10 @@ function renderDoctorsRoster(items){
             <input type="checkbox" class="perm-checkbox" data-key="send_whatsapp" ${d.permissions?.send_whatsapp ? 'checked' : ''}>
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></svg> Send WhatsApp messages
           </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;color:#b45309;font-weight:600;">
+            <input type="checkbox" class="perm-checkbox" data-key="own_patients_only" ${d.permissions?.own_patients_only ? 'checked' : ''}>
+            🔒 Own patients only (hide all other doctors' visits, patients &amp; packages)
+          </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="view_other_patients" ${d.permissions?.view_other_patients ? 'checked' : ''}>
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg> See other doctors' patient notes/history
