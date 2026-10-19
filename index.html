@@ -1236,7 +1236,7 @@
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Training applicants <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who applied through your training form. Send them the link, then filter here. Owner only.</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who applied through the training form. Send them the link, then filter here. Only the owner and people given the Training applicants permission can see this.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
           <button type="button" class="ghost" id="applyCopyLinkBtn" style="font-size:0.78rem;padding:7px 12px;">Copy form link</button>
           <button type="button" class="ghost" id="applyReloadBtn" style="font-size:0.78rem;padding:7px 12px;">Refresh</button>
@@ -3198,7 +3198,7 @@ async function loadApplicants(){
   list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
   try{
     const res = await fetch(`${BACKEND_URL}/api/applicants`, { headers: authHeader() });
-    if(res.status === 403){ summary.textContent = ''; list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Owner only.</div>'; return; }
+    if(res.status === 403){ summary.textContent = ''; list.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">You do not have access to training applicants. Ask the clinic owner.</div>'; return; }
     if(!res.ok){ const eb = await res.json().catch(()=>({})); throw new Error(eb.error || `Server error ${res.status}`); }
     applicantsAll = (await res.json()) || [];
     const ar = el('applyAreas');
@@ -3263,7 +3263,7 @@ function renderApplicants(){
         <button type="button" class="ghost apply-cv" style="font-size:0.75rem;padding:5px 10px;">Open CV</button>
         <select class="apply-status" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;">${['new','shortlisted','interview','accepted','rejected'].map(s=> `<option value="${s}" ${s===st?'selected':''}>${s}</option>`).join('')}</select>
         <select class="apply-rating" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;"><option value="">Rating</option>${[1,2,3,4,5].map(n=> `<option value="${n}" ${a.rating===n?'selected':''}>${'★'.repeat(n)}</option>`).join('')}</select>
-        <button type="button" class="ghost apply-del" style="font-size:0.72rem;padding:5px 8px;color:var(--danger);">Delete</button>
+        ${(signedInDoctor && signedInDoctor.role === 'owner') ? '<button type="button" class="ghost apply-del" style="font-size:0.72rem;padding:5px 8px;color:var(--danger);">Delete</button>' : ''}
       </div>
       <input type="text" class="apply-notes" placeholder="Your notes" value="${escapeHtml(a.owner_notes || '')}" style="width:100%;margin-top:6px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:0.78rem;">
     </div>`;
@@ -3288,7 +3288,8 @@ function renderApplicants(){
     card.querySelector('.apply-status').addEventListener('change', async e=>{ try{ await patch(id, { status: e.target.value }); }catch(er){ alert('Not saved: ' + er.message); } });
     card.querySelector('.apply-rating').addEventListener('change', async e=>{ try{ await patch(id, { rating: e.target.value ? parseInt(e.target.value,10) : null }); }catch(er){ alert('Not saved: ' + er.message); } });
     card.querySelector('.apply-notes').addEventListener('change', async e=>{ try{ await patch(id, { owner_notes: e.target.value }); }catch(er){ alert('Not saved: ' + er.message); } });
-    card.querySelector('.apply-del').addEventListener('click', async ()=>{
+    const delBtn = card.querySelector('.apply-del');
+    if(delBtn) delBtn.addEventListener('click', async ()=>{
       if(!confirm('Delete this applicant and their CV for good?')) return;
       try{
         const r = await fetch(`${BACKEND_URL}/api/applicants/${encodeURIComponent(id)}`, { method:'DELETE', headers: authHeader() });
@@ -7491,6 +7492,10 @@ function renderDoctorsRoster(items){
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
             <input type="checkbox" class="perm-checkbox" data-key="send_whatsapp" ${d.permissions?.send_whatsapp ? 'checked' : ''}>
             <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9 22 2Z"/></svg> Send WhatsApp messages
+          </label>
+          <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" class="perm-checkbox" data-key="view_applicants" ${d.permissions?.view_applicants ? 'checked' : ''}>
+            Training applicants (see list &amp; CVs, set status/rating; needs Dashboard access)
           </label>
           <label style="font-size:0.72rem;display:flex;align-items:center;gap:5px;cursor:pointer;color:#b45309;font-weight:600;">
             <input type="checkbox" class="perm-checkbox" data-key="own_patients_only" ${d.permissions?.own_patients_only ? 'checked' : ''}>
