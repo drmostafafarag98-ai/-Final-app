@@ -3207,6 +3207,36 @@ function fdNextFridays(n){
   for(let i=0;i<n;i++){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+7); }
   return out;
 }
+async function fdSendWhatsApp(date, data){
+  const d=(data.duties||[]).find(x=> String(x.duty_date).slice(0,10)===date);
+  const doc=(data.doctors||[]).find(x=> d && x.email===d.doctor_email);
+  if(!d) return;
+  if(!doc || !doc.phone){ alert('No WhatsApp number saved for this doctor. Add it in Manage Doctors first.'); return; }
+  window.open(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(doc.phone)}?text=${encodeURIComponent(d.whatsapp_text)}`,'_blank');
+  try{ await fetch(`${BACKEND_URL}/api/friday-duty/${date}/whatsapp-sent`,{method:'POST',headers:authHeader()}); }catch(e){}
+  setTimeout(()=>{ loadFridayDuty(); fdCheckBanner(); }, 800);
+}
+// Floating reminder for the owner: a Friday is within 3 days and WhatsApp was not sent yet.
+async function fdCheckBanner(){
+  let bar=document.getElementById('fdBanner');
+  try{
+    if(!signedInDoctor || signedInDoctor.role!=='owner' || !isApproved()){ if(bar) bar.remove(); return; }
+    const res=await fetch(`${BACKEND_URL}/api/friday-duty`,{headers:authHeader()});
+    if(!res.ok) return;
+    const data=await res.json();
+    const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'});
+    const due=(data.duties||[]).filter(d=>{ const dt=String(d.duty_date).slice(0,10); const diff=Math.round((Date.parse(dt)-Date.parse(today))/86400000); return diff>=0 && diff<=3 && !d.whatsapp_sent_at; });
+    if(!due.length){ if(bar) bar.remove(); return; }
+    if(!bar){ bar=document.createElement('div'); bar.id='fdBanner'; bar.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:90;background:var(--maroon);color:#fff;border-radius:12px;padding:10px 12px;font-size:0.82rem;box-shadow:0 4px 14px rgba(0,0,0,0.25);display:flex;gap:8px;align-items:center;flex-wrap:wrap;'; document.body.appendChild(bar); }
+    const d=due[0];
+    const label=new Date(String(d.duty_date).slice(0,10)+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
+    bar.innerHTML=`<span style="flex:1;min-width:180px;">📌 Remind ${escapeHtml(d.doctor_name||'the doctor')} on WhatsApp — event duty ${label}</span><button type="button" id="fdBannerSend" style="border:none;border-radius:999px;padding:6px 12px;font-weight:700;cursor:pointer;">Send now</button><button type="button" id="fdBannerClose" style="background:transparent;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">×</button>`;
+    document.getElementById('fdBannerSend').onclick=()=> fdSendWhatsApp(String(d.duty_date).slice(0,10), data);
+    document.getElementById('fdBannerClose').onclick=()=> bar.remove();
+  }catch(e){}
+}
+setInterval(()=>{ if(document.visibilityState==='visible') fdCheckBanner(); }, 15*60*1000);
+setTimeout(fdCheckBanner, 8000);
 async function loadFridayDuty(){
   const list=el('fridayDutyList'), msg=el('fridayDutyMsg');
   if(!list || !isApproved()) return;
@@ -3219,23 +3249,26 @@ async function loadFridayDuty(){
     const byDate={}; (data.duties||[]).forEach(d=>{ byDate[String(d.duty_date).slice(0,10)]=d; });
     const docs=data.doctors||[];
     if(!data.telegram_ready) msg.textContent='Telegram bot is not set up on the server, reminders cannot be sent.';
-    list.innerHTML=fdNextFridays(8).map(date=>{
+    list.innerHTML=fdNextFridays(26).map(date=>{
       const d=byDate[date];
       const label=new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
       const opts='<option value="">— not assigned —</option>'+docs.map(x=>`<option value="${escapeHtml(x.email)}"${d&&d.doctor_email===x.email?' selected':''}>${escapeHtml(x.name)}${x.telegram_linked?'':' (no Telegram)'}</option>`).join('');
       let status='';
       if(d){
         const doc=docs.find(x=>x.email===d.doctor_email);
-        if(d.reminder_sent_at) status='<span style="color:#1f7a4d;font-weight:700;">Reminder sent ✓</span>';
+        const wa = d.whatsapp_sent_at ? ' · <span style="color:#1f7a4d;font-weight:700;">WhatsApp sent ✓</span>' : ' · <span style="color:#b8894f;font-weight:700;">WhatsApp not sent yet</span>';
+        if(d.reminder_sent_at) status='<span style="color:#1f7a4d;font-weight:700;">Telegram sent ✓</span>';
         else if(doc && !doc.telegram_linked) status='<span style="color:var(--danger);font-weight:700;">Telegram not linked ⚠</span>';
         else if(d.reminder_error) status='<span style="color:var(--danger);">Last try failed: '+escapeHtml(String(d.reminder_error).replace(/^tried:\S+\s*/,''))+'</span>';
-        else status='<span style="color:#5b6863;">Will be sent 3 days before</span>';
+        else status='<span style="color:#5b6863;">Telegram will be sent 3 days before</span>';
+        status += wa;
       }
       return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;">
         <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;">${label}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <select class="fd-sel" data-date="${date}" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:170px;">${opts}</select>
-          ${d?`<button type="button" class="ghost fd-send" data-date="${date}" style="font-size:0.75rem;padding:6px 10px;">Send reminder now</button>`:''}
+          ${d?`<button type="button" class="ghost fd-wa" data-date="${date}" style="font-size:0.75rem;padding:6px 10px;">Send on WhatsApp</button>`:''}
+          ${d?`<button type="button" class="ghost fd-send" data-date="${date}" style="font-size:0.75rem;padding:6px 10px;">Send on Telegram now</button>`:''}
           <span style="font-size:0.76rem;">${status}</span>
         </div></div>`;
     }).join('');
@@ -3250,6 +3283,7 @@ async function loadFridayDuty(){
         setTimeout(loadFridayDuty, sel.value?2500:0);
       }catch(e){ alert('Could not save: '+e.message); loadFridayDuty(); }
     }));
+    list.querySelectorAll('.fd-wa').forEach(btn=> btn.addEventListener('click', ()=> fdSendWhatsApp(btn.dataset.date, data)));
     list.querySelectorAll('.fd-send').forEach(btn=> btn.addEventListener('click', async ()=>{
       if(!confirm('Send the reminder to this doctor now?')) return;
       try{
