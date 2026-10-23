@@ -1241,6 +1241,20 @@
         <div id="fridayDutyList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Online booking <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Patients book from a public page. They pay half the fee by InstaPay (non-refundable) and upload the screenshot, then the visit appears in the calendar. Patients with an active package skip the deposit. Owner only.</div>
+        <div id="bkMsg" style="font-size:0.8rem;color:var(--danger);margin-bottom:8px;"></div>
+        <div id="bkBody"><div style="font-size:0.8rem;color:#8a938e;">Loading…</div></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Booking deposits <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check each screenshot against your InstaPay. Press OK if the money arrived. Press Reject if it is fake or missing — the visit is cancelled from the calendar.</div>
+        <button type="button" class="ghost" id="bkDepReload" style="font-size:0.78rem;padding:7px 12px;margin-bottom:10px;">Refresh</button>
+        <div id="bkDepList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Training applicants <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who applied through the training form. Send them the link, then filter here. Only the owner and people given the Training applicants permission can see this.</div>
@@ -3237,6 +3251,105 @@ async function fdCheckBanner(){
 }
 setInterval(()=>{ if(document.visibilityState==='visible') fdCheckBanner(); }, 15*60*1000);
 setTimeout(fdCheckBanner, 8000);
+
+// ---- Online booking (owner) ----
+let bkState=null;
+const BK_DAYS=[['6','Sat'],['0','Sun'],['1','Mon'],['2','Tue'],['3','Wed'],['4','Thu'],['5','Fri']];
+function bkInput(id,val,ph,type){ return `<input id="${id}" type="${type||'text'}" value="${escapeHtml(String(val==null?'':val))}" placeholder="${ph||''}" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;width:100%;">`; }
+function bkRender(){
+  const box=el('bkBody'); if(!box||!bkState) return;
+  const s=bkState.settings, docs=bkState.doctors||[];
+  const types=s.types.map((t,i)=>`<div style="display:grid;grid-template-columns:2fr 1fr 1.2fr auto;gap:6px;margin-bottom:6px;" data-bktype="${i}">
+      <input class="bkt-label" value="${escapeHtml(t.label)}" placeholder="Name" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
+      <input class="bkt-price" type="number" value="${t.price||0}" placeholder="Price" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
+      <select class="bkt-vt" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;"><option value="session"${t.visit_type==='session'?' selected':''}>Session</option><option value="checkup"${t.visit_type==='checkup'?' selected':''}>Check-up</option><option value="recovery"${t.visit_type==='recovery'?' selected':''}>Recovery</option></select>
+      <button type="button" class="ghost bkt-del" style="font-size:0.75rem;padding:6px 10px;">✕</button></div>`).join('');
+  const hours=docs.map(d=>{
+    const h=(s.hours||{})[d.email]||{};
+    const rows=BK_DAYS.map(([wd,lab])=>{
+      const r=(h[wd]&&h[wd][0])||['',''];
+      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:0.8rem;"><span style="width:34px;">${lab}</span>
+        <input type="time" class="bkh-from" data-e="${escapeHtml(d.email)}" data-wd="${wd}" value="${r[0]}" style="padding:5px;border:1px solid var(--line);border-radius:6px;">
+        <span>to</span><input type="time" class="bkh-to" data-e="${escapeHtml(d.email)}" data-wd="${wd}" value="${r[1]}" style="padding:5px;border:1px solid var(--line);border-radius:6px;"></div>`;
+    }).join('');
+    return `<details style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;"><summary style="cursor:pointer;font-weight:700;font-size:0.85rem;">Dr. ${escapeHtml(d.name)}</summary><div style="margin-top:8px;">${rows}<div style="font-size:0.72rem;color:#8a938e;">Leave a day empty = not available that day.</div></div></details>`;
+  }).join('');
+  box.innerHTML=`
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="bkEnabled"${s.enabled?' checked':''}> Online booking is OPEN</label>
+    <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;">InstaPay account patients should pay to</div>${bkInput('bkInstapay',s.instapay,'e.g. empower@instapay or 0100xxxxxxx')}
+    <div style="font-size:0.78rem;font-weight:700;margin:10px 0 4px;">Extra note shown to patients (optional)</div>${bkInput('bkNote',s.note,'')}
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
+      <div><div style="font-size:0.72rem;font-weight:700;">Slot (minutes)</div>${bkInput('bkSlot',s.slot_minutes,'', 'number')}</div>
+      <div><div style="font-size:0.72rem;font-weight:700;">Min hours before visit</div>${bkInput('bkLead',s.min_lead_hours,'', 'number')}</div>
+      <div><div style="font-size:0.72rem;font-weight:700;">Days ahead allowed</div>${bkInput('bkAhead',s.max_days_ahead,'', 'number')}</div></div>
+    <div style="font-size:0.78rem;font-weight:700;margin:14px 0 4px;">Visit types &amp; full price (deposit = half). Price 0 = hidden.</div>
+    <div id="bkTypes">${types}</div>
+    <button type="button" class="ghost" id="bkAddType" style="font-size:0.75rem;padding:6px 10px;margin-bottom:12px;">+ Add type</button>
+    <div style="font-size:0.78rem;font-weight:700;margin:6px 0 6px;">Open hours per doctor</div>${hours||'<div style="font-size:0.8rem;color:#8a938e;">No approved doctors.</div>'}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+      <button type="button" id="bkSave" style="padding:9px 16px;border:none;border-radius:8px;background:var(--maroon);color:#fff;font-weight:700;cursor:pointer;">Save</button>
+      <button type="button" class="ghost" id="bkCopy" style="font-size:0.8rem;padding:8px 12px;">Copy booking link</button></div>`;
+  el('bkCopy').onclick=()=>{ const u=BACKEND_URL+'/book'; (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>alert('Link copied:\n'+u)).catch(()=>prompt('Copy this link:',u)); };
+  el('bkAddType').onclick=()=>{ bkCollect(); bkState.settings.types.push({key:'type'+Date.now(),label:'',price:0,visit_type:'session'}); bkRender(); };
+  box.querySelectorAll('.bkt-del').forEach(b=> b.onclick=()=>{ bkCollect(); const i=+b.closest('[data-bktype]').dataset.bktype; bkState.settings.types.splice(i,1); bkRender(); });
+  el('bkSave').onclick=bkSave;
+}
+function bkCollect(){
+  const s=bkState.settings;
+  s.enabled=el('bkEnabled').checked; s.instapay=el('bkInstapay').value; s.note=el('bkNote').value;
+  s.slot_minutes=+el('bkSlot').value||30; s.min_lead_hours=+el('bkLead').value||0; s.max_days_ahead=+el('bkAhead').value||30;
+  s.types=Array.from(document.querySelectorAll('#bkTypes [data-bktype]')).map((r,i)=>({key:(s.types[i]&&s.types[i].key)||('type'+i), label:r.querySelector('.bkt-label').value.trim(), price:+r.querySelector('.bkt-price').value||0, visit_type:r.querySelector('.bkt-vt').value}));
+  const hours={};
+  document.querySelectorAll('.bkh-from').forEach(f=>{
+    const to=document.querySelector(`.bkh-to[data-e="${CSS.escape(f.dataset.e)}"][data-wd="${f.dataset.wd}"]`);
+    if(f.value && to && to.value && f.value<to.value){ ((hours[f.dataset.e]=hours[f.dataset.e]||{})[f.dataset.wd]=[[f.value,to.value]]); }
+  });
+  s.hours=hours;
+}
+async function bkSave(){
+  const msg=el('bkMsg'); msg.style.color='var(--danger)'; msg.textContent='';
+  try{
+    bkCollect();
+    const res=await fetch(`${BACKEND_URL}/api/booking/settings`,{method:'PUT',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify(bkState.settings)});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(d.error||`Server error ${res.status}`);
+    msg.style.color='#1f7a4d'; msg.textContent='Saved ✓'; setTimeout(()=>{ if(msg.textContent==='Saved ✓') msg.textContent=''; },2500);
+  }catch(e){ msg.textContent='Could not save: '+e.message; }
+}
+async function loadBookingSettings(){
+  const box=el('bkBody'); if(!box||!isApproved()) return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/booking/settings`,{headers:authHeader()});
+    if(res.status===403){ box.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Only the owner can manage online booking.</div>'; return; }
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(d.error||`Server error ${res.status}`);
+    bkState=d; bkRender();
+  }catch(e){ el('bkMsg').textContent='Could not load: '+e.message; }
+}
+async function loadBookingDeposits(){
+  const list=el('bkDepList'); if(!list||!isApproved()) return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/booking/deposits`,{headers:authHeader()});
+    if(res.status===403){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Owner only.</div>'; return; }
+    const rows=await res.json().catch(()=>[]);
+    if(!res.ok) throw new Error(rows.error||`Server error ${res.status}`);
+    if(!rows.length){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">No online bookings yet.</div>'; return; }
+    list.innerHTML=rows.map(r=>{
+      const when=r.start_time?new Date(r.start_time).toLocaleString('en-GB',{timeZone:'Africa/Cairo',weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+      const st=r.status==='ok'?'<span style="color:#1f7a4d;font-weight:700;">Verified ✓</span>':r.status==='rejected'?'<span style="color:var(--danger);font-weight:700;">Rejected</span>':'<span style="color:#b8894f;font-weight:700;">To check</span>';
+      const acts=(r.package_booking?'<span style="font-size:0.75rem;color:#5b6863;">Package patient — no deposit</span>':`${r.screenshot_path?`<button type="button" class="ghost" data-shot="${r.id}" style="font-size:0.75rem;padding:5px 10px;">View screenshot</button>`:''}${r.status==='pending'?` <button type="button" data-rv="ok" data-id="${r.id}" style="font-size:0.75rem;padding:5px 10px;border:none;border-radius:6px;background:#1f7a4d;color:#fff;cursor:pointer;">OK</button> <button type="button" data-rv="rejected" data-id="${r.id}" style="font-size:0.75rem;padding:5px 10px;border:none;border-radius:6px;background:var(--danger);color:#fff;cursor:pointer;">Reject</button>`:''}`);
+      return `<div style="border-top:1px solid var(--line);padding:10px 0;font-size:0.83rem;"><div><b>${escapeHtml(r.patient_name||'')}</b> · ${escapeHtml(r.phone||'')}</div><div style="color:#5b6863;">${when} · Dr. ${escapeHtml(r.doctor_name||'')} · ${escapeHtml(r.visit_label||'')} · ${r.package_booking?'Package':(r.amount||0)+' EGP'} · ${st}</div><div style="margin-top:6px;">${acts}</div></div>`;
+    }).join('');
+    list.querySelectorAll('[data-shot]').forEach(b=> b.onclick=async()=>{
+      try{ const res=await fetch(`${BACKEND_URL}/api/booking/deposits/${b.dataset.shot}/shot`,{headers:authHeader()}); const d=await res.json(); if(!res.ok) throw new Error(d.error); window.open(d.url,'_blank'); }catch(e){ alert('Could not open: '+e.message); }
+    });
+    list.querySelectorAll('[data-rv]').forEach(b=> b.onclick=async()=>{
+      if(b.dataset.rv==='rejected' && !confirm('Reject this deposit? The visit will be cancelled in the calendar.')) return;
+      try{ const res=await fetch(`${BACKEND_URL}/api/booking/deposits/${b.dataset.id}/review`,{method:'POST',headers:{...authHeader(),'Content-Type':'application/json'},body:JSON.stringify({status:b.dataset.rv})}); const d=await res.json().catch(()=>({})); if(!res.ok) throw new Error(d.error||res.status); loadBookingDeposits(); }catch(e){ alert('Failed: '+e.message); }
+    });
+  }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
+}
+document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',loadBookingDeposits); });
 async function loadFridayDuty(){
   const list=el('fridayDutyList'), msg=el('fridayDutyMsg');
   if(!list || !isApproved()) return;
@@ -6522,7 +6635,7 @@ async function loadDashboardStats(){
   loadDuplicatePackages();
   loadActivePackages();
   loadApplicants();
-  if(signedInDoctor && signedInDoctor.role==='owner') loadFridayDuty();
+  if(signedInDoctor && signedInDoctor.role==='owner'){ loadFridayDuty(); loadBookingSettings(); loadBookingDeposits(); }
   loadPackagePolicyCheck();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
@@ -11029,7 +11142,8 @@ const DASH_TABS = [
   { id:'patients', label:'Patients & packages' },
   { id:'checks', label:'Checks' },
   { id:'training', label:'Training' },
-  { id:'team', label:'Team' }
+  { id:'team', label:'Team' },
+  { id:'booking', label:'Booking' }
 ];
 const DASH_TITLE_GROUPS = [
   ['Today','overview'], ['This month','overview'], ['This year','overview'], ['Custom range','overview'],
@@ -11037,7 +11151,7 @@ const DASH_TITLE_GROUPS = [
   ['By doctor','money'], ['Money ledger','money'], ['Day Review','money'], ['Doctor Payroll','money'], ['Other Income','money'],
   ['Expenses','money'], ['Doctor Withdrawals','money'], ['Cash','money'], ['Export','money'],
   ['Package','patients'], ['Send package link','patients'], ['Register an existing package','patients'],
-  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Friday event duty','team'], ['Marked paid','checks'], ['Patient payment check','checks']
+  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Friday event duty','team'], ['Online booking','booking'], ['Booking deposits','booking'], ['Marked paid','checks'], ['Patient payment check','checks']
 ];
 function setupDashboardTabs(){
   const dash = document.getElementById('dashboardStatsView');
