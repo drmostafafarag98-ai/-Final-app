@@ -3440,15 +3440,18 @@ async function loadFridayDuty(){
 }
 
 // ---- Training schedule: who comes when, confirmation + reminder on WhatsApp ----
-const TR_COHORTS=[['2026-10-24','2026-10-29','Sat 24 Oct → Thu 29 Oct'],['2026-11-01','2026-11-05','Sun 1 Nov → Thu 5 Nov'],['2026-11-07','2026-11-12','Sat 7 Nov → Thu 12 Nov'],['2026-11-14','2026-11-19','Sat 14 Nov → Thu 19 Nov']];
+const TR_COHORTS=[['2026-10-24','2026-10-29','Sat 24 Oct → Thu 29 Oct'],['2026-10-31','2026-11-05','Sat 31 Oct → Thu 5 Nov'],['2026-11-07','2026-11-12','Sat 7 Nov → Thu 12 Nov'],['2026-11-14','2026-11-19','Sat 14 Nov → Thu 19 Nov']];
 const TR_SLOTS=TR_COHORTS.flatMap(c=>[{v:`${c[0]}|${c[1]}|morning`,l:`${c[2]} · Morning`},{v:`${c[0]}|${c[1]}|evening`,l:`${c[2]} · Evening`}]);
+const TR_DAYS=[{v:'',l:'Days: all'},{v:'0,2,4',l:'Sun · Tue · Thu'},{v:'6,1,3',l:'Sat · Mon · Wed'},{v:'0,1,2,3,4',l:'Sun → Thu (no Sat)'},{v:'1,3',l:'Mon · Wed'},{v:'0,2',l:'Sun · Tue'},{v:'2,4',l:'Tue · Thu'}];
+function trDayOk(a,ymd){ const wd=new Date(ymd+'T12:00:00Z').getUTCDay(); if(wd===5) return false; return !a.train_days || a.train_days.split(',').includes(String(wd)); }
+function trDaysLabel(a){ const o=TR_DAYS.find(x=>x.v===(a.train_days||'')); return a.train_days&&o?o.l:''; }
 const TR_MAP='https://maps.app.goo.gl/aWorsBEvduGweSLw5';
 function trToday(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'}); }
 function trAddDays(ymd,n){ const d=new Date(ymd+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
 function trNextDay(a){
   if(!a.train_start) return null;
   let d=trToday(); if(d<a.train_start) d=a.train_start;
-  while(d<=a.train_end){ if(new Date(d+'T12:00:00Z').getUTCDay()!==5) return d; d=trAddDays(d,1); }
+  while(d<=a.train_end){ if(trDayOk(a,d)) return d; d=trAddDays(d,1); }
   return null;
 }
 function trTimes2(a,ymd){
@@ -3461,12 +3464,13 @@ function trFirst(a){ return String(a.full_name||'').trim().split(/\s+/)[0]; }
 function trMsg(a,kind){
   const first=trFirst(a);
   if(kind==='confirm'){
-    const t=trTimes2(a,a.train_start);
-    return `Hello Dr. ${first}, this is Empower Physical Therapy.\nWe are happy to confirm your place in our intensive training program.\n\n📅 ${trFmt(a.train_start)} to ${trFmt(a.train_end)} (consecutive days, no rest day)\n🕐 Your shift: ${a.train_shift==='evening'?'Evening 4:00 PM – 9:00 PM':'Morning, until 4:00 PM'}\n   First day starts at ${t[0]}\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" so we know you are coming. Commitment to all days is required. Thank you!`;
+    const firstDay=(()=>{ let d=a.train_start; while(d<=a.train_end){ if(trDayOk(a,d)) return d; d=trAddDays(d,1); } return a.train_start; })();
+    const t=trTimes2(a,firstDay), dl=trDaysLabel(a);
+    return `Hello Dr. ${first}, this is Empower Physical Therapy.\nWe are happy to confirm your place in our intensive training program.\n\n📅 ${trFmt(a.train_start)} to ${trFmt(a.train_end)} ${dl?`\n   Your days: ${dl}`:'(consecutive days, no rest day)'}\n🕐 Your shift: ${a.train_shift==='evening'?'Evening 4:00 PM – 9:00 PM':'Morning, until 4:00 PM'}\n   First day: ${trFmt(firstDay)} at ${t[0]}\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" so we know you are coming. Commitment to all days is required. Thank you!`;
   }
   const d=trNextDay(a), t=trTimes2(a,d), today=trToday();
   const when=d===today?'today':(d===trAddDays(today,1)?'tomorrow':trFmt(d));
-  return `Hello Dr. ${first}, a friendly reminder from Empower Physical Therapy.\nYour training ${d===a.train_start?'starts':'continues'} ${when} (${trFmt(d)}) at ${t[0]}${a.train_shift==='evening'?' until 9:00 PM':' until 4:00 PM'}.\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" to let us know you will be there. See you soon!`;
+  return `Hello Dr. ${first}, a friendly reminder from Empower Physical Therapy.\nYour training ${d===a.train_start?'starts':'continues'} ${(d===today||d===trAddDays(today,1))?when+' ('+trFmt(d)+')':trFmt(d)} at ${t[0]}${a.train_shift==='evening'?' until 9:00 PM':' until 4:00 PM'}.\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" to let us know you will be there. See you soon!`;
 }
 async function trPatch(id,body){
   const r=await fetch(`${BACKEND_URL}/api/applicants/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json',...authHeader()},body:JSON.stringify(body)});
@@ -3486,7 +3490,7 @@ function renderTrainRoster(){
     const r=soon?(a.remind_for===nd?' · <span style="color:#1f7a4d;font-weight:700;">Reminder sent ✓</span>':' · <span style="color:var(--danger);font-weight:700;">Send reminder now ⚠</span>'):'';
     return `<div style="border-top:1px solid var(--line);padding:10px 0;font-size:0.84rem;${needRemind?'background:#fff6f4;':''}" data-id="${escapeHtml(a.id)}">
       <div><b>Dr. ${escapeHtml(a.full_name)}</b> · ${a.train_shift==='evening'?'Evening':'Morning'} · ${tag}</div>
-      <div style="color:#5b6863;font-size:0.76rem;">${trFmt(a.train_start)} → ${trFmt(a.train_end)}</div>
+      <div style="color:#5b6863;font-size:0.76rem;">${trFmt(a.train_start)} → ${trFmt(a.train_end)}${trDaysLabel(a)?' · '+trDaysLabel(a):''}</div>
       <div style="font-size:0.78rem;margin:3px 0 6px;">${c}${r}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;">
         <button type="button" class="ghost" data-tr="confirm" style="font-size:0.76rem;padding:6px 10px;">${a.confirm_sent_at?'Resend':'Send'} confirmation</button>
@@ -3595,6 +3599,7 @@ function renderApplicants(){
         <button type="button" class="ghost apply-cv" style="font-size:0.75rem;padding:5px 10px;">Open CV</button>
         <select class="apply-status" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;">${['new','shortlisted','interview','accepted','rejected'].map(s=> `<option value="${s}" ${s===st?'selected':''}>${s}</option>`).join('')}</select>
         <select class="apply-slot" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;max-width:210px;"><option value="">Training slot: none</option>${TR_SLOTS.map(o=> `<option value="${o.v}" ${a.train_start && `${a.train_start}|${a.train_end}|${a.train_shift}`===o.v?'selected':''}>${o.l}</option>`).join('')}</select>
+        <select class="apply-days" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;">${TR_DAYS.map(o=> `<option value="${o.v}" ${(a.train_days||'')===o.v?'selected':''}>${o.l}</option>`).join('')}</select>
         <select class="apply-rating" style="font-size:0.75rem;padding:5px;border:1px solid var(--line);border-radius:6px;"><option value="">Rating</option>${[1,2,3,4,5].map(n=> `<option value="${n}" ${a.rating===n?'selected':''}>${'★'.repeat(n)}</option>`).join('')}</select>
         ${(signedInDoctor && signedInDoctor.role === 'owner') ? '<button type="button" class="ghost apply-del" style="font-size:0.72rem;padding:5px 8px;color:var(--danger);">Delete</button>' : ''}
       </div>
@@ -3621,7 +3626,11 @@ function renderApplicants(){
     card.querySelector('.apply-status').addEventListener('change', async e=>{ try{ await patch(id, { status: e.target.value }); }catch(er){ alert('Not saved: ' + er.message); } });
     card.querySelector('.apply-slot').addEventListener('change', async e=>{
       const v=e.target.value;
-      try{ await patch(id, { train_slot: v||null }); const a=applicantsAll.find(x=>x.id===id); if(a){ if(v){ const [s1,e1,sh]=v.split('|'); a.train_start=s1; a.train_end=e1; a.train_shift=sh; } else { a.train_start=a.train_end=a.train_shift=a.confirm_sent_at=a.remind_for=null; } } renderTrainRoster(); }catch(er){ alert('Not saved: ' + er.message); }
+      try{ await patch(id, { train_slot: v||null }); const a=applicantsAll.find(x=>x.id===id); if(a){ if(v){ const [s1,e1,sh]=v.split('|'); a.train_start=s1; a.train_end=e1; a.train_shift=sh; } else { a.train_start=a.train_end=a.train_shift=a.train_days=a.confirm_sent_at=a.remind_for=null; } } renderTrainRoster(); }catch(er){ alert('Not saved: ' + er.message); }
+    });
+    card.querySelector('.apply-days').addEventListener('change', async e=>{
+      const v=e.target.value;
+      try{ await patch(id, { train_days: v||null }); const a=applicantsAll.find(x=>x.id===id); if(a) a.train_days=v||null; renderTrainRoster(); }catch(er){ alert('Not saved: ' + er.message); }
     });
     card.querySelector('.apply-rating').addEventListener('change', async e=>{ try{ await patch(id, { rating: e.target.value ? parseInt(e.target.value,10) : null }); }catch(er){ alert('Not saved: ' + er.message); } });
     card.querySelector('.apply-notes').addEventListener('change', async e=>{ try{ await patch(id, { owner_notes: e.target.value }); }catch(er){ alert('Not saved: ' + er.message); } });
