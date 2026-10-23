@@ -1234,6 +1234,14 @@
         <div id="dupPkgList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Login activity <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Who signed in or opened the app, when, and from which device. Red = wrong password. If you see a device or IP you do not know, change that person's password. Owner only.</div>
+        <button type="button" class="ghost" id="llReload" style="font-size:0.78rem;padding:7px 12px;margin-bottom:10px;">Refresh</button>
+        <div id="llSummary" style="margin-bottom:10px;"></div>
+        <div id="llList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Friday event duty <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Pick who covers the event each Friday. The doctor gets a Telegram reminder 3 days before (Tuesday, 9 AM). The doctor must have linked Telegram. Owner only.</div>
@@ -3380,6 +3388,27 @@ async function loadBookingDeposits(){
   }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
 }
 document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',()=>{ loadBookingDeposits(); loadBookingLeads(); }); });
+
+async function loadLoginLog(){
+  const list=el('llList'), sum=el('llSummary'); if(!list||!isApproved()) return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/login-log`,{headers:authHeader()});
+    if(res.status===403){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Owner only.</div>'; return; }
+    const rows=await res.json().catch(()=>[]);
+    if(!res.ok) throw new Error(rows.error||`Server error ${res.status}`);
+    if(!rows.length){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Nothing recorded yet.</div>'; sum.innerHTML=''; return; }
+    const LBL={login:'Signed in',google:'Signed in (Google)',open:'Opened the app',failed:'Wrong password',page:'Public page'};
+    const per={};
+    rows.filter(r=>r.email&&r.event!=='failed').forEach(r=>{ const o=per[r.email]=per[r.email]||{last:r.created_at,ips:new Set(),devs:new Set(),n:0}; o.ips.add(r.ip); o.devs.add(r.device); o.n++; });
+    sum.innerHTML=Object.keys(per).map(e=>{ const o=per[e]; const when=new Date(o.last).toLocaleString('en-GB',{timeZone:'Africa/Cairo',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); return `<div style="font-size:0.8rem;padding:4px 0;"><b>${escapeHtml(e)}</b> · last ${when} · ${o.devs.size} device type${o.devs.size>1?'s':''} · ${o.ips.size} IP${o.ips.size>1?'s':''}</div>`; }).join('');
+    list.innerHTML=rows.map(r=>{
+      const when=new Date(r.created_at).toLocaleString('en-GB',{timeZone:'Africa/Cairo',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      const bad=r.event==='failed';
+      return `<div style="border-top:1px solid var(--line);padding:6px 0;font-size:0.78rem;${bad?'color:var(--danger);':''}"><b>${LBL[r.event]||r.event}</b>${r.email?' · '+escapeHtml(r.email):''}${r.detail&&r.event==='page'?' · '+escapeHtml(r.detail):''}<div style="color:${bad?'var(--danger)':'#5b6863'};">${when} · ${escapeHtml(r.device||'')} · ${escapeHtml(r.ip||'')}</div></div>`;
+    }).join('');
+  }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
+}
+document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('llReload'); if(r) r.addEventListener('click',loadLoginLog); });
 async function loadFridayDuty(){
   const list=el('fridayDutyList'), msg=el('fridayDutyMsg');
   if(!list || !isApproved()) return;
@@ -6764,7 +6793,7 @@ async function loadDashboardStats(){
   loadDuplicatePackages();
   loadActivePackages();
   loadApplicants();
-  if(signedInDoctor && signedInDoctor.role==='owner'){ loadFridayDuty(); loadBookingSettings(); loadBookingDeposits(); loadBookingLeads(); }
+  if(signedInDoctor && signedInDoctor.role==='owner'){ loadFridayDuty(); loadLoginLog(); loadBookingSettings(); loadBookingDeposits(); loadBookingLeads(); }
   loadPackagePolicyCheck();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
@@ -11280,7 +11309,7 @@ const DASH_TITLE_GROUPS = [
   ['By doctor','money'], ['Money ledger','money'], ['Day Review','money'], ['Doctor Payroll','money'], ['Other Income','money'],
   ['Expenses','money'], ['Doctor Withdrawals','money'], ['Cash','money'], ['Export','money'],
   ['Package','patients'], ['Send package link','patients'], ['Register an existing package','patients'],
-  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Training schedule','training'], ['Friday event duty','team'], ['Online booking','booking'], ['Booking deposits','booking'], ['Incomplete bookings','booking'], ['Marked paid','checks'], ['Patient payment check','checks']
+  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Training schedule','training'], ['Friday event duty','team'], ['Login activity','team'], ['Online booking','booking'], ['Booking deposits','booking'], ['Incomplete bookings','booking'], ['Marked paid','checks'], ['Patient payment check','checks']
 ];
 function setupDashboardTabs(){
   const dash = document.getElementById('dashboardStatsView');
