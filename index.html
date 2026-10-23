@@ -1255,6 +1255,12 @@
         <div id="bkDepList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Incomplete bookings <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who entered their name and number on the booking page but did not finish booking. Message them on WhatsApp to help. Press ✕ when done.</div>
+        <div id="bkLeadList"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Training applicants <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who applied through the training form. Send them the link, then filter here. Only the owner and people given the Training applicants permission can see this.</div>
@@ -3326,6 +3332,24 @@ async function loadBookingSettings(){
     bkState=d; bkRender();
   }catch(e){ el('bkMsg').textContent='Could not load: '+e.message; }
 }
+
+async function loadBookingLeads(){
+  const list=el('bkLeadList'); if(!list||!isApproved()) return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/booking/leads`,{headers:authHeader()});
+    if(res.status===403){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Owner only.</div>'; return; }
+    const rows=await res.json().catch(()=>[]);
+    if(!res.ok) throw new Error(rows.error||`Server error ${res.status}`);
+    if(!rows.length){ list.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">None.</div>'; return; }
+    list.innerHTML=rows.map(r=>{
+      const when=new Date(r.last_seen).toLocaleString('en-GB',{timeZone:'Africa/Cairo',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div style="border-top:1px solid var(--line);padding:9px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:0.83rem;"><div style="flex:1;min-width:150px;"><b>${escapeHtml(r.name||'')}</b> · ${escapeHtml(r.phone||'')}<div style="color:#8a938e;font-size:0.75rem;">${when}</div></div>
+      <a href="https://wa.me/${normalizeEgyptPhoneForWhatsApp(r.phone||'')}" target="_blank" rel="noopener" style="font-size:0.78rem;padding:6px 10px;border-radius:6px;background:#1f7a4d;color:#fff;text-decoration:none;">WhatsApp</a>
+      <button type="button" class="ghost" data-ld="${r.id}" style="font-size:0.75rem;padding:5px 10px;">✕</button></div>`;
+    }).join('');
+    list.querySelectorAll('[data-ld]').forEach(b=> b.onclick=async()=>{ try{ await fetch(`${BACKEND_URL}/api/booking/leads/${b.dataset.ld}`,{method:'DELETE',headers:authHeader()}); loadBookingLeads(); }catch(e){} });
+  }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
+}
 async function loadBookingDeposits(){
   const list=el('bkDepList'); if(!list||!isApproved()) return;
   try{
@@ -3349,7 +3373,7 @@ async function loadBookingDeposits(){
     });
   }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
 }
-document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',loadBookingDeposits); });
+document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',()=>{ loadBookingDeposits(); loadBookingLeads(); }); });
 async function loadFridayDuty(){
   const list=el('fridayDutyList'), msg=el('fridayDutyMsg');
   if(!list || !isApproved()) return;
@@ -6635,7 +6659,7 @@ async function loadDashboardStats(){
   loadDuplicatePackages();
   loadActivePackages();
   loadApplicants();
-  if(signedInDoctor && signedInDoctor.role==='owner'){ loadFridayDuty(); loadBookingSettings(); loadBookingDeposits(); }
+  if(signedInDoctor && signedInDoctor.role==='owner'){ loadFridayDuty(); loadBookingSettings(); loadBookingDeposits(); loadBookingLeads(); }
   loadPackagePolicyCheck();
   loadPackageOwed();
   ensurePaidNoAmountDefaults();
@@ -11151,7 +11175,7 @@ const DASH_TITLE_GROUPS = [
   ['By doctor','money'], ['Money ledger','money'], ['Day Review','money'], ['Doctor Payroll','money'], ['Other Income','money'],
   ['Expenses','money'], ['Doctor Withdrawals','money'], ['Cash','money'], ['Export','money'],
   ['Package','patients'], ['Send package link','patients'], ['Register an existing package','patients'],
-  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Friday event duty','team'], ['Online booking','booking'], ['Booking deposits','booking'], ['Marked paid','checks'], ['Patient payment check','checks']
+  ['Duplicate payment check','checks'], ['Duplicate packages','checks'], ['Active packages','patients'], ['Training applicants','training'], ['Friday event duty','team'], ['Online booking','booking'], ['Booking deposits','booking'], ['Incomplete bookings','booking'], ['Marked paid','checks'], ['Patient payment check','checks']
 ];
 function setupDashboardTabs(){
   const dash = document.getElementById('dashboardStatsView');
