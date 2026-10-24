@@ -98,6 +98,7 @@
   #appBody{
     margin-left:62px;
   }
+  #adminDrawerToggleBtn{ display:none !important; }
   #mainNavBackdrop{
     display:none;
     position:fixed;
@@ -821,6 +822,10 @@
     <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
     <span class="main-nav-label">Docs</span>
   </button>
+  <button type="button" class="main-nav-btn" id="navSettingsBtn" title="Settings">
+    <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+    <span class="main-nav-label">Settings</span>
+  </button>
 </div>
 <div id="mainNavBackdrop"></div>
 
@@ -847,6 +852,10 @@
   </div>
 
   <div id="adminTabPanelSettings">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label for="appLangSelect" style="font-size:0.85rem;font-weight:700;">🌐 App language / لغة التطبيق</label>
+      <select id="appLangSelect" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.88rem;background:#fff;"><option value="en">English</option><option value="ar">العربية</option></select>
+    </div>
     <button type="button" id="settingsToggleBtn" class="ghost" style="margin-bottom:14px;">⚙️ Settings (API keys, dialect, Drive backup)</button>
     <div id="settingsPanel" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
 
@@ -3409,6 +3418,67 @@ async function loadLoginLog(){
   }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
 }
 document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('llReload'); if(r) r.addEventListener('click',loadLoginLog); });
+
+// ---- App language (English / Arabic): translates the screen text on the fly ----
+const I18N_AR = {"PT Session Scribe": "مساعد العيادة", "PT session scribe — sign in to continue": "سجّل الدخول للمتابعة", "Sign in": "تسجيل الدخول", "or": "أو", "Continue with Google": "المتابعة بحساب Google", "Calendar": "المواعيد", "Stats": "الإحصائيات", "Docs": "الملفات", "Settings": "الإعدادات", "Sessions": "الجلسات", "Clinic Management & Clinical Notes": "إدارة العيادة والملاحظات الطبية", "Admin & Settings": "الإدارة والإعدادات", "⚙️ Settings": "⚙️ الإعدادات", "👥 Team": "👥 الفريق", "Sign in with Google": "تسجيل الدخول بحساب Google", "Sign out": "تسجيل الخروج", "Sign out on all devices": "تسجيل الخروج من كل الأجهزة", "🔔 Enable notifications on this device": "🔔 تفعيل الإشعارات على الجهاز ده", "Save name": "حفظ الاسم", "Email": "الإيميل", "Password": "كلمة السر", "Your display name (e.g. Dr. Ahmed Farag) — shown instead of your email": "اسمك اللي هيظهر بدل الإيميل", "Update code": "تحديث الكود", "Send test": "إرسال تجربة", "Your color on the clinic calendar": "لونك في تقويم العيادة", "🔐 Pending Deletions (owner only)": "🔐 طلبات الحذف (للمالك فقط)", "Manage Doctors (owner only)": "إدارة الدكاترة (للمالك فقط)", "Doctor Colors (owner or secretary)": "ألوان الدكاترة", "+ New session": "+ جلسة جديدة", "Sync from clinic server": "تحديث من سيرفر العيادة", "Intake forms": "استمارات المرضى", "No sessions yet.": "لسه مفيش جلسات.", "Pending approvals": "طلبات في الانتظار", "📊 Today": "📊 النهارده", "Appointments": "المواعيد", "Confirmation sent": "تم إرسال التأكيد", "Confirmed": "مؤكد", "Paid": "مدفوع", "Not paid yet": "لسه ما دفعش", "Cancelled": "ملغي", "Check-ups": "كشوفات", "Recovery": "ريكفري", "✅ All visits from today are documented": "✅ كل زيارات النهارده متوثّقة", "Today": "النهارده", "Yesterday": "إمبارح", "2 days ago": "من يومين", "Overview": "نظرة عامة", "Money": "الفلوس", "Patients & packages": "المرضى والباكدجات", "Checks": "مراجعات", "Training": "التدريب", "Team": "الفريق", "Booking": "الحجز الأونلاين", "This month": "الشهر ده", "This year": "السنة دي", "Custom range": "فترة مخصصة", "to": "إلى", "Show": "عرض", "Send manually": "إرسال يدوي", "📤 Send now": "📤 أرسل دلوقتي", "By doctor — this month": "حسب الدكتور — الشهر ده", "(this month)": "(الشهر ده)", "Money ledger (match with the bank)": "سجل الفلوس (قارنه بالبنك)", "InstaPay": "إنستاباي", "Cash": "كاش", "Duplicate payment check": "فحص الدفعات المكررة", "Check": "فحص", "Marked paid, no amount recorded": "مدفوع بدون مبلغ مسجل", "Patient payment check": "فحص مدفوعات مريض", "Day Review (payments/packages, for month-end checks)": "مراجعة اليوم (للجرد آخر الشهر)", "Doctor Payroll": "مرتبات الدكاترة", "Calculate": "احسب", "Other Income (events, etc.)": "إيرادات تانية (فعاليات وغيرها)", "Add": "إضافة", "Expenses": "المصاريف", "All": "الكل", "Doctor Withdrawals (their own earnings, not a business cost)": "سحب الدكاترة (من أرباحهم)", "Cash ↔ InstaPay Transfers": "تحويلات بين الكاش وإنستاباي", "Cash → InstaPay": "من الكاش لإنستاباي", "InstaPay → Cash": "من إنستاباي للكاش", "Export": "تصدير", "📥 Download CSV": "📥 تحميل CSV", "Package balances owed": "باكدجات عليها باقي", "Duplicate packages — what happened": "باكدجات مكررة", "Total collected (EGP)": "إجمالي المحصّل (جنيه)", "Cash (EGP)": "كاش (جنيه)", "InstaPay (EGP)": "إنستاباي (جنيه)", "Net Cash (after cash expenses)": "صافي الكاش (بعد المصاريف)", "Net InstaPay (after instapay expenses)": "صافي إنستاباي (بعد المصاريف)", "Collected (EGP)": "المحصّل (جنيه)", "Login activity": "سجل الدخول", "Refresh": "تحديث", "Friday event duty": "مناوبة فعالية الجمعة", "Online booking": "الحجز الأونلاين", "Booking deposits": "عرابين الحجز", "Incomplete bookings": "حجوزات ناقصة", "Training schedule": "جدول التدريب", "Training applicants": "المتقدمين للتدريب", "Copy form link": "نسخ لينك الاستمارة", "Copy list as CSV": "نسخ القائمة CSV", "New": "جديد", "Shortlisted": "مرشّح", "Interview": "مقابلة", "Accepted": "مقبول", "Rejected": "مرفوض", "Active packages": "الباكدجات الشغالة", "Package policy check": "متابعة سياسة الباكدج", "Send package link to patients": "إرسال لينك الباكدج للمرضى", "Also show those already sent": "اعرض اللي اتبعتلهم كمان", "Package follow-up (not coming)": "متابعة الباكدجات (مش بيجوا)", "Not seen for": "غايب من", "10+ days": "أكتر من 10 أيام", "14+ days": "أكتر من 14 يوم", "21+ days": "أكتر من 21 يوم", "30+ days": "أكتر من 30 يوم", "60+ days": "أكتر من 60 يوم", "Register an existing package": "تسجيل باكدج قديم", "Save": "حفظ", "Send policy on WhatsApp": "إرسال السياسة على واتساب", "Already sent": "اتبعت", "💬 Send": "💬 إرسال", "Online booking is OPEN": "الحجز الأونلاين مفتوح", "InstaPay account patients should pay to": "حساب إنستاباي اللي المريض يحوّل عليه", "Extra note shown to patients (optional)": "ملاحظة للمرضى (اختياري)", "Slot (minutes)": "مدة الميعاد (دقيقة)", "Min hours before visit": "أقل ساعات قبل الزيارة", "Days ahead allowed": "عدد الأيام المسموح الحجز فيها", "+ Add type": "+ إضافة نوع", "Open hours per doctor": "ساعات كل دكتور", "Copy booking link": "نسخ لينك الحجز", "Sat": "سبت", "Sun": "أحد", "Mon": "اتنين", "Tue": "تلات", "Wed": "أربع", "Thu": "خميس", "Fri": "جمعة", "Leave a day empty = not available that day.": "سيب اليوم فاضي = مفيش حجز فيه.", "No online bookings yet.": "لسه مفيش حجوزات أونلاين.", "Import from TimeTree": "استيراد من TimeTree", "Trash (deleted days, last 7 days)": "سلة المحذوفات (آخر 7 أيام)", "➕ Add a doctor to the roster (owner only — no sign-in needed yet)": "➕ إضافة دكتور للفريق (للمالك فقط)", "Doctor": "دكتور", "Secretary (calendar only)": "سكرتارية (المواعيد فقط)", "Add doctor": "إضافة دكتور", "📱 Send appointment reminders": "📱 إرسال تذكير بالمواعيد", "Tomorrow": "بكرة", "Pick date": "اختار تاريخ", "📱 Send to everyone on this list": "📱 إرسال لكل اللي في القائمة", "📱 Send next": "📱 إرسال للي بعده", "Stop": "إيقاف", "✓ Paid": "✓ مدفوع", "! Unpaid": "! غير مدفوع", "Assessment": "كشف", "+ Add": "+ إضافة", "Don't forget — patients to book this day": "افتكر — مرضى لازم يتحجزوا اليوم ده", "No reminders for this day.": "مفيش تذكيرات لليوم ده.", "Mark a doctor unavailable this day": "سجّل إن دكتور مش موجود اليوم ده", "+ Book appointment": "+ احجز ميعاد", "Patient": "المريض", "Recording — tap the mic again to stop": "جاري التسجيل — اضغط الميكروفون تاني للإيقاف", "Cancel": "إلغاء", "Book appointment": "حجز ميعاد", "Patient name": "اسم المريض", "Phone": "التليفون", "Time": "الوقت", "AM": "ص", "PM": "م", "Visit type": "نوع الزيارة", "Session": "جلسة", "🩺 Check-up": "🩺 كشف", "🌀 Recovery": "🌀 ريكفري", "Save changes": "حفظ التعديلات", "Cancel appointment": "إلغاء الميعاد", "👻 Mark as No Show": "👻 تسجيل إنه ما حضرش", "↩️ Restore (un-cancel)": "↩️ استرجاع (إلغاء الإلغاء)", "🗑️ Delete permanently": "🗑️ حذف نهائي", "Notes": "ملاحظات", "📅 History": "📅 السجل", "💰 Payment": "💰 الدفع", "✏️ Edit": "✏️ تعديل", "💬 Chat": "💬 محادثة", "Invoice": "فاتورة", "💸 Not paid yet": "💸 لسه ما دفعش", "Export PDF": "تصدير PDF", "📋 Intake forms": "📋 استمارات المرضى", "🗑️ Trash": "🗑️ المحذوفات", "Already paid — covered by a package (no charge here)": "مدفوع قبل كده — مغطى بباكدج (مفيش مبلغ هنا)", "Mark this session as free (no charge)": "اعتبر الجلسة دي مجانية", "Mark as unpaid (correct a mistake)": "اعتبره غير مدفوع (تصحيح غلطة)", "No active package on file for this patient — register their existing one now?": "مفيش باكدج شغال للمريض ده — تسجّل باكدجه القديم دلوقتي؟", "Register & continue": "سجّل وكمّل", "— keep current —": "— سيبه زي ما هو —", "Print / Save as PDF": "طباعة / حفظ PDF", "Doctor's name (appears above the signature)": "اسم الدكتور (بيظهر فوق التوقيع)", "Patient's name": "اسم المريض", "Date": "التاريخ", "Payment type": "نوع الدفع", "Check-up (كشف)": "كشف", "Session (جلسة)": "جلسة", "Package (باكدج)": "باكدج", "Prescription (روشتة)": "روشتة", "Invoice (Payment receipt)": "فاتورة (إيصال دفع)", "Referral Summary": "ملخص التحويل", "Surgery date (if applicable):": "تاريخ العملية (لو فيه):", "Clear": "مسح", "Initial assessment": "كشف أولي", "Follow-up / progress": "متابعة", "Save to session": "حفظ في الجلسة", "Save to clinic server": "حفظ على سيرفر العيادة", "Start recording": "ابدأ التسجيل", "Pause": "إيقاف مؤقت", "Search patient…": "ابحث عن مريض", "🔍 Find a patient's appointment…": "🔍 دوّر على ميعاد مريض", "Doctor's name": "اسم الدكتور", "Email (if known — lets them sign in right away)": "الإيميل (لو معروف)", "🔍 Search this doctor's patients…": "🔍 ابحث في مرضى الدكتور", "Write a note…": "اكتب ملاحظة", "Your phone, e.g. 01012345678": "رقم تليفونك، مثلاً 01012345678", "What was it for?": "كانت لإيه؟", "Amount (EGP)": "المبلغ (جنيه)", "Search name / phone / university": "ابحث بالاسم / التليفون / الجامعة", "Total": "الإجمالي", "Used": "المستخدم", "Total price (EGP)": "السعر الكلي (جنيه)", "Paid now (EGP)": "المدفوع دلوقتي (جنيه)", "From": "من", "To": "إلى", "Patient name / ID": "اسم المريض / الرقم", "Session date": "تاريخ الجلسة", "Auto-calculated": "بيتحسب تلقائي", "Previous month": "الشهر اللي فات", "Next month": "الشهر الجاي", "Patient arrived": "المريض وصل", "Edit patient name": "تعديل اسم المريض", "Delete all appointments this day (owner only)": "حذف كل مواعيد اليوم ده (للمالك فقط)", "Name": "الاسم", "Price": "السعر", "Dashboard": "لوحة التحكم", "Documentation": "الملفات", "Works elsewhere: any": "بيشتغل في مكان تاني: أي", "Not working elsewhere": "مش بيشتغل في مكان تاني", "Working elsewhere": "بيشتغل في مكان تاني", "Can commit 6 days": "يقدر يلتزم 6 أيام", "Cannot commit": "مش هيقدر يلتزم", "Status: all": "الحالة: الكل", "Yes, easily": "أيوه، بسهولة", "With difficulty": "بصعوبة", "No": "لأ", "Area:": "المنطقة:", "Other": "تانية"};
+const I18N_AR_DAYS={Sunday:0,Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5,Saturday:6};
+const I18N_MONTHS={January:0,February:1,March:2,April:3,May:4,June:5,July:6,August:7,September:8,October:9,November:10,December:11,Jan:0,Feb:1,Mar:2,Apr:3,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+let appLang='en';
+try{ appLang = localStorage.getItem('app_lang')==='ar' ? 'ar' : 'en'; }catch(e){}
+function i18nArDigits(str){ return String(str).replace(/\d/g,d=>'٠١٢٣٤٥٦٧٨٩'[d]); }
+function i18nTranslate(core){
+  if(Object.prototype.hasOwnProperty.call(I18N_AR,core)) return I18N_AR[core];
+  let m;
+  if((m=core.match(/^(\d{2}):(\d{2}) (AM|PM)$/))) return i18nArDigits(m[1]+':'+m[2])+' '+(m[3]==='AM'?'ص':'م');
+  if((m=core.match(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday), (\w{3}) (\d{1,2})$/))){
+    const d=new Date(2026,I18N_MONTHS[m[2]]||0,+m[3]);
+    return ['الأحد','الاتنين','التلات','الأربع','الخميس','الجمعة','السبت'][I18N_AR_DAYS[m[1]]]+'، '+i18nArDigits(m[3])+' '+d.toLocaleDateString('ar-EG',{month:'long'});
+  }
+  if((m=core.match(/^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})$/))) return new Date(+m[2],I18N_MONTHS[m[1]],1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'});
+  if((m=core.match(/^(\d+) of (\d+) used$/))) return i18nArDigits(m[1])+' من '+i18nArDigits(m[2])+' مستخدمة';
+  if((m=core.match(/^(\d+) left$/))) return 'باقي '+i18nArDigits(m[1]);
+  if((m=core.match(/^Dr\. (.+)$/))) return 'د. '+m[1];
+  return null;
+}
+function i18nText(node){
+  const v=node.nodeValue; if(!v||!v.trim()) return;
+  const core=v.replace(/\s+/g,' ').trim(); const out=i18nTranslate(core);
+  if(out) node.nodeValue=v.replace(v.trim(), out);
+}
+function i18nAttrs(elm){
+  ['placeholder','title','aria-label'].forEach(a=>{
+    const v=elm.getAttribute&&elm.getAttribute(a); if(!v) return;
+    const out=i18nTranslate(v.replace(/\s+/g,' ').trim()); if(out) elm.setAttribute(a,out);
+  });
+}
+function i18nWalk(root){
+  if(!root) return;
+  if(root.nodeType===3){ i18nText(root); return; }
+  if(root.nodeType!==1) return;
+  const tag=root.tagName; if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEXTAREA') return;
+  i18nAttrs(root);
+  const w=document.createTreeWalker(root,NodeFilter.SHOW_ELEMENT|NodeFilter.SHOW_TEXT,{acceptNode:n=> (n.nodeType===1&&(n.tagName==='SCRIPT'||n.tagName==='STYLE'||n.tagName==='TEXTAREA'))?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT});
+  let n; while((n=w.nextNode())){ if(n.nodeType===3) i18nText(n); else i18nAttrs(n); }
+}
+function startAppLanguage(){
+  if(appLang!=='ar') return;
+  document.documentElement.lang='ar'; document.documentElement.setAttribute('data-lang','ar');
+  i18nWalk(document.body);
+  new MutationObserver(muts=>{
+    for(const m of muts){
+      if(m.type==='childList') m.addedNodes.forEach(i18nWalk);
+      else if(m.type==='characterData') i18nText(m.target);
+      else if(m.type==='attributes') i18nAttrs(m.target);
+    }
+  }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['placeholder','title']});
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const sel=document.getElementById('appLangSelect');
+  if(sel){ sel.value=appLang; sel.addEventListener('change',()=>{ try{ localStorage.setItem('app_lang',sel.value); }catch(e){} location.reload(); }); }
+  const nb=document.getElementById('navSettingsBtn');
+  if(nb) nb.addEventListener('click',()=>{ try{ el('mainNavBar').classList.remove('open'); el('mainNavBackdrop').classList.remove('open'); }catch(e){} openAdminDrawer(); });
+  startAppLanguage();
+});
 async function loadFridayDuty(){
   const list=el('fridayDutyList'), msg=el('fridayDutyMsg');
   if(!list || !isApproved()) return;
