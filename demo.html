@@ -98,7 +98,7 @@
   // 3) Look & feel: ribbon + no service worker
   document.addEventListener('DOMContentLoaded',function(){
     var r=document.createElement('div');
-    r.textContent='DEMO — all names, numbers and bookings are fake';
+    r.innerHTML='DEMO — all names, numbers and bookings are fake &nbsp;·&nbsp; <a href="index.html" style="color:#fff;text-decoration:underline;pointer-events:auto;">Exit demo</a>';
     r.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:#b07a1f;color:#fff;text-align:center;font:700 12px/22px sans-serif;padding-top:env(safe-area-inset-top);pointer-events:none;';
     document.body.appendChild(r); document.body.style.paddingTop='24px';
     document.title='Musaed — DEMO';
@@ -879,6 +879,19 @@
   #doctorPatientsGridOverlay{ padding-top:env(safe-area-inset-top); box-sizing:border-box; }
   #mainNavBar{ padding-top:calc(10px + env(safe-area-inset-top)); }
   .sidebar, .admin-drawer{ padding-top:calc(18px + env(safe-area-inset-top)); }
+  /* Admin & Settings as a centered pop-up */
+  .admin-drawer{ top:50%; left:50%; right:auto; height:auto; max-height:88vh; width:580px; max-width:94vw;
+    border:1px solid var(--line); border-radius:20px; padding:24px 22px 26px !important;
+    transform:translate(-50%,-47%) scale(.97); opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease, visibility .2s; box-shadow:0 24px 70px rgba(0,0,0,.35); }
+  .admin-drawer.open{ transform:translate(-50%,-50%) scale(1); opacity:1; visibility:visible; pointer-events:auto; }
+  .admin-drawer h2{ font-size:1.12rem; letter-spacing:0; margin:2px 0 16px !important; padding-bottom:10px; text-align:center; }
+  #adminDrawerCloseBtn{ left:auto !important; right:14px !important; top:14px !important; width:34px; height:34px; border-radius:50%;
+    border:1px solid var(--line) !important; background:var(--paper) !important; font-size:1.2rem !important; line-height:1; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .admin-tab-btn{ font-size:.95rem; padding:12px 8px; }
+  #adminTabPanelSettings > .ghost, #adminTabPanelTeam > .ghost{ width:100%; text-align:center; }
+  .admin-drawer .patient-row{ gap:8px; }
+  #adminDrawerBackdrop{ backdrop-filter:blur(3px); -webkit-backdrop-filter:blur(3px); }
   #dayScheduleOverlay, #noteExpandOverlay, #patientDetailOverlay, #unpaidListOverlay, #intakeListOverlay,
   #trashOverlay, #timeTreeImportOverlay, #miniDatePickerOverlay, #quickBookOverlay, #patientSummaryOverlay,
   #prescriptionOverlay, #invoiceOverlay{ padding-top:calc(16px + env(safe-area-inset-top)) !important; }
@@ -911,6 +924,7 @@
       Continue with Google
     </button>
     <div id="mainSignInStatus" style="font-size:0.78rem;color:#8a938e;margin-top:8px;min-height:1.2em;"></div>
+    <a href="demo.html" id="tryDemoLink" style="display:block;margin-top:14px;padding:12px;border:1.5px dashed #b07a1f;border-radius:12px;color:#8a5f12;font-weight:700;font-size:0.9rem;text-align:center;text-decoration:none;">👀 Try the demo (fake data, no sign-in)</a>
   </div>
 </div>
 
@@ -922,6 +936,10 @@
   <button type="button" class="main-nav-btn" id="navDashboardBtn" title="Dashboard" style="display:none;">
     <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10"/><path d="M12 20V4"/><path d="M20 20v-7"/></svg></span>
     <span class="main-nav-label">Stats</span>
+  </button>
+  <button type="button" class="main-nav-btn" id="navBookingBtn" title="Booking" style="display:none;">
+    <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18"/></svg></span>
+    <span class="main-nav-label">Booking</span>
   </button>
   <button type="button" class="main-nav-btn" id="navDocumentationBtn" title="Documentation">
     <span class="main-nav-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5"/><path d="M8 13h8"/><path d="M8 17h5"/></svg></span>
@@ -1368,19 +1386,6 @@
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Patients book from a public page. They pay half the fee by InstaPay (non-refundable) and upload the screenshot, then the visit appears in the calendar. Patients with an active package skip the deposit. Owner only.</div>
         <div id="bkMsg" style="font-size:0.8rem;color:var(--danger);margin-bottom:8px;"></div>
         <div id="bkBody"><div style="font-size:0.8rem;color:#8a938e;">Loading…</div></div>
-      </div>
-
-      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Booking deposits <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check each screenshot against your InstaPay. Press OK if the money arrived. Press Reject if it is fake or missing — the visit is cancelled from the calendar.</div>
-        <button type="button" class="ghost" id="bkDepReload" style="font-size:0.78rem;padding:7px 12px;margin-bottom:10px;">Refresh</button>
-        <div id="bkDepList"></div>
-      </div>
-
-      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Incomplete bookings <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
-      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who entered their name and number on the booking page but did not finish booking. Message them on WhatsApp to help. Press ✕ when done.</div>
-        <div id="bkLeadList"></div>
       </div>
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Training schedule <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -1939,6 +1944,23 @@
         </div>
       </div>
     </div>
+    <div id="bookingView" style="display:none;">
+      <div style="font-size:0.92rem;font-weight:700;margin:8px 0 6px;">🌐 Online bookings</div>
+      <div style="font-size:0.78rem;color:#5b6863;margin-bottom:12px;">Check each deposit screenshot, then press OK or Reject. Message the people who did not finish booking on WhatsApp.</div>
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Booking deposits <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check each screenshot against your InstaPay. Press OK if the money arrived. Press Reject if it is fake or missing — the visit is cancelled from the calendar.</div>
+        <button type="button" class="ghost" id="bkDepReload" style="font-size:0.78rem;padding:7px 12px;margin-bottom:10px;">Refresh</button>
+        <div id="bkDepList"></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Incomplete bookings <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">People who entered their name and number on the booking page but did not finish booking. Message them on WhatsApp to help. Press ✕ when done.</div>
+        <div id="bkLeadList"></div>
+      </div>
+    </div>
+
     <div id="documentationView" style="display:none;">
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
     <div class="section-title" style="margin-top:0;">Patient</div>
@@ -3393,8 +3415,9 @@ function bkInput(id,val,ph,type){ return `<input id="${id}" type="${type||'text'
 function bkRender(){
   const box=el('bkBody'); if(!box||!bkState) return;
   const s=bkState.settings, docs=bkState.doctors||[];
-  const types=s.types.map((t,i)=>`<div style="display:grid;grid-template-columns:2fr 1fr 1.2fr auto;gap:6px;margin-bottom:6px;" data-bktype="${i}">
-      <input class="bkt-label" value="${escapeHtml(t.label)}" placeholder="Name" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
+  const types=s.types.map((t,i)=>`<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px dashed var(--line);" data-bktype="${i}">
+      <input class="bkt-label" value="${escapeHtml(t.label)}" placeholder="English name" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
+      <input class="bkt-label-ar" dir="rtl" value="${escapeHtml(t.label_ar||'')}" placeholder="الاسم بالعربي (يظهر لما المريض يختار عربي)" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
       <input class="bkt-price" type="number" value="${t.price||0}" placeholder="Price" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;">
       <select class="bkt-vt" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;"><option value="session"${t.visit_type==='session'?' selected':''}>Session</option><option value="checkup"${t.visit_type==='checkup'?' selected':''}>Check-up</option><option value="recovery"${t.visit_type==='recovery'?' selected':''}>Recovery</option></select>
       <button type="button" class="ghost bkt-del" style="font-size:0.75rem;padding:6px 10px;">✕</button></div>`).join('');
@@ -3406,7 +3429,12 @@ function bkRender(){
         <input type="time" class="bkh-from" data-e="${escapeHtml(d.email)}" data-wd="${wd}" value="${r[0]}" style="padding:5px;border:1px solid var(--line);border-radius:6px;">
         <span>to</span><input type="time" class="bkh-to" data-e="${escapeHtml(d.email)}" data-wd="${wd}" value="${r[1]}" style="padding:5px;border:1px solid var(--line);border-radius:6px;"></div>`;
     }).join('');
-    return `<details style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;"><summary style="cursor:pointer;font-weight:700;font-size:0.85rem;">Dr. ${escapeHtml(d.name)}</summary><div style="margin-top:8px;">${rows}<div style="font-size:0.72rem;color:#8a938e;">Leave a day empty = not available that day.</div></div></details>`;
+    const rule=(s.docs||{})[d.email]||{};
+    return `<details style="border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin-bottom:6px;"><summary style="cursor:pointer;font-weight:700;font-size:0.85rem;">Dr. ${escapeHtml(d.name)}</summary><div style="margin-top:8px;">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;font-size:0.8rem;">
+        <select class="bkd-gender" data-e="${escapeHtml(d.email)}" style="padding:6px;border:1px solid var(--line);border-radius:6px;font-size:0.8rem;"><option value="">Gender: not set</option><option value="female"${rule.gender==='female'?' selected':''}>Female (male patients cannot book her)</option><option value="male"${rule.gender==='male'?' selected':''}>Male</option></select>
+        <label style="display:flex;align-items:center;gap:5px;"><input type="checkbox" class="bkd-checkups" data-e="${escapeHtml(d.email)}"${rule.checkups===false?'':' checked'}> Takes check-ups</label>
+      </div>${rows}<div style="font-size:0.72rem;color:#8a938e;">Leave a day empty = not available that day.</div></div></details>`;
   }).join('');
   box.innerHTML=`
     <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="bkEnabled"${s.enabled?' checked':''}> Online booking is OPEN</label>
@@ -3419,6 +3447,7 @@ function bkRender(){
     <div style="font-size:0.78rem;font-weight:700;margin:14px 0 4px;">Visit types &amp; full price (deposit = half). Price 0 = hidden.</div>
     <div id="bkTypes">${types}</div>
     <button type="button" class="ghost" id="bkAddType" style="font-size:0.75rem;padding:6px 10px;margin-bottom:12px;">+ Add type</button>
+    <button type="button" class="ghost" id="bkSuggest" style="font-size:0.75rem;padding:6px 10px;margin-bottom:12px;">Fill the suggested types</button>
     <div style="font-size:0.78rem;font-weight:700;margin:6px 0 6px;">Open hours per doctor</div>${hours||'<div style="font-size:0.8rem;color:#8a938e;">No approved doctors.</div>'}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
       <button type="button" id="bkSave" style="padding:9px 16px;border:none;border-radius:8px;background:var(--maroon);color:#fff;font-weight:700;cursor:pointer;">Save</button>
@@ -3426,19 +3455,34 @@ function bkRender(){
   el('bkCopy').onclick=()=>{ const u=BACKEND_URL+'/book'; (navigator.clipboard?navigator.clipboard.writeText(u):Promise.reject()).then(()=>alert('Link copied:\n'+u)).catch(()=>prompt('Copy this link:',u)); };
   el('bkAddType').onclick=()=>{ bkCollect(); bkState.settings.types.push({key:'type'+Date.now(),label:'',price:0,visit_type:'session'}); bkRender(); };
   box.querySelectorAll('.bkt-del').forEach(b=> b.onclick=()=>{ bkCollect(); const i=+b.closest('[data-bktype]').dataset.bktype; bkState.settings.types.splice(i,1); bkRender(); });
+  el('bkSuggest').onclick=()=>{
+    if(!confirm('Replace the list with the suggested types (Check-up, Session 1/2 parts, Recovery Half/Full Body)? Prices you typed for Check-up and Session are kept.')) return;
+    bkCollect();
+    const old=k=>(bkState.settings.types.find(t=>t.key===k)||{});
+    bkState.settings.types=[
+      {key:'checkup',label:'Check-up',label_ar:'Check-up — كشف (جلسة تقييمية)',price:old('checkup').price||0,visit_type:'checkup'},
+      {key:'session1',label:'Session - 1 body part',label_ar:'جلسة — على مكان واحد (عضو واحد)',price:old('session1').price||500,visit_type:'session'},
+      {key:'session2',label:'Session - 2 body parts',label_ar:'جلسة — على أكتر من مكان (عضوين)',price:old('session2').price||750,visit_type:'session'},
+      {key:'recovery_half',label:'Recovery - Half Body',label_ar:'Recovery - Half Body',price:old('recovery_half').price||900,visit_type:'recovery'},
+      {key:'recovery_full',label:'Recovery - Full Body',label_ar:'Recovery - Full Body',price:old('recovery_full').price||1500,visit_type:'recovery'}];
+    bkRender();
+  };
   el('bkSave').onclick=bkSave;
 }
 function bkCollect(){
   const s=bkState.settings;
   s.enabled=el('bkEnabled').checked; s.instapay=el('bkInstapay').value; s.note=el('bkNote').value;
   s.slot_minutes=+el('bkSlot').value||30; s.min_lead_hours=+el('bkLead').value||0; s.max_days_ahead=+el('bkAhead').value||30;
-  s.types=Array.from(document.querySelectorAll('#bkTypes [data-bktype]')).map((r,i)=>({key:(s.types[i]&&s.types[i].key)||('type'+i), label:r.querySelector('.bkt-label').value.trim(), price:+r.querySelector('.bkt-price').value||0, visit_type:r.querySelector('.bkt-vt').value}));
+  s.types=Array.from(document.querySelectorAll('#bkTypes [data-bktype]')).map((r,i)=>({key:(s.types[i]&&s.types[i].key)||('type'+i), label:r.querySelector('.bkt-label').value.trim(), label_ar:r.querySelector('.bkt-label-ar').value.trim(), price:+r.querySelector('.bkt-price').value||0, visit_type:r.querySelector('.bkt-vt').value}));
   const hours={};
   document.querySelectorAll('.bkh-from').forEach(f=>{
     const to=document.querySelector(`.bkh-to[data-e="${CSS.escape(f.dataset.e)}"][data-wd="${f.dataset.wd}"]`);
     if(f.value && to && to.value && f.value<to.value){ ((hours[f.dataset.e]=hours[f.dataset.e]||{})[f.dataset.wd]=[[f.value,to.value]]); }
   });
   s.hours=hours;
+  const docsRules={};
+  document.querySelectorAll('.bkd-gender').forEach(g=>{ const e=g.dataset.e; const c=document.querySelector(`.bkd-checkups[data-e="${CSS.escape(e)}"]`); docsRules[e]={ gender:g.value, checkups: c?c.checked:true }; });
+  s.docs=docsRules;
 }
 async function bkSave(){
   const msg=el('bkMsg'); msg.style.color='var(--danger)'; msg.textContent='';
@@ -3542,7 +3586,6 @@ function i18nTranslate(core){
   if((m=core.match(/^(January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})$/))) return new Date(+m[2],I18N_MONTHS[m[1]],1).toLocaleDateString('ar-EG',{month:'long',year:'numeric'});
   if((m=core.match(/^(\d+) of (\d+) used$/))) return i18nArDigits(m[1])+' من '+i18nArDigits(m[2])+' مستخدمة';
   if((m=core.match(/^(\d+) left$/))) return 'باقي '+i18nArDigits(m[1]);
-  if((m=core.match(/^Dr\. (.+)$/))) return 'د. '+m[1];
   return null;
 }
 function i18nText(node){
@@ -6419,6 +6462,7 @@ function updateSignInStatusUI(){
     const isOwner = signedInDoctor.role === 'owner';
     const canViewDashboard = isOwner || !!signedInDoctor.can_view_dashboard;
     el('navDashboardBtn').style.display = canViewDashboard ? 'flex' : 'none';
+    el('navBookingBtn').style.display = (isOwner || signedInDoctor.role === 'secretary') ? 'flex' : 'none';
     el('statsRow_todayInline').style.display = canViewDashboard ? 'flex' : 'none';
     el('statsRow_todayInline_label').style.display = canViewDashboard ? 'block' : 'none';
     if(!canViewDashboard && el('navDashboardBtn').classList.contains('active')){
@@ -9181,6 +9225,15 @@ function renderScheduleList(events){
       visitPill = `<span class="pill-badge" style="background:var(--badge-teal-bg);color:var(--badge-teal-fg);"><span style="font-size:0.55em;">🌀</span> Recovery</span>`;
     }
 
+    // Online-booking pill: appointment came from the public /book page
+    let onlinePill = '';
+    try{
+      let nts = ev.notes; if(typeof nts === 'string'){ try{ nts = JSON.parse(nts); }catch(e){ nts = []; } }
+      if(Array.isArray(nts) && nts.some(n=> n && (n.author === 'Online booking' || String(n.text||'').indexOf('Online booking') === 0))){
+        onlinePill = `<span class="pill-badge" style="background:#efe3f7;color:#6b2d8f;">🌐 Online</span>`;
+      }
+    }catch(e){}
+
     // Status pill: cancelled → red X, no-show → gold ghost, free → blue, else paid/unpaid
     let statusPill;
     if(isCancelled){
@@ -9199,6 +9252,7 @@ function renderScheduleList(events){
       <span style="font-size:0.66rem;color:#5b6863;min-width:42px;flex-shrink:0;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
       <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.82rem;font-weight:700;cursor:pointer;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;${isCancelled ? 'text-decoration:line-through;color:#c0392b;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
       ${visitPill}
+      ${onlinePill}
       ${isArrived ? `<span class="pill-badge" style="background:#1f7a3f;color:#fff;">● Arrived ${escapeHtml(arrivedTime)}</span>` : ''}
       ${statusPill}
       ${(isCancelled || isNoShow) ? '' : `<button type="button" class="arrived-toggle-btn" data-id="${ev.id}" title="${isArrived ? 'Undo arrival' : 'Patient arrived'}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid ${isArrived ? '#1f7a3f' : '#9fb5aa'};background:${isArrived ? '#1f7a3f' : 'transparent'};color:${isArrived ? '#fff' : '#5b6863'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
@@ -11546,11 +11600,13 @@ function switchMainView(view){
   el('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   el('dashboardStatsView').style.display = view === 'dashboard' ? 'block' : 'none';
   el('documentationView').style.display = view === 'documentation' ? 'block' : 'none';
+  el('bookingView').style.display = view === 'booking' ? 'block' : 'none';
+  el('navBookingBtn').classList.toggle('active', view === 'booking');
   el('navCalendarBtn').classList.toggle('active', view === 'calendar');
   el('navDashboardBtn').classList.toggle('active', view === 'dashboard');
   el('navDocumentationBtn').classList.toggle('active', view === 'documentation');
   el('sidebarToggleBtn').style.display = view === 'documentation' ? 'inline-block' : 'none';
-  if(view === 'calendar' || view === 'dashboard'){
+  if(view === 'calendar' || view === 'dashboard' || view === 'booking'){
     if(el('sidebarPanel').classList.contains('open')) closeSidebar();
   }
   if(view === 'calendar'){
@@ -11558,6 +11614,8 @@ function switchMainView(view){
     loadMonthAndDay();
     loadQuickBookDoctorOptions();
     loadKnownPatients();
+  } else if(view === 'booking'){
+    loadBookingDeposits(); loadBookingLeads();
   } else if(view === 'dashboard'){
     loadDashboardStats();
   } else if(view === 'documentation'){
@@ -11566,6 +11624,7 @@ function switchMainView(view){
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
 el('navDashboardBtn').addEventListener('click', ()=> switchMainView('dashboard'));
+el('navBookingBtn').addEventListener('click', ()=> switchMainView('booking'));
 el('statsInlineDatePicker').addEventListener('change', (e)=>{
   if(!e.target.value) return;
   const [y, m, d] = e.target.value.split('-').map(Number);
@@ -11691,7 +11750,7 @@ function toggleMainNav(forceState){
 }
 el('mainNavToggleBtn').addEventListener('click', ()=> toggleMainNav());
 el('mainNavBackdrop').addEventListener('click', ()=> toggleMainNav(false));
-['navCalendarBtn','navDashboardBtn','navDocumentationBtn'].forEach(id=>{
+['navCalendarBtn','navDashboardBtn','navBookingBtn','navDocumentationBtn'].forEach(id=>{
   el(id).addEventListener('click', ()=> toggleMainNav(false));
 });
 
