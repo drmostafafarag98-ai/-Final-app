@@ -1,0 +1,8 @@
+{
+  "clinics": {
+    "EMPOWER": {
+      "name": "Empower Physiotherapy - Heliopolis",
+      "backend": "https://pt-script-backend.onrender.com"
+    }
+  }
+}
