@@ -875,6 +875,7 @@
   <div style="display:flex;gap:6px;margin-bottom:16px;border-bottom:2px solid var(--line);">
     <button type="button" class="admin-tab-btn active" id="adminTabSettingsBtn" data-tab="settings">⚙️ Settings</button>
     <button type="button" class="admin-tab-btn" id="adminTabTeamBtn" data-tab="team">👥 Team</button>
+    <button type="button" class="admin-tab-btn" id="adminTabClinicBtn" data-tab="clinic" style="display:none;">🏥 Clinic</button>
   </div>
 
   <div id="adminTabPanelSettings">
@@ -989,6 +990,13 @@
     </div>
 
     </div>
+  </div>
+
+  <div id="adminTabPanelClinic" style="display:none;">
+    <div style="font-size:0.78rem;color:#5b6863;margin-bottom:12px;">Your clinic's details. They appear in WhatsApp messages, the booking page and the package page.</div>
+    <div id="clinicForm"></div>
+    <div id="clinicStatus" style="font-size:0.8rem;min-height:1.2em;margin:8px 0;"></div>
+    <button type="button" id="clinicSaveBtn" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--maroon);color:#fff;font-weight:700;font-size:0.95rem;cursor:pointer;">Save clinic settings</button>
   </div>
 
   <div id="adminTabPanelTeam" style="display:none;">
@@ -3126,7 +3134,7 @@ function dormantAgoText(iso){
 function buildDormantMessage(p){
   const name = (p.patient_name || '').trim();
   const left = p.total_sessions - p.used_sessions;
-  return `أهلاً ${name} 🌷\nإزيك؟ معاك عيادة Empower.\nلسه ليك ${left} ${left <= 10 ? 'جلسات' : 'جلسة'} في الباكدج بتاعك، وعاوزين نطمن عليك ونعرف حالتك بعد آخر جلسة.\nتحب نحجزلك ميعاد تكمل فيه؟ ولو ظروفك مش مناسبة قولنا عشان نظبطها معاك.\nشكراً 🌷`;
+  return `أهلاً ${name} 🌷\nإزيك؟ معاك عيادة ${CLINIC.name_ar || CLINIC.name}.\nلسه ليك ${left} ${left <= 10 ? 'جلسات' : 'جلسة'} في الباكدج بتاعك، وعاوزين نطمن عليك ونعرف حالتك بعد آخر جلسة.\nتحب نحجزلك ميعاد تكمل فيه؟ ولو ظروفك مش مناسبة قولنا عشان نظبطها معاك.\nشكراً 🌷`;
 }
 async function setPackageFollowup(id, status, note){
   const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(id)}/followup`, {
@@ -3349,7 +3357,7 @@ function bkRender(){
   }).join('');
   box.innerHTML=`
     <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="bkEnabled"${s.enabled?' checked':''}> Online booking is OPEN</label>
-    <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;">InstaPay account patients should pay to</div>${bkInput('bkInstapay',s.instapay,'e.g. empower@instapay or 0100xxxxxxx')}
+    <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;">InstaPay account patients should pay to</div>${bkInput('bkInstapay',s.instapay,'e.g. name@instapay or 0100xxxxxxx')}
     <div style="font-size:0.78rem;font-weight:700;margin:10px 0 4px;">Extra note shown to patients (optional)</div>${bkInput('bkNote',s.note,'')}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
       <div><div style="font-size:0.72rem;font-weight:700;">Slot (minutes)</div>${bkInput('bkSlot',s.slot_minutes,'', 'number')}</div>
@@ -3616,7 +3624,6 @@ const TR_SLOTS=TR_COHORTS.flatMap(c=>[{v:`${c[0]}|${c[1]}|morning`,l:`${c[2]} ·
 const TR_DAYS=[{v:'',l:'Days: all'},{v:'0,2,4',l:'Sun · Tue · Thu'},{v:'6,1,3',l:'Sat · Mon · Wed'},{v:'0,1,2,3,4',l:'Sun → Thu (no Sat)'},{v:'1,3',l:'Mon · Wed'},{v:'0,2',l:'Sun · Tue'},{v:'2,4',l:'Tue · Thu'}];
 function trDayOk(a,ymd){ const wd=new Date(ymd+'T12:00:00Z').getUTCDay(); if(wd===5) return false; return !a.train_days || a.train_days.split(',').includes(String(wd)); }
 function trDaysLabel(a){ const o=TR_DAYS.find(x=>x.v===(a.train_days||'')); return a.train_days&&o?o.l:''; }
-const TR_MAP='https://maps.app.goo.gl/aWorsBEvduGweSLw5';
 function trToday(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'}); }
 function trAddDays(ymd,n){ const d=new Date(ymd+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
 function trNextDay(a){
@@ -3637,11 +3644,11 @@ function trMsg(a,kind){
   if(kind==='confirm'){
     const firstDay=(()=>{ let d=a.train_start; while(d<=a.train_end){ if(trDayOk(a,d)) return d; d=trAddDays(d,1); } return a.train_start; })();
     const t=trTimes2(a,firstDay), dl=trDaysLabel(a);
-    return `Hello Dr. ${first}, this is Empower Physical Therapy.\nWe are happy to confirm your place in our intensive training program.\n\n📅 ${trFmt(a.train_start)} to ${trFmt(a.train_end)} ${dl?`\n   Your days: ${dl}`:'(consecutive days, no rest day)'}\n🕐 Your shift: ${a.train_shift==='evening'?'Evening 4:00 PM – 9:00 PM':'Morning, until 4:00 PM'}\n   First day: ${trFmt(firstDay)} at ${t[0]}\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" so we know you are coming. Commitment to all days is required. Thank you!`;
+    return `Hello Dr. ${first}, this is ${CLINIC.name}.\nWe are happy to confirm your place in our intensive training program.\n\n📅 ${trFmt(a.train_start)} to ${trFmt(a.train_end)} ${dl?`\n   Your days: ${dl}`:'(consecutive days, no rest day)'}\n🕐 Your shift: ${a.train_shift==='evening'?'Evening 4:00 PM – 9:00 PM':'Morning, until 4:00 PM'}\n   First day: ${trFmt(firstDay)} at ${t[0]}\n📍 ${CLINIC.address}\n${CLINIC.map_url}\n\nPlease reply "Confirmed" so we know you are coming. Commitment to all days is required. Thank you!`;
   }
   const d=trNextDay(a), t=trTimes2(a,d), today=trToday();
   const when=d===today?'today':(d===trAddDays(today,1)?'tomorrow':trFmt(d));
-  return `Hello Dr. ${first}, a friendly reminder from Empower Physical Therapy.\nYour training ${d===a.train_start?'starts':'continues'} ${(d===today||d===trAddDays(today,1))?when+' ('+trFmt(d)+')':trFmt(d)} at ${t[0]}${a.train_shift==='evening'?' until 9:00 PM':' until 4:00 PM'}.\n📍 92 Sayed El-Merghany St., El-Montaza, Heliopolis\n${TR_MAP}\n\nPlease reply "Confirmed" to let us know you will be there. See you soon!`;
+  return `Hello Dr. ${first}, a friendly reminder from ${CLINIC.name}.\nYour training ${d===a.train_start?'starts':'continues'} ${(d===today||d===trAddDays(today,1))?when+' ('+trFmt(d)+')':trFmt(d)} at ${t[0]}${a.train_shift==='evening'?' until 9:00 PM':' until 4:00 PM'}.\n📍 ${CLINIC.address}\n${CLINIC.map_url}\n\nPlease reply "Confirmed" to let us know you will be there. See you soon!`;
 }
 async function trPatch(id,body){
   const r=await fetch(`${BACKEND_URL}/api/applicants/${encodeURIComponent(id)}`,{method:'PATCH',headers:{'Content-Type':'application/json',...authHeader()},body:JSON.stringify(body)});
@@ -4008,7 +4015,7 @@ async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
     const { url } = await res.json();
-    const msg = `Hello ${name} 🌷\nYou can check your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}\n\nEmpower Physiotherapy`;
+    const msg = `Hello ${name} 🌷\nYou can check your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}\n\n${CLINIC.name}`;
     if(phone){
       window.open(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`, '_blank');
     } else {
@@ -6383,6 +6390,7 @@ function updateSignInStatusUI(){
   }
   if(signedInDoctor.status === 'approved'){
     setTimeout(loadUndocumentedVisits, 500);
+    loadClinicConfig();
     const isOwner = signedInDoctor.role === 'owner';
     const canViewDashboard = isOwner || !!signedInDoctor.can_view_dashboard;
     el('navDashboardBtn').style.display = canViewDashboard ? 'flex' : 'none';
@@ -7033,7 +7041,7 @@ async function exportCsv(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `empower-clinic-${fromVal}-to-${toVal}.csv`;
+    a.download = `${(CLINIC.name || 'clinic').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'clinic'}-${fromVal}-to-${toVal}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -7047,14 +7055,7 @@ async function exportCsv(){
 
 let doctorPaidAppointmentsByName = {};
 
-const PAYROLL_RULES = [
-  { keyword: 'mostafa', kind: 'partner', label: 'Dr. Mostafa Farag' },
-  { keyword: 'youssef', kind: 'partner', label: 'Dr. Youssef' },
-  { keyword: 'omnia', kind: 'partner', label: 'Dr. Omnia Ahmed' },
-  { keyword: 'zeinab', kind: 'fixed_plus_rate', fixed: 3500, rate: 75, label: 'Dr. Zeinab' },
-  { keyword: 'menna', kind: 'fixed_plus_rate', fixed: 4000, rate: 50, label: 'Dr. Menna Azzam' },
-  { keyword: 'marwa', kind: 'revenue_share', label: 'Dr. Marwa' },
-];
+let PAYROLL_RULES = []; // loaded from the clinic settings (owner edits them in Settings > Clinic)
 function matchPayrollRule(doctorName){
   const lower = (doctorName || '').toLowerCase();
   return PAYROLL_RULES.find(r=> lower.includes(r.keyword)) || null;
@@ -7273,11 +7274,11 @@ async function calculatePayroll(){
       const rule = PAYROLL_RULES.find(r=> r.label === key);
       let basePay = 0, formula = '';
       if(rule.kind === 'partner'){
-        basePay = revenue * 0.5;
-        formula = '50% of own revenue + equal share of net profit';
+        basePay = revenue * (rule.share != null ? rule.share : 0.5);
+        formula = Math.round((rule.share != null ? rule.share : 0.5) * 100) + '% of own revenue + equal share of net profit';
       }else if(rule.kind === 'revenue_share'){
-        basePay = revenue * 0.5;
-        formula = '50% of own revenue';
+        basePay = revenue * (rule.share != null ? rule.share : 0.5);
+        formula = Math.round((rule.share != null ? rule.share : 0.5) * 100) + '% of own revenue';
       }else if(rule.kind === 'fixed_plus_rate'){
         basePay = rule.fixed + rule.rate * sessionCount;
         formula = `Fixed ${rule.fixed} + ${rule.rate}/session × ${sessionCount} sessions`;
@@ -9914,47 +9915,49 @@ async function buildPatientSummaryText(patientName){
   return `Patient: ${patientName}\n\n` + summary.trim();
 }
 
-const WHATSAPP_TEMPLATES = {
-  confirmation: {
-    label: 'Confirmation (with policy)',
-    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
-      `Dear ${name}\nWe are writing to confirm your upcoming session at Empower clinic on ${dateStrEn} at ${timeStrEn}.\nLocated at (92 Sayed El-Merghany St., El-Montaza, Heliopolis, Cairo)\n📍 Location on the map: https://maps.app.goo.gl/aWorsBEvduGweSLw5\n📌 To ensure giving you the best service with the best quality, kindly send your confirmation before 12pm.\n\nPlease take note of our clinic's cancellation policy:\n• Cancellation Notice: If, for any reason, you need to cancel or reschedule your appointment, we kindly request that you provide us with at least 5 hours notice. This allows us to accommodate other patients in need of our services. Cancellations made without sufficient notice may be subject to a cancellation fee.\n\nWe appreciate your understanding and cooperation.\nThank you.\nEmpower clinic\n\n—\n\nطريقة الوصول لعيادة Empower:\n\nالشفرة: ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت وشد غطا البوكس عليك هتلاقي جوا شفرة، خودها اعملها اسكان في الأسانسير، ودوسي على الدور الرابع، وبعدين رجّع الشفرة مكانها واقفل البوكس وغيّر الأرقام.\n\nبس اتأكدي إنك أول ما تدخلي البابين مقفولين كويس، ولما تخرجي برضو اقفليهم كويس.`
-  },
-  elevator: {
-    label: 'Elevator directions',
-    build: (name, timeStr, dateStr, elevatorCode) =>
-      `طريقة الوصول لعيادة Empower:\n\nالشفرة: ${elevatorCode || '(لسه متسجلش — راجع الإعدادات)'}\n\nفي الأسانسير هتلاقي زرار أسود، اضغطي عليه وهينزل غطا البوكس لتحت وشد غطا البوكس عليك هتلاقي جوا شفرة، خودها اعملها اسكان في الأسانسير، ودوسي على الدور الرابع، وبعدين رجّع الشفرة مكانها واقفل البوكس وغيّر الأرقام.\n\nبس اتأكدي إنك أول ما تدخلي البابين مقفولين كويس، ولما تخرجي برضو اقفليهم كويس.`
-  },
-  package_policy: {
-    label: 'Package validity & refund policy',
-    build: (name, timeStr, dateStr, elevatorCode) =>
-      `Hello 🌷\n\nThank you for choosing Empower Physiotherapy Clinic.\n\nPlease note our Package Validity & Refund Policy:\n\nPackage Validity:\n• 6-session package: Valid for 3 weeks from the date of the first session.\n• 9-session package: Valid for 1 month from the date of the first session.\n• 12-session package: Valid for 6 weeks from the date of the first session.\n\nRefund Policy:\n• If a refund is requested within the same calendar month in which the payment was made, the remaining balance will be refunded in full, after deducting the value of the sessions already used.\n• If a refund is requested after the end of the calendar month in which the payment was made, 50% of the remaining balance will be refunded, after deducting the value of the sessions already used.\n• No refund will be issued once the package validity period has expired, regardless of the number of unused sessions.\n\nPlease note: an already-purchased package cannot be upgraded to a larger package by paying the difference — a new, separate package must be purchased instead.\n\nThank you for your understanding and cooperation. We look forward to supporting your recovery and well-being. 💙\n\nEmpower Physiotherapy Clinic`
-  },
-  recovery_session_policy: {
-    label: 'Recovery session policy',
-    build: (name, timeStr, dateStr, elevatorCode) =>
-      `Thank you for choosing Empower Physiotherapy Clinic.\n\nPlease note our Recovery Session Policy:\n\nEach Recovery Session includes treatment for the following muscle groups:\n• Upper Back\n• Lower Back\n• Quadriceps\n• Hamstrings\n• Calves\n\nAny additional body part requested beyond those listed above will be charged at an additional fee of EGP 200 per body part.\n\nThank you for your understanding and cooperation. 💙\n\nEmpower Physiotherapy Clinic`
-  },
-  instapay_payment: {
-    label: 'InstaPay payment',
-    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn, extra) => {
-      const amountLine = extra && extra.amount
-        ? `Amount due: ${extra.amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n`
-        : '';
-      return `${amountLine}https://ipn.eg/S/empower98/instapay/3gPxRc\nClick the link to send money to\nempower98@instapay\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done.`;
-    }
-  },
-  intake_form: {
-    label: 'Patient intake form',
-    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
-      `مرحبًا بيك في عيادة Empower!\n\nقبل ميعادك يوم ${dateStrEn} الساعة ${timeStrEn}، ممكن تملى الاستمارة القصيرة دي عشان نجهزلك الكشف؟ هتاخد أقل من دقيقة:\n\nhttps://tinyurl.com/empower-clinic\n\nشكرًا ليك، ونشوفك قريب 🌿`
-  },
-  package_last_session: {
-    label: 'Last session in package',
-    build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) =>
-      `Hi ${name},\n\nThis was your last session in your current package. We hope you're feeling much better! 🌿\n\nIf you have a moment, we'd really appreciate a quick Google review, it helps other patients find us:\nhttps://maps.app.goo.gl/7L5qXoEaQPw9TyHx6?g_st=ic\n\nTake care,\nEmpower Physiotherapy Clinic`
-  }
+// ---- Clinic settings (loaded from the server; the owner edits them in Settings > Clinic) ----
+let CLINIC = { name:'Your Clinic', name_ar:'', address:'', address_ar:'', map_url:'', phone:'', instapay_url:'', instapay_handle:'', review_url:'', intake_url:'', templates:{}, payroll_rules:[] };
+function clinicFill(txt, v){ return String(txt).replace(/\{(\w+)\}/g, (m,k)=> (k in v) ? v[k] : m); }
+function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
+  const amount = extra && extra.amount;
+  return {
+    name: name || '', date: dateStrEn || '', time: timeStrEn || '',
+    elevator: elevatorCode || '(لسه متسجلش — راجع الإعدادات)',
+    clinic: CLINIC.name, address: CLINIC.address, map: CLINIC.map_url,
+    address_line: CLINIC.address ? `Located at (${CLINIC.address})\n` : '',
+    map_line: CLINIC.map_url ? `📍 Location on the map: ${CLINIC.map_url}\n` : '',
+    instapay_url: CLINIC.instapay_url, instapay_handle: CLINIC.instapay_handle,
+    review: CLINIC.review_url, intake: CLINIC.intake_url,
+    amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : ''
+  };
+}
+const CLINIC_TEMPLATE_DEFAULTS = {
+  confirmation: `Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n{address_line}{map_line}\nThank you.\n{clinic}`,
+  elevator: `Directions to {clinic}:\n\n{address}\n{map}`,
+  package_policy: `[Owner: write your package validity & refund policy in Settings > Clinic > Messages, then send again]`,
+  recovery_session_policy: `[Owner: write your recovery session policy in Settings > Clinic > Messages, then send again]`,
+  instapay_payment: `{amount_line}{instapay_url}\nClick the link to send money to\n{instapay_handle}\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done.`,
+  intake_form: `Welcome to {clinic}!\n\nBefore your visit on {date} at {time}, please fill in this short form so we can prepare for you:\n\n{intake}\n\nThank you.`,
+  package_last_session: `Hi {name},\n\nThis was your last session in your current package. We hope you're feeling much better! 🌿\n\nIf you have a moment, we'd really appreciate a quick Google review, it helps other patients find us:\n{review}\n\nTake care,\n{clinic}`
 };
+const CLINIC_TEMPLATE_LABELS = {
+  confirmation: 'Confirmation (with policy)', elevator: 'Directions / elevator', package_policy: 'Package validity & refund policy',
+  recovery_session_policy: 'Recovery session policy', instapay_payment: 'InstaPay payment', intake_form: 'Patient intake form', package_last_session: 'Last session in package'
+};
+function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
+  const custom = (CLINIC.templates || {})[key];
+  return clinicFill(custom && custom.trim() ? custom : CLINIC_TEMPLATE_DEFAULTS[key], clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
+}
+const WHATSAPP_TEMPLATES = {
+  confirmation: { label: 'Confirmation (with policy)', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) => clinicBuild('confirmation', name, dateStrEn, timeStrEn, elevatorCode) },
+  elevator: { label: 'Elevator directions', build: (name, timeStr, dateStr, elevatorCode) => clinicBuild('elevator', name, '', '', elevatorCode) },
+  package_policy: { label: 'Package validity & refund policy', build: (name) => clinicBuild('package_policy', name, '', '', '') },
+  recovery_session_policy: { label: 'Recovery session policy', build: (name) => clinicBuild('recovery_session_policy', name, '', '', '') },
+  instapay_payment: { label: 'InstaPay payment', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn, extra) => clinicBuild('instapay_payment', name, dateStrEn, timeStrEn, elevatorCode, extra) },
+  intake_form: { label: 'Patient intake form', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) => clinicBuild('intake_form', name, dateStrEn, timeStrEn, elevatorCode) },
+  package_last_session: { label: 'Last session in package', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) => clinicBuild('package_last_session', name, dateStrEn, timeStrEn, elevatorCode) }
+};
+
 
 let currentElevatorCode = '';
 let tomorrowRemindersData = [];
@@ -11110,7 +11113,7 @@ function downloadInvoicePdf(){
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page"><div class="inv-header" style="text-align:center;"><img src="${CLINIC_LOGO_DATA_URI}" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><div class="inv-fields"><div class="field"><span class="label">Payment Type :</span><span class="val">${escapeHtml(typeLabel)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>${escapeHtml(amountHeader)}</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(isPackage ? total : price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>92 El-Sayed El-Merghany<br>Heliopolis, Misr El-gedida</span><span>&#9742; 01507119559</span></div></div>`;
+  container.innerHTML = `<div class="rx-page"><div class="inv-header" style="text-align:center;"><img src="${CLINIC_LOGO_DATA_URI}" style="max-width:260px;width:100%;height:auto;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><div class="inv-fields"><div class="field"><span class="label">Payment Type :</span><span class="val">${escapeHtml(typeLabel)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>${escapeHtml(amountHeader)}</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(isPackage ? total : price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${CLINIC_STAMP_DATA_URI}" style="width:190px;"></div><div class="inv-bottom-triangle"></div><div class="inv-footer-text"><span>${escapeHtml(CLINIC.address)}</span><span>&#9742; ${escapeHtml(CLINIC.phone)}</span></div></div>`;
   // A "Save as PDF" dialog suggests the page <title> as the default
   // filename, so set it to "patient name - payment type" just for the
   // print, then restore the app's real title once printing is done.
@@ -11856,9 +11859,32 @@ el('noteExpandFollowupBtn').addEventListener('click', ()=>{
   // appointment); otherwise: first-ever file = assessment, else follow-up.
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
   const hasSessions = noteExpandTabs.some(t=> t.type === 'session');
+  const patient = noteExpandCurrentPatient;
+  const lowerName = (patient || '').trim().toLowerCase();
   let type = hasSessions ? 'followup' : 'assessment', date = todayStr();
-  if(tab && tab.type === 'new'){ type = tab.sessionType === 'assessment' ? 'assessment' : 'followup'; date = tab.date || date; }
-  startFollowupForPatient(noteExpandCurrentPatient, { type, date });
+  let openId = null, carryText = '';
+  if(tab && tab.type === 'session' && sessions[tab.id]){
+    // The tab you are looking at is a saved session: open THAT one, don't create another.
+    openId = tab.id;
+  } else if(tab && tab.type === 'new'){
+    type = tab.sessionType === 'assessment' ? 'assessment' : 'followup'; date = tab.date || date;
+    carryText = (el('noteExpandTextarea').value || tab.draftText || '').trim();
+    // Already have a session for this patient on this date and of this kind? Open it instead of making a duplicate.
+    const dup = Object.keys(sessions).filter(id=>{
+      const x = sessions[id];
+      return ((x.patientName || '').trim().toLowerCase()) === lowerName && x.date === date && (x.sessionType || 'assessment') === type;
+    }).sort((p,q)=> (sessions[q].createdAt || 0) - (sessions[p].createdAt || 0))[0];
+    if(dup) openId = dup;
+  }
+  if(openId){
+    loadSession(openId);
+  } else {
+    startFollowupForPatient(patient, { type, date });
+    if(carryText){
+      el('noteSection').style.display = 'block';
+      el('noteText').value = carryText;
+    }
+  }
   el('noteExpandOverlay').style.display = 'none';
   el('doctorPatientsGridOverlay').style.display = 'none';
   switchMainView('documentation');
@@ -12130,9 +12156,13 @@ el('adminDrawerToggleBtn').addEventListener('click', openAdminDrawer);
 function setAdminTab(tab){
   el('adminTabPanelSettings').style.display = tab === 'settings' ? 'block' : 'none';
   el('adminTabPanelTeam').style.display = tab === 'team' ? 'block' : 'none';
+  el('adminTabPanelClinic').style.display = tab === 'clinic' ? 'block' : 'none';
   el('adminTabSettingsBtn').classList.toggle('active', tab === 'settings');
   el('adminTabTeamBtn').classList.toggle('active', tab === 'team');
+  el('adminTabClinicBtn').classList.toggle('active', tab === 'clinic');
+  if(tab === 'clinic') renderClinicForm();
 }
+el('adminTabClinicBtn').addEventListener('click', ()=> setAdminTab('clinic'));
 el('adminTabSettingsBtn').addEventListener('click', ()=> setAdminTab('settings'));
 el('adminTabTeamBtn').addEventListener('click', ()=> setAdminTab('team'));
 el('dashboardPendingCard').addEventListener('click', ()=>{
@@ -12402,6 +12432,85 @@ if('serviceWorker' in navigator){
     navigator.serviceWorker.register('service-worker.js').catch(e=> console.log('SW registration skipped:', e));
   });
 }
+
+// ---- Settings > Clinic (owner) ----
+async function loadClinicConfig(){
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/clinic-config`, { headers: authHeader() });
+    if(!res.ok) return;
+    const c = await res.json();
+    CLINIC = Object.assign({ name:'Your Clinic', templates:{}, payroll_rules:[] }, c);
+    CLINIC.templates = c.templates || {};
+    PAYROLL_RULES = Array.isArray(c.payroll_rules) ? c.payroll_rules : [];
+    const isOwner = signedInDoctor && signedInDoctor.role === 'owner';
+    const b = document.getElementById('adminTabClinicBtn'); if(b) b.style.display = isOwner ? '' : 'none';
+  }catch(e){ console.error('Could not load clinic settings', e); }
+}
+function clinicField(id, label, val, ph){
+  return `<label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">${label}</label><input type="text" id="${id}" value="${escapeHtml(val||'')}" placeholder="${escapeHtml(ph||'')}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">`;
+}
+function clinicRuleRow(r){
+  r = r || { keyword:'', label:'', kind:'revenue_share' };
+  const sel = (v,t)=> `<option value="${v}"${r.kind===v?' selected':''}>${t}</option>`;
+  const inp = (cls,ph,val,w)=> `<input type="text" class="${cls}" placeholder="${ph}" value="${escapeHtml(val==null?'':String(val))}" style="width:${w};box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;font-size:0.82rem;">`;
+  return `<div class="cl-rule" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;background:var(--paper);">
+    <div style="display:flex;gap:6px;margin-bottom:6px;">${inp('cl-r-label','Name shown (e.g. Dr. Sara)',r.label,'50%')}${inp('cl-r-keyword','Match word (e.g. sara)',r.keyword,'50%')}</div>
+    <select class="cl-r-kind" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;margin-bottom:6px;">
+      ${sel('revenue_share','Gets a % of her/his own collected money')}${sel('partner','Partner: % of own money + equal share of profit')}${sel('fixed_plus_rate','Fixed monthly + amount per session')}</select>
+    <div style="display:flex;gap:6px;align-items:center;">${inp('cl-r-share','% (e.g. 50)',r.share!=null?Math.round(r.share*100):'','30%')}${inp('cl-r-fixed','Fixed EGP',r.fixed,'35%')}${inp('cl-r-rate','Per session',r.rate,'35%')}
+    <button type="button" class="cl-r-del" style="border:none;background:transparent;color:var(--danger);font-size:1.1rem;cursor:pointer;">🗑️</button></div></div>`;
+}
+function renderClinicForm(){
+  const f = el('clinicForm'); if(!f) return;
+  const C = CLINIC;
+  const tpl = Object.keys(CLINIC_TEMPLATE_LABELS).map(k=> `<label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:12px;font-weight:700;">${CLINIC_TEMPLATE_LABELS[k]}</label><textarea data-tpl="${k}" rows="5" placeholder="${escapeHtml(CLINIC_TEMPLATE_DEFAULTS[k])}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.82rem;font-family:inherit;">${escapeHtml((C.templates||{})[k]||'')}</textarea>`).join('');
+  f.innerHTML = `
+    <div style="font-weight:700;margin-bottom:2px;">Clinic details</div>
+    ${clinicField('clName','Clinic name (English)',C.name,'e.g. Sara Physio Clinic')}
+    ${clinicField('clNameAr','Clinic name (Arabic, optional)',C.name_ar,'')}
+    ${clinicField('clAddress','Address (English)',C.address,'')}
+    ${clinicField('clAddressAr','Address (Arabic, optional)',C.address_ar,'')}
+    ${clinicField('clMap','Google Maps link',C.map_url,'https://maps.app.goo.gl/...')}
+    ${clinicField('clPhone','Clinic phone (shown on the package page)',C.phone,'')}
+    ${clinicField('clInstaUrl','InstaPay payment link',C.instapay_url,'https://ipn.eg/...')}
+    ${clinicField('clInstaHandle','InstaPay address',C.instapay_handle,'name@instapay')}
+    ${clinicField('clReview','Google review link',C.review_url,'')}
+    ${clinicField('clIntake','Patient intake form link',C.intake_url,'')}
+    <div style="font-weight:700;margin:20px 0 2px;">Messages</div>
+    <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {instapay_url} {instapay_handle} {amount_line}</div>
+    ${tpl}
+    <div style="font-weight:700;margin:20px 0 2px;">Doctor pay rules</div>
+    <div style="font-size:0.74rem;color:#8a938e;">Used by the Doctor Payroll report. The match word is part of the doctor's name as written in the calendar (any capitals).</div>
+    <div id="clRules">${(C.payroll_rules||[]).map(clinicRuleRow).join('')}</div>
+    <button type="button" class="ghost" id="clAddRule" style="margin-top:8px;font-size:0.8rem;padding:8px 12px;">+ Add a doctor</button>`;
+  el('clAddRule').onclick = ()=>{ el('clRules').insertAdjacentHTML('beforeend', clinicRuleRow()); wireRuleDeletes(); };
+  wireRuleDeletes();
+}
+function wireRuleDeletes(){ document.querySelectorAll('#clRules .cl-r-del').forEach(b=> b.onclick = ()=> b.closest('.cl-rule').remove()); }
+async function saveClinicConfig(){
+  const v = id=> (el(id)||{}).value || '';
+  const rules = Array.from(document.querySelectorAll('#clRules .cl-rule')).map(r=>{
+    const q = c=> r.querySelector(c).value.trim();
+    const kind = q('.cl-r-kind');
+    const o = { keyword:q('.cl-r-keyword'), label:q('.cl-r-label'), kind };
+    if(kind === 'fixed_plus_rate'){ o.fixed = parseFloat(q('.cl-r-fixed')) || 0; o.rate = parseFloat(q('.cl-r-rate')) || 0; }
+    else if(q('.cl-r-share') !== ''){ o.share = Math.min(1, Math.max(0, (parseFloat(q('.cl-r-share')) || 0) / 100)); }
+    return o;
+  }).filter(o=> o.keyword && o.label);
+  const templates = {};
+  document.querySelectorAll('#clinicForm [data-tpl]').forEach(t=>{ if(t.value.trim()) templates[t.dataset.tpl] = t.value; });
+  const body = { name:v('clName'), name_ar:v('clNameAr'), address:v('clAddress'), address_ar:v('clAddressAr'), map_url:v('clMap'), phone:v('clPhone'),
+    instapay_url:v('clInstaUrl'), instapay_handle:v('clInstaHandle'), review_url:v('clReview'), intake_url:v('clIntake'), templates, payroll_rules:rules };
+  const st = el('clinicStatus'); st.style.color = '#5b6863'; st.textContent = 'Saving…';
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/clinic-config`, { method:'PUT', headers:{ ...authHeader(), 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+    const d = await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(d.error || `Server error ${res.status}`);
+    await loadClinicConfig();
+    st.style.color = '#1f7a4d'; st.textContent = 'Saved ✓';
+  }catch(e){ st.style.color = 'var(--danger)'; st.textContent = 'Could not save: ' + (e.message || e); }
+}
+document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElementById('clinicSaveBtn'); if(b) b.addEventListener('click', saveClinicConfig); });
 </script>
 
 
