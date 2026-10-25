@@ -806,7 +806,7 @@
     <div id="loginGateTag">PT session scribe — sign in to continue</div>
 
     <div id="clinicStep" style="display:none;">
-      <input type="text" id="clinicCodeInput" placeholder="Clinic code (e.g. EMPOWER)" autocapitalize="characters" autocomplete="off" spellcheck="false">
+      <input type="text" id="clinicCodeInput" style="width:100%;box-sizing:border-box;margin-bottom:10px;text-transform:uppercase;" placeholder="Clinic code (e.g. EMPOWER)" autocapitalize="characters" autocomplete="off" spellcheck="false">
       <button type="button" class="primary" id="clinicCodeBtn" style="width:100%;">Continue</button>
       <div id="clinicCodeStatus" style="font-size:0.78rem;color:#8a938e;min-height:1.2em;margin-top:6px;">Ask your clinic for its code.</div>
     </div>
@@ -1543,7 +1543,10 @@
           <button type="button" id="pdOpenDocsBtn" style="display:flex;align-items:center;gap:6px;margin-right:8px;padding:6px 12px;border-radius:999px;border:1px solid var(--maroon);background:transparent;color:var(--maroon);font-size:0.8rem;cursor:pointer;flex-shrink:0;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg> Notes</button>
           <button type="button" id="pdCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
-        <div style="display:flex;border-bottom:1px solid var(--line);">
+        <div id="pdRebookRow" style="padding:10px 16px 0;">
+          <button type="button" id="pdRebookBtn" style="width:100%;padding:11px;border-radius:12px;border:none;background:var(--maroon);color:#fff;font-weight:700;font-size:0.9rem;cursor:pointer;">📅 Book another appointment</button>
+        </div>
+        <div style="display:flex;border-bottom:1px solid var(--line);margin-top:10px;">
           <button type="button" class="pd-tab-btn active" data-tab="history" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid var(--maroon);color:var(--maroon);font-weight:700;cursor:pointer;">📅 History</button>
           <button type="button" class="pd-tab-btn" data-tab="payment" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">💰 Payment</button>
           <button type="button" class="pd-tab-btn" data-tab="edit" style="flex:1;padding:10px 2px;font-size:0.76rem;border:none;background:transparent;border-bottom:2px solid transparent;color:#5b6863;cursor:pointer;">✏️ Edit</button>
@@ -1742,7 +1745,9 @@
           <button type="button" id="quickBookCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;">
-          <div id="quickBookDateLabel" style="font-size:0.8rem;color:#5b6863;"></div>
+          <div id="quickBookDateLabel" style="display:none;font-size:0.8rem;color:#5b6863;"></div>
+          <label style="font-size:0.78rem;color:#5b6863;">Date</label>
+          <input type="date" id="quickBookDateInput" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
 
           <label style="font-size:0.78rem;color:#5b6863;">Doctor</label>
           <select id="quickBookDoctorSelect" style="padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">
@@ -6684,8 +6689,10 @@ function switchPdTab(tabName){
   });
 }
 
+let pdCurrentEv = null;
 async function openPatientDetail(ev, startTab){
   if(!ev) return;
+  pdCurrentEv = ev;
   el('pdTitle').textContent = ev.patient_name || '(untitled)';
   el('patientDetailOverlay').style.display = 'flex';
   switchPdTab(startTab || 'history');
@@ -9614,11 +9621,13 @@ function setAmPmToggle(toggleEl, period){
   });
 }
 
-function openQuickBookOverlay(){
+function qbYmd(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function openQuickBookOverlay(prefill){
   populateQuickBookTimeSelects();
   el('quickBookDateLabel').textContent = 'For ' + calSelectedDate.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
-  el('quickBookPatientInput').value = '';
-  el('quickBookPhoneInput').value = '';
+  el('quickBookDateInput').value = qbYmd(calSelectedDate);
+  el('quickBookPatientInput').value = (prefill && prefill.name) || '';
+  el('quickBookPhoneInput').value = (prefill && prefill.phone) || '';
   el('quickBookStatus').textContent = '';
   quickBookVisitType = 'session';
   el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(b=>{
@@ -9628,7 +9637,13 @@ function openQuickBookOverlay(){
     b.style.color = active ? '#fff' : 'var(--ink)';
   });
   el('quickBookOverlay').style.display = 'flex';
-  loadQuickBookDoctorOptions();
+  Promise.resolve(loadQuickBookDoctorOptions()).then(()=>{
+    if(prefill && prefill.doctor){
+      const want = String(prefill.doctor).trim().toLowerCase();
+      const opt = Array.from(el('quickBookDoctorSelect').options).find(o=> o.value && o.textContent.trim().toLowerCase() === want);
+      if(opt) el('quickBookDoctorSelect').value = opt.value;
+    }
+  });
 }
 
 el('quickBookVisitTypeToggle').querySelectorAll('.visit-type-btn').forEach(btn=>{
@@ -9686,7 +9701,10 @@ async function quickBookAppointment(){
   }
   let hh = hour12 % 12;
   if(quickBookPeriod === 'PM') hh += 12;
-  const start = new Date(calSelectedDate.getFullYear(), calSelectedDate.getMonth(), calSelectedDate.getDate(), hh, minute);
+  let qbDay = calSelectedDate;
+  const qbVal = el('quickBookDateInput').value;
+  if(qbVal){ const [yy, mm, dd] = qbVal.split('-').map(Number); qbDay = new Date(yy, mm-1, dd); }
+  const start = new Date(qbDay.getFullYear(), qbDay.getMonth(), qbDay.getDate(), hh, minute);
   const end = new Date(start.getTime() + 30*60000);
   el('quickBookStatus').textContent = 'Booking…';
   const selectedEmail = el('quickBookDoctorSelect').value;
@@ -9711,7 +9729,7 @@ async function quickBookAppointment(){
       throw new Error(`Calendar API error ${res.status}: ${errText.slice(0,200)}`);
     }
     el('quickBookOverlay').style.display = 'none';
-    el('scheduleStatus').textContent = 'Booked.';
+    el('scheduleStatus').textContent = 'Booked for ' + start.toLocaleDateString(undefined, {weekday:'short', day:'numeric', month:'short'}) + '.';
     await loadMonthAndDay();
     if(quickBookVisitType === 'recovery'){
       if(patientPhone && confirm(`This is a Recovery session — send ${patientName} the Recovery Session Policy message now?`)){
@@ -11776,6 +11794,11 @@ el('noteExpandOverlay').addEventListener('click', (e)=>{
 });
 el('noteExpandMicBtn').addEventListener('click', toggleNoteExpandMic);
 el('noteExpandMicCancelBtn').addEventListener('click', cancelNoteExpandMic);
+el('pdRebookBtn').addEventListener('click', ()=>{
+  const ev = pdCurrentEv; if(!ev) return;
+  el('patientDetailOverlay').style.display = 'none';
+  openQuickBookOverlay({ name: ev.patient_name || '', phone: ev.patient_phone || '', doctor: ev.doctor_name || '' });
+});
 el('pdOpenDocsBtn').addEventListener('click', ()=> openPatientDocsFromAppointment(currentPaymentTarget));
 el('noteExpandGenerateBtn').addEventListener('click', ()=>{
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
