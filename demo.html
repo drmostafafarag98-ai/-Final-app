@@ -90,6 +90,7 @@
     if(path==='/api/booking/settings'&&method==='GET') return json({settings:{enabled:false,instapay:'',note:'',slot_minutes:30,min_lead_hours:2,max_days_ahead:30,types:[{key:'checkup',label:'Check-up',price:800,visit_type:'checkup'},{key:'session1',label:'Session - 1 body part',price:500,visit_type:'session'}],hours:{}},doctors:DOCS.map(function(d){return {email:d.email,name:d.name}})});
     if(path==='/api/applicants') return json([]);
     if(path==='/api/intake/all-unmatched') return json([]);
+    if(path==='/api/booking/stats') return json({opens:{today:14,d7:96,d30:341,total:1280},started:{today:6,d7:41,d30:150,total:520},booked:{today:3,d7:22,d30:87,total:310}});
     if(['/api/day-reminders','/api/doctor-unavailability','/api/booking/deposits','/api/booking/leads','/api/login-log','/api/sessions/pending-deletes'].indexOf(path)>=0) return json([]);
     if(path.indexOf('/api/ai')===0||path.indexOf('/api/transcribe')===0||path.indexOf('/api/whatsapp')===0||path.indexOf('/api/telegram')===0||path.indexOf('/api/push')===0) return json({error:'Not available in the demo.'},503);
     return json(method==='GET'?[]:{ok:true});
@@ -1960,6 +1961,7 @@
     <div id="bookingView" style="display:none;">
       <div style="font-size:0.92rem;font-weight:700;margin:8px 0 6px;">🌐 Online bookings</div>
       <div style="font-size:0.78rem;color:#5b6863;margin-bottom:12px;">Check each deposit screenshot, then press OK or Reject. Message the people who did not finish booking on WhatsApp.</div>
+      <div id="bkStats" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;margin-bottom:14px;"><div style="font-size:0.8rem;color:#8a938e;">Loading…</div></div>
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Booking deposits <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check each screenshot against your InstaPay. Press OK if the money arrived. Press Reject if it is fake or missing — the visit is cancelled from the calendar.</div>
@@ -3537,6 +3539,19 @@ async function loadBookingLeads(){
     list.querySelectorAll('[data-ld]').forEach(b=> b.onclick=async()=>{ try{ await fetch(`${BACKEND_URL}/api/booking/leads/${b.dataset.ld}`,{method:'DELETE',headers:authHeader()}); loadBookingLeads(); }catch(e){} });
   }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
 }
+async function loadBookingStats(){
+  const box=document.getElementById('bkStats'); if(!box||!isApproved()) return;
+  try{
+    const res=await fetch(`${BACKEND_URL}/api/booking/stats`,{headers:authHeader()});
+    const d=await res.json().catch(()=>({}));
+    if(!res.ok) throw new Error(d.error||`Server error ${res.status}`);
+    const row=(label,k)=>`<tr><td style="padding:5px 0;font-weight:700;">${label}</td><td style="text-align:center;">${d.opens[k]}</td><td style="text-align:center;">${d.started[k]}</td><td style="text-align:center;font-weight:700;color:#1f7a4d;">${d.booked[k]}</td></tr>`;
+    box.innerHTML=`<div style="font-size:0.84rem;font-weight:700;margin-bottom:6px;">📈 Booking link</div>
+      <table style="width:100%;font-size:0.8rem;border-collapse:collapse;"><tr style="color:#5b6863;font-size:0.72rem;"><td></td><td style="text-align:center;">Opened the link</td><td style="text-align:center;">Entered name &amp; phone</td><td style="text-align:center;">Booked</td></tr>
+      ${row('Today','today')}${row('Last 7 days','d7')}${row('Last 30 days','d30')}${row('All time','total')}</table>
+      <div style="font-size:0.7rem;color:#8a938e;margin-top:6px;">"Opened" counts each person once per 30 minutes.</div>`;
+  }catch(e){ box.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
+}
 async function loadBookingDeposits(){
   const list=el('bkDepList'); if(!list||!isApproved()) return;
   try{
@@ -3560,7 +3575,7 @@ async function loadBookingDeposits(){
     });
   }catch(e){ list.innerHTML='<div style="font-size:0.8rem;color:var(--danger);">Could not load: '+escapeHtml(e.message)+'</div>'; }
 }
-document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',()=>{ loadBookingDeposits(); loadBookingLeads(); }); });
+document.addEventListener('DOMContentLoaded',()=>{ const r=document.getElementById('bkDepReload'); if(r) r.addEventListener('click',()=>{ loadBookingStats(); loadBookingDeposits(); loadBookingLeads(); }); });
 
 async function loadLoginLog(){
   const list=el('llList'), sum=el('llSummary'); if(!list||!isApproved()) return;
@@ -11643,7 +11658,7 @@ function switchMainView(view){
     loadQuickBookDoctorOptions();
     loadKnownPatients();
   } else if(view === 'booking'){
-    loadBookingDeposits(); loadBookingLeads();
+    loadBookingStats(); loadBookingDeposits(); loadBookingLeads();
   } else if(view === 'dashboard'){
     loadDashboardStats();
   } else if(view === 'documentation'){
