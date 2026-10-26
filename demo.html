@@ -7197,6 +7197,8 @@ async function fixPayrollExcluded(id, why, btn){
 }
 
 async function calculatePayroll(){
+  if(!PAYROLL_RULES.length){ try{ await loadClinicConfig(); }catch(e){} }
+  if(!PAYROLL_RULES.length){ el('payrollStatus').textContent = 'No doctor pay rules are saved yet. Owner: add them in Settings > Clinic > Doctor pay rules.'; return; }
   const fromVal = el('payrollFromInput').value;
   const toVal = el('payrollToInput').value;
   if(!fromVal || !toVal){
