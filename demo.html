@@ -7198,7 +7198,16 @@ async function fixPayrollExcluded(id, why, btn){
 
 async function calculatePayroll(){
   if(!PAYROLL_RULES.length){ try{ await loadClinicConfig(); }catch(e){} }
-  if(!PAYROLL_RULES.length){ el('payrollStatus').textContent = 'No doctor pay rules are saved yet. Owner: add them in Settings > Clinic > Doctor pay rules.'; return; }
+  if(!PAYROLL_RULES.length){
+    const c = clinicConfigStatus.code;
+    const why = c === -1 ? 'Could not reach the server. Check the internet and try again.'
+      : (c === 404 ? 'REASON: the server is not updated yet. Upload the new server.js on GitHub and wait for Render to finish.'
+      : (c === 401 || c === 403 ? 'REASON: this account is not allowed to see pay rules (it must be the owner, or have the View payroll permission).'
+      : (c >= 500 ? 'REASON: the server had an error (' + c + '). Try again in a minute.'
+      : 'REASON: the pay rules are not saved in the database yet. Run clinic_config_empower.sql in Supabase, or add them in Settings > Clinic > Doctor pay rules.')));
+    el('payrollStatus').textContent = 'No doctor pay rules found. ' + why;
+    return;
+  }
   const fromVal = el('payrollFromInput').value;
   const toVal = el('payrollToInput').value;
   if(!fromVal || !toVal){
@@ -12544,17 +12553,20 @@ if('serviceWorker' in navigator){
 }
 
 // ---- Settings > Clinic (owner) ----
+let clinicConfigStatus = { code: 0, rules: 0 };
 async function loadClinicConfig(){
   try{
     const res = await fetch(`${BACKEND_URL}/api/clinic-config`, { headers: authHeader() });
+    clinicConfigStatus = { code: res.status, rules: 0 };
     if(!res.ok) return;
     const c = await res.json();
+    clinicConfigStatus.rules = Array.isArray(c.payroll_rules) ? c.payroll_rules.length : 0;
     CLINIC = Object.assign({ name:'Your Clinic', templates:{}, payroll_rules:[] }, c);
     CLINIC.templates = c.templates || {};
     PAYROLL_RULES = Array.isArray(c.payroll_rules) ? c.payroll_rules : [];
     const isOwner = signedInDoctor && signedInDoctor.role === 'owner';
     const b = document.getElementById('adminTabClinicBtn'); if(b) b.style.display = isOwner ? '' : 'none';
-  }catch(e){ console.error('Could not load clinic settings', e); }
+  }catch(e){ clinicConfigStatus = { code: -1, rules: 0 }; console.error('Could not load clinic settings', e); }
 }
 function clinicField(id, label, val, ph){
   return `<label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">${label}</label><input type="text" id="${id}" value="${escapeHtml(val||'')}" placeholder="${escapeHtml(ph||'')}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">`;
