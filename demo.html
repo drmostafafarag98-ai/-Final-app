@@ -6419,6 +6419,21 @@ async function ensureGoogleAuth(){
 async function doctorCheckIn(){
   lastGoogleAuthFailureReason = '';
   setCheckinMessage('Opening Google sign-in…', '#5b6863');
+  // Safari/iOS only allows the Google popup if it opens synchronously
+  // inside the tap — any "await" before it makes Safari block it
+  // (popup_failed_to_open). The client is pre-warmed at page load, so when
+  // it is ready we call it right here, before any await.
+  if(googleTokenClient && !googleAccessToken && !authRequestInFlight){
+    authRequestInFlight = true;
+    try{
+      googleTokenClient.requestAccessToken();
+    }catch(e){
+      authRequestInFlight = false;
+      lastGoogleAuthFailureReason = 'Could not open Google sign-in: ' + (e.message || e);
+      setCheckinMessage(lastGoogleAuthFailureReason, '#a33d3d');
+    }
+    return;
+  }
   await ensureGoogleAuth();
   if(lastGoogleAuthFailureReason){
     setCheckinMessage(lastGoogleAuthFailureReason, '#a33d3d');
