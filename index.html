@@ -12213,6 +12213,20 @@ el('adminDrawerBackdrop').addEventListener('click', closeAdminDrawer);
   });
 })();
 
+// Voice (speech) language — remembered on this device so it no longer
+// snaps back to Egyptian Arabic every time the app is reopened.
+(function initDialectSelect(){
+  const sel = el('dialectSelect');
+  if(!sel) return;
+  try{
+    const saved = localStorage.getItem('speech_dialect');
+    if(saved && Array.prototype.some.call(sel.options, o=> o.value === saved)) sel.value = saved;
+  }catch(e){}
+  sel.addEventListener('change', ()=>{
+    try{ localStorage.setItem('speech_dialect', sel.value); }catch(e){}
+  });
+})();
+
 el('settingsToggleBtn').addEventListener('click', ()=>{
   const panel = el('settingsPanel');
   const isOpen = panel.style.display !== 'none';
