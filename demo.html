@@ -69,7 +69,8 @@
     if(path==='/api/appointments/search-by-patient'){ var qq=(q.get('q')||'').toLowerCase(); return json(appts.filter(function(a){return a.patient_name.toLowerCase().indexOf(qq)>=0})); }
     if(path==='/api/appointments/unpaid-by-patient'){ var pn=(q.get('patientName')||'').toLowerCase(); return json(appts.filter(function(a){return a.patient_name.toLowerCase()===pn&&!a.paid&&a.status!=='cancelled'})); }
     if(path==='/api/appointments/no-show-count') return json({count:0});
-    if(path==='/api/appointments/undocumented'||path==='/api/appointments/trash') return json([]);
+    if(path==='/api/appointments/undocumented'){ var nw=Date.now(); return json([{id:'demo-now',patient_name:'Sara Ahmed',start_time:new Date(nw-10*60000).toISOString(),end_time:new Date(nw+35*60000).toISOString(),visit_type:'session',doctor_name:'Dr. Demo'}]); }
+    if(path==='/api/appointments/trash') return json([]);
     if((m=path.match(/^\/api\/appointments\/([^/]+)\/notes$/))&&method==='POST'){ var a1=appts.find(function(a){return String(a.id)===m[1]}); if(a1){ a1.notes=(a1.notes||[]).concat([{text:(body&&body.text)||'',author:'Dr. Demo',at:new Date().toISOString()}]); return json(a1); } return json({ok:true}); }
     if((m=path.match(/^\/api\/appointments\/([^/]+)$/))&&m[1]!=='restore-day'&&m[1]!=='delete-day'){ var a2=appts.find(function(a){return String(a.id)===m[1]}); if(method==='PATCH'&&a2){ var b2=body||{}; if(b2.paid!==undefined)a2.paid=!!b2.paid; if(b2.status)a2.status=b2.status; if(b2.visitType||b2.visit_type)a2.visit_type=b2.visitType||b2.visit_type; if(b2.startTime||b2.start_time)a2.start_time=b2.startTime||b2.start_time; if(b2.endTime||b2.end_time)a2.end_time=b2.endTime||b2.end_time; if(b2.doctorName||b2.doctor_name)a2.doctor_name=b2.doctorName||b2.doctor_name; return json(a2); } if(method==='DELETE'&&a2){ a2.deleted_at=new Date().toISOString(); return json({ok:true}); } return json(a2||{ok:true}); }
     if(path==='/api/patients') { var seen={},out=[]; appts.forEach(function(a){ if(!seen[a.patient_name]){seen[a.patient_name]=1;out.push({name:a.patient_name,phone:a.patient_phone});} }); return json(out); }
@@ -1153,12 +1154,15 @@
       </button>
     </div>
 
+    <details id="todayDetails" style="margin-bottom:10px;"><summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--maroon);padding:6px 2px;">📊 Today's numbers</summary><div style="padding-top:8px;">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap;">
       <div class="section-title" id="statsRow_todayInline_label" style="margin-top:0;display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18"/><path d="M8 3v4"/><path d="M16 3v4"/></svg> Today</div>
       <input type="text" id="statsInlineDatePicker" inputmode="none" style="padding:7px 14px;border:1px solid var(--line);border-radius:999px;background:var(--panel);font-size:0.82rem;">
     </div>
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
+    </div></details>
 
+    <div id="nowVisitCard" style="display:none;background:#eaf5f1;border:2px solid #1f5c56;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;"></div>
     <div id="undocBanner" style="display:none;background:var(--panel);border:1px solid var(--maroon);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;">
         <span id="undocTitle" style="flex:1;font-size:0.84rem;font-weight:700;color:var(--maroon);cursor:pointer;"></span>
@@ -1501,17 +1505,12 @@
     </div>
 
 
-    <div class="consent-banner">
-      Confirm the patient has agreed to this session being recorded before you start.
-    </div>
 
     <div id="calendarView" style="display:block;">
     <div style="position:relative;margin-bottom:12px;">
       <input type="text" id="calendarSearchInput" placeholder="🔍 Find a patient's appointment…" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
       <div id="calendarSearchResults" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-top:4px;max-height:280px;overflow-y:auto;z-index:20;box-shadow:0 4px 12px rgba(0,0,0,0.15);"></div>
     </div>
-    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button>
-    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button>
     <div id="schedulePanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:18px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
         <button type="button" class="ghost" id="calPrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1521,6 +1520,14 @@
       <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px;"></div>
       <datalist id="knownPatientsList"></datalist>
 
+    </div>
+    <details id="moreTools" style="margin-bottom:18px;"><summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--maroon);padding:6px 2px;">⚙️ More tools</summary><div style="padding-top:10px;">
+    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button>
+    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button>
+    <div class="consent-banner">
+      Confirm the patient has agreed to this session being recorded before you start.
+    </div>
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;">
       <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
         <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">➕ Add a doctor to the roster (owner only — no sign-in needed yet)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -1559,6 +1566,7 @@
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
     </div>
+    </div></details>
     </div>
 
     <div id="dayScheduleOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:70;align-items:center;justify-content:center;padding:16px;">
@@ -11537,7 +11545,50 @@ el('editAppointmentPatientInput').addEventListener('change', ()=> autofillPatien
 // only makes sense while looking at patient notes, so it's hidden while
 // the Calendar view is active instead of floating globally.
 // ---- Documentation reminder: visits that happened but have no session note yet ----
+// "Now" card: the visit that is happening right now for the signed-in doctor
+// (not documented yet) — one tap opens its documentation.
+async function loadNowVisit(){
+  const card = el('nowVisitCard');
+  if(!card) return;
+  if(!signedInDoctor || !isApproved() || signedInDoctor.role === 'secretary'){ card.style.display = 'none'; return; }
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/appointments/undocumented?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!res.ok){ card.style.display = 'none'; return; }
+    const items = (await res.json()) || [];
+    const t = Date.now();
+    const current = items.filter(i=>{
+      const s = new Date(i.start_time).getTime();
+      const e = i.end_time ? new Date(i.end_time).getTime() : s + 60*60000;
+      return t >= s - 5*60000 && t <= e + 15*60000;
+    });
+    if(!current.length){ card.style.display = 'none'; card.innerHTML = ''; return; }
+    const fmt = d=> new Date(d).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'});
+    card.innerHTML = '<div style="font-size:0.74rem;font-weight:700;color:#1f5c56;letter-spacing:.4px;margin-bottom:6px;">NOW</div>' + current.map(i=>{
+      const kind = i.visit_type === 'checkup' ? 'Check-up' : (i.visit_type === 'recovery' ? 'Recovery' : 'Session');
+      const when = fmt(i.start_time) + (i.end_time ? ' – ' + fmt(i.end_time) : '');
+      return `<div class="now-row" data-id="${i.id}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;">
+        <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:1rem;">${escapeHtml(i.patient_name || '')}</div>
+        <div style="font-size:0.76rem;color:#5b6863;">${when} · ${kind}${i.doctor_name ? ' · ' + escapeHtml(i.doctor_name) : ''}</div></div>
+        <button type="button" class="primary" style="padding:10px 14px;white-space:nowrap;">Document</button></div>`;
+    }).join('');
+    const byId = new Map(current.map(i=>[String(i.id), i]));
+    card.querySelectorAll('.now-row').forEach(row=> row.addEventListener('click', ()=>{
+      const ev = byId.get(row.getAttribute('data-id'));
+      if(ev) openPatientDocsFromAppointment(ev);
+    }));
+    card.style.display = 'block';
+  }catch(e){ console.error('Now visit failed:', e); }
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  setInterval(()=>{ if(document.visibilityState === 'visible') loadNowVisit(); }, 2 * 60 * 1000);
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') loadNowVisit(); });
+});
+
 async function loadUndocumentedVisits(){
+  loadNowVisit();
   const box = el('undocBanner');
   if(!box) return;
   if(!signedInDoctor || !isApproved() || signedInDoctor.role === 'secretary'){ box.style.display = 'none'; return; }
