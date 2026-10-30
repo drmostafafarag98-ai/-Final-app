@@ -10025,7 +10025,9 @@ function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
     clinic: CLINIC.name, address: CLINIC.address, map: CLINIC.map_url,
     address_line: CLINIC.address ? `Located at (${CLINIC.address})\n` : '',
     map_line: CLINIC.map_url ? `📍 Location on the map: ${CLINIC.map_url}\n` : '',
-    instapay_url: CLINIC.instapay_url, instapay_handle: CLINIC.instapay_handle,
+    // The message links to the clinic's friendly /pay page (intro + steps + a Pay button), not straight to InstaPay.
+    instapay_url: (CLINIC.instapay_url || CLINIC.instapay_handle) ? `${BACKEND_URL}/pay?n=${encodeURIComponent(name || '')}${amount ? '&a=' + encodeURIComponent(amount) : ''}${amount && extra.reason ? '&r=' + encodeURIComponent(extra.reason) : ''}` : '',
+    instapay_direct: CLINIC.instapay_url, instapay_handle: CLINIC.instapay_handle,
     review: CLINIC.review_url, intake: CLINIC.intake_url,
     amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : ''
   };
@@ -12649,7 +12651,7 @@ function renderClinicForm(){
     <label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">Extra buttons (Name | link)</label>
     <textarea id="clLinks" rows="4" placeholder="Follow us on TikTok | https://tiktok.com/@yourclinic" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;font-family:inherit;">${escapeHtml((C.links||[]).map(l=> l.label+' | '+l.url).join('\n'))}</textarea>
     <div style="font-weight:700;margin:20px 0 2px;">Messages</div>
-    <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {instapay_url} {instapay_handle} {amount_line}</div>
+    <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {instapay_url} {instapay_direct} {instapay_handle} {amount_line}</div>
     ${tpl}
     <div style="font-weight:700;margin:20px 0 2px;">Doctor pay rules</div>
     <div style="font-size:0.74rem;color:#8a938e;">Used by the Doctor Payroll report. The match word is part of the doctor's name as written in the calendar (any capitals).</div>
