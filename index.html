@@ -1250,6 +1250,7 @@
             <button type="button" class="transfer-direction-btn active" data-from="cash" data-to="instapay" style="border:none;padding:8px 12px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">Cash → InstaPay</button>
             <button type="button" class="transfer-direction-btn" data-from="instapay" data-to="cash" style="border:none;padding:8px 12px;font-size:0.8rem;cursor:pointer;border-radius:999px;background:transparent;color:var(--ink);">InstaPay → Cash</button>
           </div>
+          <input type="text" id="transferDoctorInput" list="transferDoctorList" placeholder="Doctor who took / sent the money" autocomplete="off" style="flex:1;min-width:170px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;"><datalist id="transferDoctorList"></datalist>
           <input type="text" id="transferDateInput" inputmode="none" style="padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
           <button type="button" class="ghost" id="addTransferBtn">Add</button>
         </div>
@@ -2652,10 +2653,10 @@ async function runMoneyLedger(){
       const amt = parseFloat(t.amount || 0);
       const fromCash = t.from_method === 'cash';
       if(method === 'instapay'){
-        entries.push({ date: t.transfer_date, dir: fromCash ? 'in' : 'out', amount: amt, label: fromCash ? 'Transfer from Cash' : 'Transfer to Cash', sub: 'transfer', kind: 'transfer' });
+        entries.push({ date: t.transfer_date, dir: fromCash ? 'in' : 'out', amount: amt, label: (fromCash ? 'Transfer from Cash' : 'Transfer to Cash') + (t.doctor_name ? ' — ' + t.doctor_name : ''), sub: 'transfer', kind: 'transfer' });
         fromCash ? counts.transfersIn++ : counts.transfersOut++;
       }else{
-        entries.push({ date: t.transfer_date, dir: fromCash ? 'out' : 'in', amount: amt, label: fromCash ? 'Transfer to InstaPay' : 'Transfer from InstaPay', sub: 'transfer', kind: 'transfer' });
+        entries.push({ date: t.transfer_date, dir: fromCash ? 'out' : 'in', amount: amt, label: (fromCash ? 'Transfer to InstaPay' : 'Transfer from InstaPay') + (t.doctor_name ? ' — ' + t.doctor_name : ''), sub: 'transfer', kind: 'transfer' });
         fromCash ? counts.transfersOut++ : counts.transfersIn++;
       }
     });
@@ -7614,6 +7615,12 @@ function setTransferDirection(from, to){
 }
 
 async function loadTransfers(){
+  try{
+    const names = PAYROLL_RULES.map(r=> r.label);
+    const me = signedInDoctor && (signedInDoctor.name || '');
+    if(me && !names.includes(me)) names.push(me);
+    el('transferDoctorList').innerHTML = names.map(n=> `<option value="${escapeHtml(n)}"></option>`).join('');
+  }catch(e){}
   const range = financeMonthRange();
   const monthStart = range.start;
   const monthEndStr = range.end;
@@ -7629,7 +7636,7 @@ async function loadTransfers(){
     el('transferList').innerHTML = items.map(t=> `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
       <div>
         <div style="font-size:0.85rem;font-weight:600;">${t.from_method === 'cash' ? 'Cash → InstaPay' : 'InstaPay → Cash'}</div>
-        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(t.transfer_date)}</div>
+        <div style="font-size:0.75rem;color:#5b6863;">${escapeHtml(t.transfer_date)}${t.doctor_name ? ' · ' + escapeHtml(t.doctor_name) : ' · <span style="color:#b3261e;">no doctor recorded</span>'}</div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span style="font-size:0.85rem;font-weight:700;color:var(--maroon);">${parseFloat(t.amount).toLocaleString()} EGP</span>
@@ -7652,8 +7659,13 @@ async function loadTransfers(){
 async function addTransfer(){
   const amount = parseFloat(el('transferAmountInput').value);
   const transferDate = el('transferDateInput').value || new Date().toISOString().slice(0,10);
+  const transferDoctor = (el('transferDoctorInput').value || '').trim();
   if(!amount){
     el('transferStatus').textContent = 'Enter an amount first.';
+    return;
+  }
+  if(!transferDoctor){
+    el('transferStatus').textContent = 'Write which doctor took or sent the money.';
     return;
   }
   el('transferStatus').textContent = 'Saving…';
@@ -7661,10 +7673,11 @@ async function addTransfer(){
     const res = await fetch(`${BACKEND_URL}/api/transfers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },
-      body: JSON.stringify({ amount, fromMethod: selectedTransferFrom, toMethod: selectedTransferTo, transferDate })
+      body: JSON.stringify({ amount, fromMethod: selectedTransferFrom, toMethod: selectedTransferTo, transferDate, doctorName: transferDoctor })
     });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
     el('transferAmountInput').value = '';
+    el('transferDoctorInput').value = '';
     el('transferStatus').textContent = '';
     loadTransfers();
   }catch(e){
