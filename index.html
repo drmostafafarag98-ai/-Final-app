@@ -1122,6 +1122,19 @@
         <div id="ledgerList"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg> Payments by amount (e.g. 650 / 150) <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Counts every recorded payment of the exact amounts you type (for example 650 for a session with the extra device, 150 for the add-on alone). Shows how many, the total money, and who paid.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="text" id="payAmtFrom" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <span style="font-size:0.8rem;color:#5b6863;">to</span>
+          <input type="text" id="payAmtTo" inputmode="none" style="width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <input type="text" id="payAmtList" value="650, 150" placeholder="Amounts, e.g. 650, 150" style="width:150px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="payAmtBtn">Show</button>
+        </div>
+        <div id="payAmtOut"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Duplicate payment check <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-left:auto;transition:transform 0.15s;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Looks for the same patient (even if the name is spelled a little differently, like "mina" and "mina ishak"), same amount and same method recorded more than once — on one visit, on the same day, entered within a few hours of each other, or a big payment repeated within two weeks. These are only <strong>suspects</strong>: check each one before deleting anything. It also shows the total the app has recorded per method, to compare with the real account.</div>
@@ -1214,6 +1227,10 @@
           <button type="button" class="ghost" id="addExpenseBtn">Add</button>
         </div>
         <div id="expenseStatus" style="font-size:0.75rem;color:#8a938e;margin-bottom:8px;"></div>
+        <div id="fixedCostsBar" style="background:var(--paper);border:1px dashed var(--line);border-radius:var(--radius);padding:10px 12px;margin-bottom:10px;font-size:0.78rem;color:#5b6863;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span id="fixedCostsText" style="flex:1;min-width:180px;"></span>
+          <button type="button" class="ghost" id="fixedCostsApplyBtn" style="font-size:0.76rem;padding:6px 10px;">Add for this month</button>
+        </div>
         <div style="font-size:0.85rem;font-weight:700;color:var(--danger);margin-bottom:8px;" id="expenseMonthTotal"></div>
         <div id="expenseFilterToggle" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;margin-bottom:10px;width:fit-content;">
           <button type="button" class="expense-filter-btn active" data-filter="all" style="border:none;padding:6px 12px;font-size:0.78rem;cursor:pointer;border-radius:999px;background:var(--maroon);color:#fff;">All</button>
@@ -2605,6 +2622,56 @@ function updateLedgerDiff(){
   if(bankIn !== '') lines.push(diffLine('Money in', ledgerTotals.totalIn, bankIn));
   if(bankOut !== '') lines.push(diffLine('Money out', ledgerTotals.totalOut, bankOut));
   box.innerHTML = lines.join('');
+}
+
+async function runPaymentsByAmount(){
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const today = new Date();
+  if(!el('payAmtTo').value) el('payAmtTo').value = fmt(today);
+  if(!el('payAmtFrom').value) el('payAmtFrom').value = fmt(new Date(today.getFullYear(), today.getMonth() - 2, 1));
+  const out = el('payAmtOut');
+  const fromVal = el('payAmtFrom').value, toVal = el('payAmtTo').value;
+  const wanted = (el('payAmtList').value || '').split(/[,\s]+/).map(x=> parseFloat(x)).filter(x=> x > 0);
+  if(!fromVal || !toVal){ out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Pick both dates first.</div>'; return; }
+  if(!wanted.length){ out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Type at least one amount, e.g. 650, 150.</div>'; return; }
+  out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const start = new Date(fromVal + 'T00:00:00'), end = new Date(toVal + 'T23:59:59');
+    const r = await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    if(!r.ok) throw new Error(`Server error ${r.status}`);
+    const appts = (await r.json()) || [];
+    const re = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
+    const all = {}; const hits = {}; wanted.forEach(w=> hits[w] = []);
+    let totalPayments = 0;
+    appts.forEach(ev=>{
+      if(ev.status === 'cancelled' || !ev.start_time) return;
+      (ev.notes || []).forEach(n=>{
+        const m = (n.text || '').trim().match(re); if(!m) return;
+        const amt = parseFloat(m[1].replace(/,/g, '')); if(isNaN(amt)) return;
+        totalPayments++; all[amt] = (all[amt] || 0) + 1;
+        if(hits[amt]){
+          const tag = /starts a package/i.test(n.text || '') ? 'package' : (/package balance/i.test(n.text || '') ? 'package balance' : (ev.visit_type || ''));
+          hits[amt].push({ date: dayKey(new Date(ev.start_time)), patient: ev.patient_name || '(untitled)', doctor: ev.doctor_name || '', method: m[2].toLowerCase() === 'instapay' ? 'InstaPay' : 'Cash', tag });
+        }
+      });
+    });
+    const fmtN = n => Math.round(n).toLocaleString();
+    let grand = 0, grandCount = 0;
+    const blocks = wanted.map(w=>{
+      const rows = hits[w].sort((a,b)=> a.date < b.date ? 1 : -1);
+      grand += rows.length * w; grandCount += rows.length;
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--paper);">
+        <div style="font-weight:700;color:var(--maroon);">${fmtN(w)} EGP — ${rows.length} payment${rows.length===1?'':'s'} · ${fmtN(rows.length * w)} EGP</div>
+        ${rows.length ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.78rem;color:#5b6863;">Show who</summary>${rows.map(x=> `<div style="font-size:0.78rem;padding:4px 0;border-bottom:1px solid var(--line);">${escapeHtml(x.date)} · <b>${escapeHtml(x.patient)}</b> · ${escapeHtml(x.doctor)} · ${x.method}${x.tag ? ' · ' + escapeHtml(x.tag) : ''}</div>`).join('')}</details>` : ''}
+      </div>`;
+    }).join('');
+    const top = Object.keys(all).map(k=> [parseFloat(k), all[k]]).sort((a,b)=> b[1]-a[1]).slice(0,10);
+    out.innerHTML = `<div style="font-size:0.8rem;color:#5b6863;margin-bottom:8px;">${escapeHtml(fromVal)} → ${escapeHtml(toVal)} · ${totalPayments} payments recorded in total</div>${blocks}
+      <div style="font-weight:700;margin:6px 0;">Together: ${grandCount} payments · ${fmtN(grand)} EGP</div>
+      <div style="font-size:0.74rem;color:#8a938e;">Most common amounts in this period: ${top.map(t=> fmtN(t[0]) + ' (×' + t[1] + ')').join(', ') || '—'}</div>
+      <div style="font-size:0.72rem;color:#8a938e;margin-top:6px;">This counts payments of exactly these amounts. The app does not record which device was used, so check the list before drawing conclusions.</div>`;
+  }catch(e){ out.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`; }
 }
 
 async function runMoneyLedger(){
@@ -7776,7 +7843,28 @@ async function addWithdrawal(){
 
 let selectedExpenseFilter = 'all';
 
+function renderFixedCostsBar(){
+  const bar = el('fixedCostsBar'); if(!bar) return;
+  const list = CLINIC.fixed_costs || [];
+  if(!list.length){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  const total = list.reduce((a,f)=> a + (parseFloat(f.amount)||0), 0);
+  el('fixedCostsText').textContent = `Fixed monthly costs: ${list.length} items, ${total.toLocaleString()} EGP. They are added to Expenses automatically on the last day of each month.`;
+  el('fixedCostsApplyBtn').onclick = async ()=>{
+    const range = financeMonthRange();
+    const ym = range.start.slice(0,7);
+    if(!confirm(`Add the fixed costs to Expenses for ${range.monthName}? (Ones already added are skipped.)`)) return;
+    try{
+      const res = await fetch(`${BACKEND_URL}/api/fixed-costs/apply`, { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify({ month: ym }) });
+      const d = await res.json().catch(()=>({}));
+      if(!res.ok) throw new Error(d.error || `Server error ${res.status}`);
+      el('expenseStatus').textContent = d.added ? `Added ${d.added} fixed cost(s) for ${range.monthName}.` : 'Nothing to add — they are already in.';
+      loadExpenses();
+    }catch(e){ el('expenseStatus').textContent = 'Could not add: ' + (e.message || e); }
+  };
+}
 async function loadExpenses(){
+  renderFixedCostsBar();
   const range = financeMonthRange();
   const monthStart = range.start;
   const monthEndStr = range.end;
@@ -10028,7 +10116,7 @@ async function buildPatientSummaryText(patientName){
 }
 
 // ---- Clinic settings (loaded from the server; the owner edits them in Settings > Clinic) ----
-let CLINIC = { name:'Your Clinic', name_ar:'', address:'', address_ar:'', map_url:'', phone:'', instapay_url:'', instapay_handle:'', review_url:'', intake_url:'', tagline:'', links:[], templates:{}, payroll_rules:[] };
+let CLINIC = { name:'Your Clinic', name_ar:'', address:'', address_ar:'', map_url:'', phone:'', instapay_url:'', instapay_handle:'', review_url:'', intake_url:'', tagline:'', fixed_costs:[], links:[], templates:{}, payroll_rules:[] };
 function clinicFill(txt, v){ return String(txt).replace(/\{(\w+)\}/g, (m,k)=> (k in v) ? v[k] : m); }
 function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
   const amount = extra && extra.amount;
@@ -10525,7 +10613,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput','payAmtFrom','payAmtTo'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -11797,6 +11885,7 @@ el('paymentCheckBtn').addEventListener('click', runPaymentCheck);
 el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
 el('dupCheckBtn').addEventListener('click', runDuplicatePaymentCheck);
 el('ledgerBtn').addEventListener('click', runMoneyLedger);
+el('payAmtBtn').addEventListener('click', runPaymentsByAmount);
 document.querySelectorAll('.ledger-method-btn').forEach(btn=> btn.addEventListener('click', ()=> setLedgerMethod(btn.getAttribute('data-method'))));
 el('ledgerBankInInput').addEventListener('input', updateLedgerDiff);
 el('ledgerBankOutInput').addEventListener('input', updateLedgerDiff);
@@ -12623,6 +12712,12 @@ async function loadClinicConfig(){
 function clinicField(id, label, val, ph){
   return `<label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">${label}</label><input type="text" id="${id}" value="${escapeHtml(val||'')}" placeholder="${escapeHtml(ph||'')}" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.9rem;">`;
 }
+function clinicFixedRow(f){
+  f = f || { name:'', amount:'', method:'cash' };
+  const inp = (cls,ph,val,w,type)=> `<input type="${type||'text'}" class="${cls}" placeholder="${ph}" value="${escapeHtml(val==null?'':String(val))}" style="width:${w};box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.82rem;">`;
+  return `<div class="cl-fixed" style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap;">${inp('cl-f-name','e.g. Rent',f.name,'42%')}${inp('cl-f-amount','EGP',f.amount,'90px','number')}<select class="cl-f-method" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.82rem;"><option value="cash"${f.method!=='instapay'?' selected':''}>Cash</option><option value="instapay"${f.method==='instapay'?' selected':''}>InstaPay</option></select><button type="button" class="cl-f-del" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:1rem;">🗑️</button></div>`;
+}
+function wireFixedDeletes(){ document.querySelectorAll('#clFixed .cl-f-del').forEach(b=> b.onclick = ()=> b.closest('.cl-fixed').remove()); }
 function clinicRuleRow(r){
   r = r || { keyword:'', label:'', kind:'revenue_share' };
   const sel = (v,t)=> `<option value="${v}"${r.kind===v?' selected':''}>${t}</option>`;
@@ -12666,6 +12761,10 @@ function renderClinicForm(){
     <div style="font-weight:700;margin:20px 0 2px;">Messages</div>
     <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {instapay_url} {instapay_direct} {instapay_handle} {amount_line}</div>
     ${tpl}
+    <div style="font-weight:700;margin:20px 0 2px;">Fixed monthly costs</div>
+    <div style="font-size:0.74rem;color:#8a938e;">Rent, doorman, internet... They are added to Expenses automatically on the last day of every month, so Doctor Payroll and Net Cash/InstaPay take them into account. You can also add a month by hand from Stats &gt; Expenses.</div>
+    <div id="clFixed">${(C.fixed_costs||[]).map(clinicFixedRow).join('')}</div>
+    <button type="button" class="ghost" id="clAddFixed" style="margin-top:8px;font-size:0.8rem;padding:8px 12px;">+ Add a fixed cost</button>
     <div style="font-weight:700;margin:20px 0 2px;">Doctor pay rules</div>
     <div style="font-size:0.74rem;color:#8a938e;">Used by the Doctor Payroll report. The match word is part of the doctor's name as written in the calendar (any capitals).</div>
     <div id="clRules">${(C.payroll_rules||[]).map(clinicRuleRow).join('')}</div>
@@ -12673,6 +12772,8 @@ function renderClinicForm(){
   el('clAddRule').onclick = ()=>{ el('clRules').insertAdjacentHTML('beforeend', clinicRuleRow()); wireRuleDeletes(); };
   wireRuleDeletes();
   clLogoNew = undefined; clStampNew = undefined;
+  el('clAddFixed').onclick = ()=>{ el('clFixed').insertAdjacentHTML('beforeend', clinicFixedRow()); wireFixedDeletes(); };
+  wireFixedDeletes();
   const showBrand = ()=>{
     el('clLogoPrev').src = clLogoNew !== undefined ? (clLogoNew || clinicLogoSrcFor('')) : clinicLogoSrc();
     const st = clStampNew !== undefined ? clStampNew : (CLINIC.stamp || (isEmpowerBrand() ? CLINIC_STAMP_DATA_URI : ''));
@@ -12701,6 +12802,7 @@ async function saveClinicConfig(){
   const body = { name:v('clName'), name_ar:v('clNameAr'), address:v('clAddress'), address_ar:v('clAddressAr'), map_url:v('clMap'), phone:v('clPhone'),
     instapay_url:v('clInstaUrl'), instapay_handle:v('clInstaHandle'), review_url:v('clReview'), intake_url:v('clIntake'), tagline:v('clTagline'),
     logo: clLogoNew !== undefined ? clLogoNew : (CLINIC.logo || ''), stamp: clStampNew !== undefined ? clStampNew : (CLINIC.stamp || ''),
+    fixed_costs: Array.from(document.querySelectorAll('#clFixed .cl-fixed')).map(r=> ({ name: r.querySelector('.cl-f-name').value.trim(), amount: parseFloat(r.querySelector('.cl-f-amount').value) || 0, method: r.querySelector('.cl-f-method').value })).filter(f=> f.name && f.amount > 0),
     links: v('clLinks').split('\n').map(line=>{ const i = line.indexOf('|'); return i<0 ? null : { label: line.slice(0,i).trim(), url: line.slice(i+1).trim() }; }).filter(x=> x && x.label && x.url), templates, payroll_rules:rules };
   const st = el('clinicStatus'); st.style.color = '#5b6863'; st.textContent = 'Saving…';
   try{
