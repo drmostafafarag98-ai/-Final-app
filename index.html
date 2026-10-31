@@ -1424,6 +1424,14 @@
         <div id="hrSummary"></div>
       </div>
 
+      <div class="section-title collapsible-title" id="hrOtTitle" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — overtime <span id="hrOtCount"></span> <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Days a doctor saw patients on a day that is not one of their normal working days. Confirm which ones count as overtime. You can also add overtime by hand (extra hours on a normal day).</div>
+        <div id="hrOtSuggest"></div>
+        <div style="font-weight:700;margin:14px 0 6px;font-size:0.86rem;">Overtime this year</div>
+        <div id="hrOtSummary"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — staff and working days <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For each doctor: the match word (part of the name as written in the calendar), the days they normally work, and their yearly leave days (optional).</div>
@@ -2761,7 +2769,7 @@ async function loadHr(){
   el('hrYearLabel').textContent = hrYear;
   if(!staff.length){
     el('hrReview').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Add your doctors and their working days in "HR — staff and working days" first.</div>';
-    el('hrSummary').innerHTML = ''; el('hrReviewCount').textContent = '';
+    el('hrSummary').innerHTML = ''; el('hrReviewCount').textContent = ''; el('hrOtSuggest').innerHTML = ''; el('hrOtSummary').innerHTML = ''; el('hrOtCount').textContent = '';
     return;
   }
   el('hrReview').innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
@@ -2814,8 +2822,64 @@ async function loadHr(){
       }catch(e){ b.disabled = false; alert('Could not save: ' + (e.message || e)); }
     });
     hrRenderSummary();
+    hrRenderOvertime(appts, staff, revStart, yday);
   }catch(e){ el('hrReview').innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`; }
 }
+function hrRenderOvertime(appts, staff, revStart, yday){
+  const sugg = [];
+  const byDoc = {};
+  (appts || []).forEach(ev=>{
+    if(ev.status === 'cancelled' || !ev.start_time) return;
+    const dt = new Date(ev.start_time), k = hrYmd(dt);
+    staff.forEach(s=>{
+      if(!hrMatch(ev.doctor_name, s) || (s.days || []).includes(dt.getDay())) return;
+      const key = s.label + '|' + k; byDoc[key] = byDoc[key] || { label: s.label, date: k, d: new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()), n: 0 }; byDoc[key].n++;
+    });
+  });
+  const decSet = new Set((hrCache.decisions || []).map(d=> d.doctor_name + '|' + String(d.date).slice(0,10)));
+  Object.keys(byDoc).forEach(k=>{ if(!decSet.has(k)) sugg.push(byDoc[k]); });
+  sugg.sort((a,b)=> a.date < b.date ? 1 : -1);
+  el('hrOtCount').textContent = sugg.length ? `(${sugg.length})` : '';
+  el('hrOtSuggest').innerHTML = sugg.length ? sugg.slice(0,60).map((it,i)=>`<div class="hr-ot-item" data-i="${i}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
+      <div style="flex:1;min-width:170px;"><b>${escapeHtml(it.label)}</b><div style="font-size:0.76rem;color:#5b6863;">${it.d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})} · ${it.n} patient${it.n===1?'':'s'} on a day off</div></div>
+      <input type="number" class="hr-ot-hours" placeholder="hours" step="0.5" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.78rem;">
+      <button type="button" class="ghost hr-ot-act" data-kind="overtime" style="font-size:0.76rem;padding:6px 10px;">Overtime</button>
+      <button type="button" class="ghost hr-ot-act" data-kind="no_overtime" style="font-size:0.76rem;padding:6px 10px;">Not overtime</button></div>`).join('') : '<div style="font-size:0.82rem;color:#1b8a4a;">✓ Nothing to confirm.</div>';
+  document.querySelectorAll('#hrOtSuggest .hr-ot-act').forEach(b=> b.onclick = async ()=>{
+    const row = b.closest('.hr-ot-item'); const it = sugg[parseInt(row.dataset.i,10)];
+    const hours = parseFloat(row.querySelector('.hr-ot-hours').value) || null;
+    b.disabled = true;
+    try{ await hrApi('/api/hr/leaves', { method:'POST', body: JSON.stringify({ doctorName: it.label, date: it.date, kind: b.dataset.kind, hours: b.dataset.kind === 'overtime' ? hours : null }) }); loadHr(); }
+    catch(e){ b.disabled = false; alert('Could not save: ' + (e.message || e)); }
+  });
+  hrRenderOtSummary(staff);
+}
+function hrRenderOtSummary(staff){
+  staff = staff || hrCache.staff || CLINIC.hr_staff || [];
+  const yr = String(hrYear);
+  el('hrOtSummary').innerHTML = staff.map((s, si)=>{
+    const rows = (hrCache.decisions || []).filter(d=> d.kind === 'overtime' && d.doctor_name === s.label && String(d.date).startsWith(yr)).sort((a,b)=> a.date < b.date ? -1 : 1);
+    const hrs = rows.reduce((a,d)=> a + (parseFloat(d.hours) || 0), 0);
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--paper);">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><b>${escapeHtml(s.label)}</b><span style="font-size:0.86rem;"><b>${rows.length}</b> overtime day${rows.length===1?'':'s'}${hrs ? ` · ${hrs} hours` : ''}</span></div>
+      <details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.78rem;color:#5b6863;">Show dates</summary>
+        ${rows.map(d=> `<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:4px 0;border-bottom:1px solid var(--line);"><span>${new Date(String(d.date).slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}${d.hours ? ' · ' + d.hours + ' h' : ''}${d.note ? ' · ' + escapeHtml(d.note) : ''}</span><button type="button" class="hr-ot-rm" data-id="${escapeHtml(String(d.id))}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;">✕</button></div>`).join('') || '<div style="font-size:0.78rem;color:#8a938e;">No overtime this year.</div>'}
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;"><input type="date" class="hr-ot-date" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="number" class="hr-ot-h" placeholder="hours" step="0.5" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="text" class="hr-ot-note" placeholder="note (optional)" style="flex:1;min-width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><button type="button" class="ghost hr-ot-add" data-si="${si}" style="font-size:0.76rem;padding:6px 10px;">+ Add overtime</button></div>
+      </details></div>`;
+  }).join('');
+  document.querySelectorAll('#hrOtSummary .hr-ot-rm').forEach(b=> b.onclick = async ()=>{
+    if(!confirm('Remove this overtime entry?')) return;
+    try{ await hrApi(`/api/hr/leaves/${encodeURIComponent(b.dataset.id)}`, { method:'DELETE' }); loadHr(); }catch(e){ alert('Could not remove: ' + (e.message || e)); }
+  });
+  document.querySelectorAll('#hrOtSummary .hr-ot-add').forEach(b=> b.onclick = async ()=>{
+    const s = staff[parseInt(b.dataset.si,10)]; const box = b.parentElement;
+    const date = box.querySelector('.hr-ot-date').value;
+    if(!date){ alert('Pick a date first.'); return; }
+    try{ await hrApi('/api/hr/leaves', { method:'POST', body: JSON.stringify({ doctorName: s.label, date, kind:'overtime', hours: parseFloat(box.querySelector('.hr-ot-h').value) || null, note: box.querySelector('.hr-ot-note').value.trim() }) }); loadHr(); }
+    catch(e){ alert('Could not save: ' + (e.message || e)); }
+  });
+}
+
 function hrRenderSummary(){
   const staff = hrCache.staff || CLINIC.hr_staff || [];
   const yr = String(hrYear);
@@ -12073,8 +12137,8 @@ el('hrImportRules').addEventListener('click', ()=>{
   hrWireDeletes();
 });
 el('hrSaveStaff').addEventListener('click', hrSaveStaff);
-el('hrYearPrev').addEventListener('click', ()=>{ hrYear--; hrRenderSummary(); });
-el('hrYearNext').addEventListener('click', ()=>{ hrYear++; hrRenderSummary(); });
+el('hrYearPrev').addEventListener('click', ()=>{ hrYear--; hrRenderSummary(); hrRenderOtSummary(); });
+el('hrYearNext').addEventListener('click', ()=>{ hrYear++; hrRenderSummary(); hrRenderOtSummary(); });
 
 document.querySelectorAll('.ledger-method-btn').forEach(btn=> btn.addEventListener('click', ()=> setLedgerMethod(btn.getAttribute('data-method'))));
 el('ledgerBankInInput').addEventListener('input', updateLedgerDiff);
