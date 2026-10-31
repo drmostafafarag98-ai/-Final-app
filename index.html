@@ -3036,7 +3036,7 @@ function ensureDupCheckDefaults(){
 function findDuplicatePayments(items){
   const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
   const norm = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
-  const namesSimilar = (a, b) => a === b || (a.length >= 3 && b.length >= 3 && (a.includes(b) || b.includes(a)));
+  const namesSimilar = (a, b) => a === b || (a.length >= 3 && b.length >= 3 && nameWordsSubset(a, b));
   const records = [];
   items.forEach(ev=>{
     if(ev.status === 'cancelled') return;
@@ -4292,6 +4292,14 @@ async function loadPackagePolicyCheck(){
 // Warns before a NEW package is created for someone who already has a running
 // one (same name, or a spelling variant such as "mina" / "mina ishak") — the
 // usual cause of duplicate packages and wrong session counts.
+// Two names are "similar" when every word of the shorter one is a whole word of the longer one
+// ("mina" ~ "mina ishak"). Different names that merely share letters ("lama" / "allam") are NOT similar.
+function nameWordsSubset(a, b){
+  const wa = String(a || '').trim().split(/\s+/).filter(Boolean), wb = String(b || '').trim().split(/\s+/).filter(Boolean);
+  if(!wa.length || !wb.length) return false;
+  const [short, long] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
+  return short.every(w=> long.includes(w));
+}
 async function confirmNoSimilarActivePackage(patientName){
   try{
     const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
@@ -4303,7 +4311,7 @@ async function confirmNoSimilarActivePackage(patientName){
     const me = norm(patientName);
     const similar = pkgs.filter(p=>{
       const n = norm(p.patient_name);
-      return n === me || (me.length >= 3 && n.length >= 3 && (n.includes(me) || me.includes(n)));
+      return n === me || (me.length >= 3 && n.length >= 3 && nameWordsSubset(n, me));
     });
     if(similar.length === 0) return true;
     const lines = similar.map(p=> `• ${p.patient_name}: ${p.used_sessions} of ${p.total_sessions} sessions used`).join('\n');
