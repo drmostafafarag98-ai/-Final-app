@@ -2821,7 +2821,8 @@ async function loadHr(){
     ]);
     hrCache = { unavail: Array.isArray(unavail) ? unavail : [], decisions: Array.isArray(dec) ? dec : [], staff };
     const worked = new Set(), anyone = new Set();
-    (await attP || []).forEach(a=> staff.forEach(s=>{ if(hrMatch(a.person_name, s) || hrMatch(a.person_email, s)) worked.add(s.label + '|' + String(a.day).slice(0,10)); }));
+    const attRows = (await attP) || []; hrCache.att = attRows;
+    attRows.forEach(a=> staff.forEach(s=>{ if(hrMatch(a.person_name, s) || hrMatch(a.person_email, s)) worked.add(s.label + '|' + String(a.day).slice(0,10)); }));
     (appts || []).forEach(ev=>{
       if(ev.status === 'cancelled' || !ev.start_time) return;
       const k = hrYmd(new Date(ev.start_time)); anyone.add(k);
@@ -2870,13 +2871,35 @@ function hrRenderOvertime(appts, staff, revStart, yday){
       const key = s.label + '|' + k; byDoc[key] = byDoc[key] || { label: s.label, date: k, d: new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()), n: 0 }; byDoc[key].n++;
     });
   });
+  // Staying past the end of the shift on a normal working day
+  const lastOut = {};
+  (appts || []).forEach(ev=>{
+    if(ev.status === 'cancelled' || !ev.start_time) return;
+    const st = new Date(ev.start_time), en = ev.end_time ? new Date(ev.end_time) : new Date(st.getTime() + 30*60000), k = hrYmd(st);
+    staff.forEach(s=>{ if(s.kind !== 'secretary' && hrMatch(ev.doctor_name, s)){ const kk = s.label + '|' + k; if(!lastOut[kk] || en > lastOut[kk]) lastOut[kk] = en; } });
+  });
+  (hrCache.att || []).forEach(a=>{
+    if(!a.check_out) return;
+    const en = new Date(a.check_out), k = String(a.day).slice(0,10);
+    staff.forEach(s=>{ if(hrMatch(a.person_name, s) || hrMatch(a.person_email, s)){ const kk = s.label + '|' + k; if(!lastOut[kk] || en > lastOut[kk]) lastOut[kk] = en; } });
+  });
+  staff.forEach(s=>{
+    Object.keys(lastOut).forEach(kk=>{
+      if(kk.split('|')[0] !== s.label) return;
+      const k = kk.split('|')[1], d = new Date(k + 'T12:00:00'), sh = s.shifts && s.shifts[d.getDay()];
+      if(!sh) return;
+      const en = lastOut[kk], mins = en.getHours()*60 + en.getMinutes() - hrMin(sh[1]);
+      if(mins < 15) return;
+      byDoc[kk] = { label: s.label, date: k, d, n: 0, extra: { until: hrTimeStr(en), shiftEnd: sh[1], hours: Math.round(mins/60*4)/4 } };
+    });
+  });
   const decSet = new Set((hrCache.decisions || []).map(d=> d.doctor_name + '|' + String(d.date).slice(0,10)));
   Object.keys(byDoc).forEach(k=>{ if(!decSet.has(k)) sugg.push(byDoc[k]); });
   sugg.sort((a,b)=> a.date < b.date ? 1 : -1);
   el('hrOtCount').textContent = sugg.length ? `(${sugg.length})` : '';
   el('hrOtSuggest').innerHTML = sugg.length ? sugg.slice(0,60).map((it,i)=>`<div class="hr-ot-item" data-i="${i}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);">
-      <div style="flex:1;min-width:170px;"><b>${escapeHtml(it.label)}</b><div style="font-size:0.76rem;color:#5b6863;">${it.d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})} · ${it.n} patient${it.n===1?'':'s'} on a day off</div></div>
-      <input type="number" class="hr-ot-hours" placeholder="hours" step="0.5" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.78rem;">
+      <div style="flex:1;min-width:170px;"><b>${escapeHtml(it.label)}</b><div style="font-size:0.76rem;color:#5b6863;">${it.d.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'})} · ${it.extra ? 'stayed until ' + it.extra.until + ' (shift ends ' + it.extra.shiftEnd + ')' : it.n + ' patient' + (it.n===1?'':'s') + ' on a day off'}</div></div>
+      <input type="number" class="hr-ot-hours" placeholder="hours" step="0.25"${it.extra ? ' value="' + it.extra.hours + '"' : ''} style=""width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.78rem;">
       <button type="button" class="ghost hr-ot-act" data-kind="overtime" style="font-size:0.76rem;padding:6px 10px;">Overtime</button>
       <button type="button" class="ghost hr-ot-act" data-kind="no_overtime" style="font-size:0.76rem;padding:6px 10px;">Not overtime</button></div>`).join('') : '<div style="font-size:0.82rem;color:#1b8a4a;">✓ Nothing to confirm.</div>';
   document.querySelectorAll('#hrOtSuggest .hr-ot-act').forEach(b=> b.onclick = async ()=>{
