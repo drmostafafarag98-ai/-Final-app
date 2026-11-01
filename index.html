@@ -1829,7 +1829,7 @@
       </div>
     </div>
 
-    <div id="miniDatePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:75;align-items:center;justify-content:center;padding:16px;">
+    <div id="miniDatePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:95;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:340px;width:100%;padding:16px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
           <button type="button" class="ghost" id="miniDatePrevMonthBtn" style="padding:5px 12px;">‹</button>
@@ -1841,7 +1841,7 @@
       </div>
     </div>
 
-    <div id="timePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:80;align-items:center;justify-content:center;padding:16px;">
+    <div id="timePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:95;align-items:center;justify-content:center;padding:16px;">
       <div style="background:var(--panel);border-radius:var(--radius);max-width:340px;width:100%;padding:16px;">
         <div style="text-align:center;font-size:1.5rem;font-weight:700;color:var(--maroon);margin-bottom:10px;" id="tpLabel"></div>
         <div style="font-size:0.74rem;color:#8a938e;margin-bottom:4px;">Hour</div>
@@ -13285,6 +13285,19 @@ if('serviceWorker' in navigator){
 
 // ---- Settings > Clinic (owner) ----
 let clinicConfigStatus = { code: 0, rules: 0 };
+function applyClinicFeatures(){
+  try{
+    const ft = (CLINIC && CLINIC.features && typeof CLINIC.features === 'object') ? CLINIC.features : {};
+    let st = document.getElementById('featureCss');
+    if(!st){ st = document.createElement('style'); st.id = 'featureCss'; document.head.appendChild(st); }
+    const css = [];
+    if(ft.booking === false) css.push('#navBookingBtn,#dashTabBar button[data-tab="booking"]{display:none !important;}');
+    if(ft.hr === false) css.push('#dashTabBar button[data-tab="hr"]{display:none !important;}');
+    if(ft.team === false) css.push('#dashTabBar button[data-tab="team"]{display:none !important;}');
+    if(ft.docs === false) css.push('#navDocumentationBtn{display:none !important;}');
+    st.textContent = css.join('\n');
+  }catch(e){}
+}
 async function loadClinicConfig(){
   try{
     const res = await fetch(`${BACKEND_URL}/api/clinic-config`, { headers: authHeader() });
@@ -13295,6 +13308,7 @@ async function loadClinicConfig(){
     CLINIC = Object.assign({ name:'Your Clinic', templates:{}, payroll_rules:[] }, c);
     CLINIC.templates = c.templates || {};
     PAYROLL_RULES = Array.isArray(c.payroll_rules) ? c.payroll_rules : [];
+    applyClinicFeatures();
     const isOwner = signedInDoctor && signedInDoctor.role === 'owner';
     const b = document.getElementById('adminTabClinicBtn'); if(b) b.style.display = isOwner ? '' : 'none';
     const hb = document.querySelector('#dashTabBar button[data-tab="hr"]'); if(hb) hb.style.display = isOwner ? '' : 'none';
@@ -13401,6 +13415,7 @@ function onboardText(row){
   (d.services || []).forEach(s=> L.push(`- ${s.name} | ${s.type} | ${s.price} EGP${s.sessions ? ' | ' + s.sessions + ' sessions' : ''}`));
   if(d.package_validity) L.push('Package validity: ' + d.package_validity);
   if(d.cancel_policy) L.push('Cancellation: ' + d.cancel_policy);
+  L.push(''); L.push('MESSAGES (edited by the clinic):'); Object.keys(d.templates || {}).forEach(k=> L.push('[' + k + ']\n' + d.templates[k]));
   L.push(''); L.push('FIXED COSTS:');
   (d.fixed_costs || []).forEach(f=> L.push(`- ${f.name}: ${f.amount}`));
   L.push(''); L.push(`Online booking: ${bk.online || ''} | session minutes: ${bk.slot_minutes || ''} | opening: ${bk.opening || ''}`);
@@ -13428,9 +13443,9 @@ function onboardSeedSql(row){
   const fixed = (d.fixed_costs || []).filter(f=> f.name && parseFloat(f.amount) > 0).map(f=> ({ name: f.name, amount: parseFloat(f.amount), method: 'cash' }));
   const cfg = { name: c.name || '', name_ar: c.name_ar || '', address: c.address || '', address_ar: c.address_ar || '', map_url: c.map_url || '', phone: c.phone || '',
     instapay_url: p.instapay_url || '', instapay_handle: p.instapay_handle || '', review_url: c.review_url || '', tagline: c.tagline || '',
-    logo: c.logo || '', stamp: c.stamp || '', fixed_costs: fixed, hr_staff: hr, payroll_rules: rules };
+    logo: c.logo || '', stamp: c.stamp || '', fixed_costs: fixed, hr_staff: hr, payroll_rules: rules, templates: d.templates || {}, features: { booking: false, hr: false, team: false, docs: false } };
   const json = JSON.stringify(cfg).replace(/'/g, "''");
-  return "insert into public.booking_settings (id, \"data\", updated_at)\nvalues (2, '" + json + "'::jsonb, now())\non conflict (id) do update set \"data\" = excluded.\"data\", updated_at = now();";
+  return "insert into public.booking_settings (id, \"data\", updated_at)\nvalues (2, '" + json + "'::jsonb, now())\non conflict (id) do update set \"data\" = excluded.\"data\" || jsonb_build_object('features', coalesce(booking_settings.\"data\"->'features', excluded.\"data\"->'features')), updated_at = now();";
 }
 async function loadOnboardBox(){
   const box = el('onboardBox'); if(!box) return;
@@ -13518,6 +13533,12 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     }
     btn.addEventListener('click',go); inp.addEventListener('keydown',function(e){ if(e.key==='Enter') go(); });
   });
+})();
+</script>
+<script>
+(function(){
+  function fix(root){ try{ (root||document).querySelectorAll('input[type=text],input[type=tel],input[type=search],input:not([type]),textarea').forEach(function(i){ if(i.type==='password') return; if(i.getAttribute('autocomplete')!=='off'){ i.setAttribute('autocomplete','off'); i.setAttribute('data-lpignore','true'); i.setAttribute('data-form-type','other'); } }); }catch(e){} }
+  document.addEventListener('DOMContentLoaded', function(){ fix(); try{ new MutationObserver(function(){ fix(); }).observe(document.body,{childList:true,subtree:true}); }catch(e){} });
 })();
 </script>
 </body>
