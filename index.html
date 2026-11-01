@@ -1000,6 +1000,7 @@
     <div style="font-size:0.78rem;color:#5b6863;margin-bottom:12px;">Your clinic's details. They appear in WhatsApp messages, the booking page and the package page.</div>
     <div id="clinicForm"></div>
     <div id="clinicStatus" style="font-size:0.8rem;min-height:1.2em;margin:8px 0;"></div>
+    <div id="onboardBox" style="display:none;"></div>
     <button type="button" id="clinicSaveBtn" style="width:100%;padding:12px;border:none;border-radius:12px;background:var(--maroon);color:#fff;font-weight:700;font-size:0.95rem;cursor:pointer;">Save clinic settings</button>
   </div>
 
@@ -2197,6 +2198,12 @@ document.addEventListener('click', (e)=>{
 // ---- Clinic branding (logo / stamp / prescription footer) ----
 // Empower keeps its built-in artwork; every other clinic uses what it uploads in
 // Settings > Clinic, or a clean text logo made from its name.
+// Print only after the logo / stamp images are fully loaded, otherwise a slower phone prints the page without them
+function printWhenReady(){
+  const imgs = Array.from(document.querySelectorAll('#printableNote img'));
+  const waits = imgs.map(im=> (im.complete && im.naturalWidth) ? Promise.resolve() : (im.decode ? im.decode().catch(()=>{}) : new Promise(r=>{ im.onload = im.onerror = r; })));
+  Promise.race([Promise.all(waits), new Promise(r=> setTimeout(r, 4000))]).then(()=> setTimeout(()=> window.print(), 200));
+}
 function isEmpowerBrand(){ return !CLINIC.logo && /empower/i.test(CLINIC.name || ''); }
 function brandSvgUri(svg){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
 function brandXml(t){ return String(t==null?'':t).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -5231,7 +5238,7 @@ function exportPatientListPdf(){
     </tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
-  window.print();
+  printWhenReady();
 }
 
 function downloadNoteExpandSummaryPdf(){
@@ -5248,7 +5255,7 @@ function downloadNoteExpandSummaryPdf(){
   const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(heading)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  window.print();
+  printWhenReady();
 }
 
 function setSessionType(type){
@@ -11497,7 +11504,7 @@ function downloadNotePDF(){
   const container = el('printableNote');
   const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">PT Clinical Note</div><p><strong>Patient:</strong> ${escapeHtml(patientName)}</p><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Doctor:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  window.print();
+  printWhenReady();
 }
 
 async function generatePatientSummary(patientName){
@@ -11578,7 +11585,7 @@ function downloadSummaryPdf(){
   const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  window.print();
+  printWhenReady();
 }
 
 function openPrescriptionOverlay(){
@@ -11599,7 +11606,7 @@ function downloadPrescriptionPdf(){
   const container = el('printableNote');
   container.className = 'rx-mode';
   container.innerHTML = `<div class="rx-page"><div class="rx-header"><div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">${rxWordHtml()}</div><div class="rx-tagline">Physical Therapy and Rehabilitation</div></div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field name"><strong>NAME:</strong><span class="val" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</span></div><div class="field date"><strong>DATE:</strong><span class="val" title="${escapeHtml(sessionDateVal)}">${escapeHtml(sessionDateVal)}</span></div><div class="field doctor"><strong>DOCTOR:</strong><span class="val" title="${escapeHtml(doctorLabel)}">${escapeHtml(doctorLabel)}</span></div></div><div class="rx-body-wrap"><img src="${clinicLogoSrc()}" class="rx-watermark"><div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${clinicStampSrc()}"></div><div class="rx-footer"><img src="${clinicFooterSrc()}"></div></div>`;
-  window.print();
+  printWhenReady();
   container.className = '';
 }
 
@@ -11697,7 +11704,7 @@ function downloadInvoicePdf(){
   document.title = safeName || originalTitle;
   const restoreTitle = () => { document.title = originalTitle; window.removeEventListener('afterprint', restoreTitle); };
   window.addEventListener('afterprint', restoreTitle);
-  window.print();
+  printWhenReady();
   setTimeout(restoreTitle, 3000); // fallback for browsers that don't fire afterprint reliably
   container.className = '';
 }
@@ -13337,6 +13344,61 @@ function renderClinicForm(){
   el('clStampFile').onchange = (e)=>{ const f = e.target.files[0]; if(!f) return; resizeImageFile(f, 400, u=>{ if(!u){ alert('This image is too big or not readable. Try a smaller PNG or JPG.'); return; } clStampNew = u; showBrand(); }); };
   el('clLogoClear').onclick = ()=>{ clLogoNew = ''; showBrand(); };
   el('clStampClear').onclick = ()=>{ clStampNew = ''; showBrand(); };
+  loadOnboardBox();
+}
+
+// ---- New-clinic requests (filled by a friend through /onboard) ----
+function onboardText(row){
+  const d = row.data || {}, c = d.clinic || {}, o = d.owner || {}, p = d.payments || {}, bk = d.booking || {}, ac = d.accounts || {};
+  const L = [];
+  L.push('NEW CLINIC: ' + (row.clinic_name || ''));
+  L.push('Owner: ' + [o.name, o.phone, o.email].filter(Boolean).join(' · '));
+  L.push('');
+  L.push('Clinic name EN: ' + (c.name || '') + ' | AR: ' + (c.name_ar || ''));
+  if(c.tagline) L.push('Tagline: ' + c.tagline);
+  L.push('Address EN: ' + (c.address || '')); L.push('Address AR: ' + (c.address_ar || ''));
+  L.push('Map: ' + (c.map_url || '')); L.push('Phone: ' + (c.phone || ''));
+  if(c.social) L.push('Social: ' + c.social); if(c.review_url) L.push('Review link: ' + c.review_url);
+  L.push('Logo: ' + (c.logo ? 'yes (see the file below)' : 'no') + ' | Stamp: ' + (c.stamp ? 'yes' : 'no'));
+  L.push('');
+  L.push('Payments: ' + [p.cash ? 'cash' : '', p.instapay ? 'InstaPay' : ''].filter(Boolean).join(', ') + ' | InstaPay link: ' + (p.instapay_url || '') + ' | handle: ' + (p.instapay_handle || ''));
+  L.push(''); L.push('TEAM:');
+  (d.team || []).forEach(t=> L.push(`- ${t.name} (${t.role}) ${t.email || ''} | pay: ${t.pay}${t.percent ? ' ' + t.percent + '%' : ''}${t.fixed ? ' fixed ' + t.fixed : ''}${t.per_session ? ' per session ' + t.per_session : ''} | days: ${(t.days || []).join(',')} ${t.shift_from || ''}-${t.shift_to || ''}`));
+  L.push(''); L.push('SERVICES:');
+  (d.services || []).forEach(s=> L.push(`- ${s.name} | ${s.type} | ${s.price} EGP${s.sessions ? ' | ' + s.sessions + ' sessions' : ''}`));
+  if(d.package_validity) L.push('Package validity: ' + d.package_validity);
+  if(d.cancel_policy) L.push('Cancellation: ' + d.cancel_policy);
+  L.push(''); L.push('FIXED COSTS:');
+  (d.fixed_costs || []).forEach(f=> L.push(`- ${f.name}: ${f.amount}`));
+  L.push(''); L.push(`Online booking: ${bk.online || ''} | session minutes: ${bk.slot_minutes || ''} | opening: ${bk.opening || ''}`);
+  if(bk.directions) L.push('Directions: ' + bk.directions);
+  L.push(''); L.push(`Accounts email: ${ac.infra_email || ''} | wanted address: ${ac.subdomain || ''}`);
+  if(ac.notes) L.push('Notes: ' + ac.notes);
+  return L.join('\n');
+}
+async function loadOnboardBox(){
+  const box = el('onboardBox'); if(!box) return;
+  if(!signedInDoctor || signedInDoctor.role !== 'owner'){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const link = `${BACKEND_URL}/onboard`;
+  box.innerHTML = `<div style="font-weight:700;margin:24px 0 2px;">New clinic requests</div>
+    <div style="font-size:0.74rem;color:#8a938e;margin-bottom:6px;">Send this link to a clinic owner. When they fill the form, their details appear below.</div>
+    <div style="display:flex;gap:6px;"><input type="text" readonly id="onbLink" value="${escapeHtml(link)}" style="flex:1;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.8rem;"><button type="button" class="ghost" id="onbCopy" style="padding:8px 12px;">Copy</button></div>
+    <div id="onbList" style="margin-top:10px;font-size:0.8rem;color:#8a938e;">Loading…</div>`;
+  el('onbCopy').onclick = async ()=>{ try{ await navigator.clipboard.writeText(link); el('onbCopy').textContent = 'Copied ✓'; }catch(e){ el('onbLink').select(); } };
+  try{
+    const rows = await hrApi('/api/onboard');
+    const list = el('onbList');
+    if(!rows.length){ list.textContent = 'No requests yet.'; return; }
+    list.style.color = 'inherit';
+    list.innerHTML = rows.map((r,i)=> `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--paper);">
+      <div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeHtml(r.clinic_name)}</b><span style="color:#8a938e;font-size:0.74rem;">${escapeHtml(String(r.created_at).slice(0,10))}</span></div>
+      <details style="margin-top:6px;"><summary style="cursor:pointer;color:var(--maroon);">Show details</summary><pre style="white-space:pre-wrap;font-size:0.76rem;margin:8px 0;">${escapeHtml(onboardText(r))}</pre></details>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="ghost onb-copy" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Copy as text</button><button type="button" class="ghost onb-json" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Download file</button><button type="button" class="ghost onb-del" data-id="${escapeHtml(r.id)}" style="font-size:0.76rem;padding:6px 10px;">🗑️</button></div></div>`).join('');
+    list.querySelectorAll('.onb-copy').forEach(b=> b.onclick = async ()=>{ try{ await navigator.clipboard.writeText(onboardText(rows[b.dataset.i])); b.textContent = 'Copied ✓'; }catch(e){ alert('Could not copy.'); } });
+    list.querySelectorAll('.onb-json').forEach(b=> b.onclick = ()=>{ const r = rows[b.dataset.i]; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(r.data, null, 2)], { type:'application/json' })); a.download = String(r.clinic_name || 'clinic').replace(/[^\w\-]+/g, '_') + '.json'; a.click(); });
+    list.querySelectorAll('.onb-del').forEach(b=> b.onclick = async ()=>{ if(!confirm('Delete this request?')) return; try{ await hrApi('/api/onboard/' + encodeURIComponent(b.dataset.id), { method:'DELETE' }); loadOnboardBox(); }catch(e){ alert('Could not delete.'); } });
+  }catch(e){ el('onbList').textContent = 'Could not load: ' + (e.message || e); }
 }
 function wireRuleDeletes(){ document.querySelectorAll('#clRules .cl-r-del').forEach(b=> b.onclick = ()=> b.closest('.cl-rule').remove()); }
 async function saveClinicConfig(){
