@@ -1053,6 +1053,7 @@
     <div class="dashboard-stats-row" id="statsRow_todayInline" style="margin-bottom:18px;"></div>
     </div></details>
 
+    <div id="attendanceCard" style="display:none;background:var(--panel);border:2px solid #7a1f33;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;"></div>
     <div id="nowVisitCard" style="display:none;background:#eaf5f1;border:2px solid #1f5c56;border-radius:var(--radius);padding:12px 14px;margin-bottom:12px;"></div>
     <div id="undocBanner" style="display:none;background:var(--panel);border:1px solid var(--maroon);border-radius:var(--radius);padding:10px 14px;margin-bottom:12px;">
       <div style="display:flex;align-items:center;gap:8px;">
@@ -1193,6 +1194,18 @@
           <div id="payrollWarnings"></div>
           <div id="payrollSummary" style="font-size:0.82rem;margin-bottom:10px;"></div>
           <div id="payrollTable"></div>
+          <div style="border-top:1px dashed var(--line);margin-top:14px;padding-top:12px;">
+            <div style="font-weight:700;font-size:0.86rem;margin-bottom:4px;">Pay adjustment (exceptions)</div>
+            <div style="font-size:0.74rem;color:#8a938e;margin-bottom:8px;">Add or subtract an amount from one doctor's pay for the period above. Use a minus for a deduction (e.g. -825). It also changes the clinic profit.</div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
+              <select id="adjDoctor" style="padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></select>
+              <input type="number" id="adjAmount" placeholder="Amount (+/-)" style="width:110px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--paper);">
+              <input type="text" id="adjNote" placeholder="Why? (e.g. sister, free)" style="flex:1;min-width:130px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--paper);">
+              <button type="button" class="ghost" id="adjAddBtn">Add</button>
+            </div>
+            <div id="adjStatus" style="font-size:0.75rem;color:#8a938e;margin:6px 0;"></div>
+            <div id="adjList"></div>
+          </div>
         </div>
       </div>
 
@@ -1430,6 +1443,20 @@
         <div id="hrOtSuggest"></div>
         <div style="font-weight:700;margin:14px 0 6px;font-size:0.86rem;">Overtime this year</div>
         <div id="hrOtSummary"></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — cases vs shift <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Compares each doctor's booked cases with the shift hours you entered. Capacity = shift length ÷ the doctor's usual session length.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="date" id="hrWlFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="date" id="hrWlTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrWlGo" style="padding:8px 14px;">Calculate</button></div>
+        <div id="hrWlOut" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — attendance <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check-in / check-out times recorded by staff from the app, compared with their shift.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="date" id="hrAtFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="date" id="hrAtTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrAtGo" style="padding:8px 14px;">Show</button></div>
+        <div id="hrAtOut" style="margin-top:12px;"></div>
       </div>
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — staff and working days <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
@@ -2731,10 +2758,13 @@ async function hrApi(path, opts){
 }
 function hrStaffRowHtml(s){
   s = s || { label:'', keyword:'', days:[6,0,1,2,3,4], allowance:'' };
-  const chips = [6,0,1,2,3,4,5].map(d=> `<label style="display:inline-flex;align-items:center;gap:3px;font-size:0.76rem;margin-right:6px;"><input type="checkbox" class="hr-day" value="${d}"${(s.days||[]).includes(d)?' checked':''}>${HR_DAY_NAMES[d]}</label>`).join('');
+  const tin = (cls,v)=> `<input type="time" class="${cls}" value="${escapeHtml(v||'')}" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.78rem;">`;
+  const chips = [6,0,1,2,3,4,5].map(d=>{ const sh = (s.shifts||{})[d] || []; return `<div class="hr-dayrow" data-d="${d}" style="display:flex;align-items:center;gap:6px;margin:3px 0;"><label style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;width:62px;"><input type="checkbox" class="hr-day" value="${d}"${(s.days||[]).includes(d)?' checked':''}>${HR_DAY_NAMES[d]}</label>${tin('hr-from',sh[0])}<span style="font-size:0.74rem;color:#8a938e;">→</span>${tin('hr-to',sh[1])}</div>`; }).join('');
+  const kindSel = `<select class="hr-kind" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.82rem;"><option value="doctor"${s.kind==='secretary'?'':' selected'}>Doctor</option><option value="secretary"${s.kind==='secretary'?' selected':''}>Secretary / staff</option></select>`;
   const inp = (cls,ph,val,w,type)=> `<input type="${type||'text'}" class="${cls}" placeholder="${ph}" value="${escapeHtml(val==null?'':String(val))}" style="width:${w};box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.82rem;">`;
   return `<div class="hr-staff" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--paper);">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">${inp('hr-label','Name shown (e.g. Dr. Sara)',s.label,'44%')}${inp('hr-keyword','Match word (e.g. sara)',s.keyword,'30%')}${inp('hr-allow','Leave days / year',s.allowance,'110px','number')}<button type="button" class="hr-del" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:1rem;">🗑️</button></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">${inp('hr-label','Name shown (e.g. Dr. Sara)',s.label,'44%')}${inp('hr-keyword','Match word (e.g. sara)',s.keyword,'30%')}${inp('hr-allow','Leave days / year',s.allowance,'110px','number')}${kindSel}<button type="button" class="hr-del" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:1rem;">🗑️</button></div>
+    <div style="font-size:0.72rem;color:#8a938e;margin:4px 0;">Tick the working days and enter the shift hours (optional) — used to compare cases and attendance with the shift.</div>
     <div>${chips}</div></div>`;
 }
 function hrRenderStaffEditor(){
@@ -2747,7 +2777,9 @@ function hrReadStaffEditor(){
   return Array.from(document.querySelectorAll('#hrStaffRows .hr-staff')).map(r=>({
     label: r.querySelector('.hr-label').value.trim(),
     keyword: r.querySelector('.hr-keyword').value.trim().toLowerCase(),
+    kind: r.querySelector('.hr-kind').value,
     days: Array.from(r.querySelectorAll('.hr-day:checked')).map(c=> parseInt(c.value,10)),
+    shifts: (()=>{ const o = {}; r.querySelectorAll('.hr-dayrow').forEach(row=>{ const d = parseInt(row.dataset.d,10); if(!row.querySelector('.hr-day').checked) return; const a = row.querySelector('.hr-from').value, b = row.querySelector('.hr-to').value; if(a && b && a < b) o[d] = [a,b]; }); return o; })(),
     allowance: parseFloat(r.querySelector('.hr-allow').value) || 0
   })).filter(s=> s.label && s.keyword);
 }
@@ -2781,6 +2813,7 @@ async function loadHr(){
     if(revStart < cap) revStart = cap;
     const fromY = hrYmd(new Date(Math.min(revStart.getTime(), new Date(hrYear, 0, 1).getTime())));
     const toY = hrYmd(new Date(Math.max(today.getTime(), new Date(hrYear, 11, 31).getTime())));
+    const attP = hrApi(`/api/hr/attendance?start=${hrYmd(revStart)}&end=${hrYmd(yday)}`).catch(()=>[]);
     const [appts, unavail, dec] = await Promise.all([
       revStart <= yday ? fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(revStart.toISOString())}&end=${encodeURIComponent(new Date(yday.getFullYear(), yday.getMonth(), yday.getDate(), 23,59,59).toISOString())}`, { headers: authHeader() }).then(r=> r.ok ? r.json() : Promise.reject(new Error('Could not load appointments ('+r.status+')'))) : Promise.resolve([]),
       fetch(`${BACKEND_URL}/api/doctor-unavailability?start=${fromY}&end=${toY}`, { headers: authHeader() }).then(r=> r.ok ? r.json() : []),
@@ -2788,6 +2821,7 @@ async function loadHr(){
     ]);
     hrCache = { unavail: Array.isArray(unavail) ? unavail : [], decisions: Array.isArray(dec) ? dec : [], staff };
     const worked = new Set(), anyone = new Set();
+    (await attP || []).forEach(a=> staff.forEach(s=>{ if(hrMatch(a.person_name, s) || hrMatch(a.person_email, s)) worked.add(s.label + '|' + String(a.day).slice(0,10)); }));
     (appts || []).forEach(ev=>{
       if(ev.status === 'cancelled' || !ev.start_time) return;
       const k = hrYmd(new Date(ev.start_time)); anyone.add(k);
@@ -6793,6 +6827,7 @@ function updateSignInStatusUI(){
   }
   if(signedInDoctor.status === 'approved'){
     setTimeout(loadUndocumentedVisits, 500);
+    setTimeout(loadAttendanceCard, 700);
     loadClinicConfig();
     const isOwner = signedInDoctor.role === 'owner';
     const canViewDashboard = isOwner || !!signedInDoctor.can_view_dashboard;
@@ -7491,6 +7526,27 @@ async function fixPayrollExcluded(id, why, btn){
   }
 }
 
+function renderPayrollAdjustments(rows, fromVal, toVal){
+  const sel = el('adjDoctor'); if(sel && !sel.options.length) sel.innerHTML = PAYROLL_RULES.map(r=> `<option value="${escapeHtml(r.label)}">${escapeHtml(r.label)}</option>`).join('');
+  const box = el('adjList'); if(!box) return;
+  box.innerHTML = (rows || []).map(a=> `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;font-size:0.78rem;padding:5px 0;border-bottom:1px solid var(--line);"><span>${escapeHtml(String(a.adj_date).slice(0,10))} · <b>${escapeHtml(a.doctor_name)}</b> · <b style="color:${a.amount < 0 ? 'var(--danger)' : '#1b8a4a'};">${a.amount > 0 ? '+' : ''}${escapeHtml(String(a.amount))} EGP</b>${a.note ? ' · ' + escapeHtml(a.note) : ''}</span><button type="button" class="ghost adj-del" data-id="${escapeHtml(a.id)}" style="font-size:0.72rem;padding:3px 8px;">🗑️</button></div>`).join('');
+  box.querySelectorAll('.adj-del').forEach(b=> b.onclick = async ()=>{
+    if(!confirm('Delete this adjustment?')) return;
+    try{ await fetch(`${BACKEND_URL}/api/payroll-adjustments/${encodeURIComponent(b.dataset.id)}`, { method:'DELETE', headers: authHeader() }); calculatePayroll(); }catch(e){ alert('Could not delete.'); }
+  });
+}
+async function addPayrollAdjustment(){
+  const st = el('adjStatus'), amount = parseFloat(el('adjAmount').value), date = el('payrollToInput').value;
+  if(!el('adjDoctor').value || !amount || !date){ st.style.color = 'var(--danger)'; st.textContent = 'Pick the dates, a doctor and an amount.'; return; }
+  st.style.color = '#8a938e'; st.textContent = 'Saving…';
+  try{
+    const r = await fetch(`${BACKEND_URL}/api/payroll-adjustments`, { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, authHeader()), body: JSON.stringify({ doctorName: el('adjDoctor').value, amount, date, note: el('adjNote').value }) });
+    const d = await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error || 'Server error ' + r.status);
+    el('adjAmount').value = ''; el('adjNote').value = ''; st.textContent = '';
+    calculatePayroll();
+  }catch(e){ st.style.color = 'var(--danger)'; st.textContent = 'Could not save: ' + (e.message || e) + ' (did you run the SQL?)'; }
+}
+el('adjAddBtn').addEventListener('click', addPayrollAdjustment);
 async function calculatePayroll(){
   if(!PAYROLL_RULES.length){ try{ await loadClinicConfig(); }catch(e){} }
   if(!PAYROLL_RULES.length){
@@ -7519,11 +7575,12 @@ async function calculatePayroll(){
     // Same two fetches, same date-range construction, same non-cancelled
     // filter, and the SAME payment-note regex the Dashboard cards use —
     // so this total can never silently drift from what's shown there.
-    const [apptRes, expRes, incRes, wdRes] = await Promise.all([
+    const [apptRes, expRes, incRes, wdRes, adjRes] = await Promise.all([
       fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/expenses?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/other-income?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
       fetch(`${BACKEND_URL}/api/doctor-withdrawals?start=${fromVal}&end=${toVal}`, { headers: authHeader() }),
+      fetch(`${BACKEND_URL}/api/payroll-adjustments?start=${fromVal}&end=${toVal}`, { headers: authHeader() }).catch(()=> null),
     ]);
     if(!apptRes.ok) throw new Error(`Server error ${apptRes.status}`);
     const items = (await apptRes.json()) || [];
@@ -7531,6 +7588,10 @@ async function calculatePayroll(){
     const otherIncomeRows = incRes.ok ? ((await incRes.json()) || []) : [];
     const otherIncomeTotal = otherIncomeRows.reduce((sum, inc)=> sum + parseFloat(inc.amount || 0), 0);
     const withdrawalRows = wdRes.ok ? ((await wdRes.json()) || []) : [];
+    const adjRows = (adjRes && adjRes.ok) ? ((await adjRes.json().catch(()=>[])) || []) : [];
+    const adjByKey = {};
+    adjRows.forEach(a=>{ const rl = matchPayrollRule(a.doctor_name) || PAYROLL_RULES.find(r=> r.label === a.doctor_name); const k = rl ? rl.label : a.doctor_name; adjByKey[k] = (adjByKey[k] || 0) + parseFloat(a.amount || 0); });
+    renderPayrollAdjustments(adjRows, fromVal, toVal);
     const withdrawnByDoctor = {};
     withdrawalRows.forEach(w=>{
       const rule = matchPayrollRule(w.doctor_name);
@@ -7646,6 +7707,7 @@ async function calculatePayroll(){
     const collectedByKey = {};
     const excludedByKey = {};
     const excludedItemsByKey = {};
+    const ownRevByKey = {}, ownItemsByKey = {};
     active.forEach(ev=>{
       const doctorName = ev.doctor_name || 'Unassigned';
       const rule = matchPayrollRule(doctorName);
@@ -7664,6 +7726,8 @@ async function calculatePayroll(){
           (excludedItemsByKey[key] = excludedItemsByKey[key] || []).push({ id: ev.id, name: ev.patient_name || '(untitled)', amount: amt, why: ev.is_free ? 'marked free' : 'not marked paid' });
         }else{
           revenueByKey[key] = (revenueByKey[key] || 0) + amt;
+          if(ev.own_patient) ownRevByKey[key] = (ownRevByKey[key] || 0) + amt;
+          (ownItemsByKey[key] = ownItemsByKey[key] || []).push({ id: ev.id, name: ev.patient_name || '(untitled)', amount: amt, own: !!ev.own_patient, date: String(ev.start_time || '').slice(0,10) });
         }
       });
     });
@@ -7691,15 +7755,23 @@ async function calculatePayroll(){
         basePay = revenue * (rule.share != null ? rule.share : 0.5);
         formula = Math.round((rule.share != null ? rule.share : 0.5) * 100) + '% of own revenue + equal share of net profit';
       }else if(rule.kind === 'revenue_share'){
-        basePay = revenue * (rule.share != null ? rule.share : 0.5);
-        formula = Math.round((rule.share != null ? rule.share : 0.5) * 100) + '% of own revenue';
+        const sh = rule.share != null ? rule.share : 0.5, ownRev = ownRevByKey[key] || 0;
+        if(rule.own_share != null && ownRev > 0){
+          basePay = (revenue - ownRev) * sh + ownRev * rule.own_share;
+          formula = `${Math.round(sh * 100)}% of clinic patients (${Math.round(revenue - ownRev).toLocaleString()}) + ${Math.round(rule.own_share * 10000)/100}% of own patients (${Math.round(ownRev).toLocaleString()})`;
+        }else{
+          basePay = revenue * sh;
+          formula = Math.round(sh * 100) + '% of own revenue';
+        }
       }else if(rule.kind === 'fixed_plus_rate'){
         basePay = rule.fixed + rule.rate * sessionCount;
         formula = `Fixed ${rule.fixed} + ${rule.rate}/session × ${sessionCount} sessions`;
       }
+      const adjAmt = adjByKey[key] || 0;
+      if(adjAmt){ basePay += adjAmt; formula += ` ${adjAmt > 0 ? '+' : '−'} ${Math.abs(Math.round(adjAmt))} adjustment`; }
       totalPayout += basePay;
       const row = { doctorName: rule.label, revenue, sessionCount, basePay, formula, isPartner: rule.kind === 'partner',
-        collected: collectedByKey[key] || 0, excluded: excludedByKey[key] || 0, excludedItems: excludedItemsByKey[key] || [], splitAdj: packageRevenueAdjustments[key] || 0 };
+        ownItems: rule.own_share != null ? (ownItemsByKey[key] || []) : null, collected: collectedByKey[key] || 0, excluded: excludedByKey[key] || 0, excludedItems: excludedItemsByKey[key] || [], splitAdj: packageRevenueAdjustments[key] || 0 };
       rows.push(row);
       if(rule.kind === 'partner') partnerRows.push(row);
     });
@@ -7724,6 +7796,16 @@ async function calculatePayroll(){
       <div style="display:flex;justify-content:space-between;padding:3px 0;border-top:1px solid var(--line);margin-top:4px;padding-top:6px;"><span style="font-weight:700;">Net profit (split ${partnerRows.length} ways)</span><strong style="color:#1b8a4a;">${fmt(netProfit)} EGP</strong></div>
     `;
     window.__payrollFixWire = ()=>{
+      el('payrollTable').querySelectorAll('.own-pt').forEach(cb=>{
+        cb.addEventListener('change', async ()=>{
+          cb.disabled = true;
+          try{
+            const r = await fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(cb.dataset.id)}`, { method:'PATCH', headers: Object.assign({'Content-Type':'application/json'}, authHeader()), body: JSON.stringify({ ownPatient: cb.checked }) });
+            if(!r.ok){ const d = await r.json().catch(()=>({})); throw new Error(d.error || 'Server error ' + r.status + ' (did you run the SQL?)'); }
+            calculatePayroll();
+          }catch(e){ cb.checked = !cb.checked; cb.disabled = false; alert('Could not save: ' + (e.message || e)); }
+        });
+      });
       el('payrollTable').querySelectorAll('.payroll-fix-btn').forEach(btn=>{
         btn.addEventListener('click', ()=> fixPayrollExcluded(btn.getAttribute('data-id'), btn.getAttribute('data-why'), btn));
       });
@@ -7739,6 +7821,7 @@ async function calculatePayroll(){
       <div style="font-size:0.76rem;color:#5b6863;margin-top:2px;">${escapeHtml(row.formula)}</div>
       <div style="font-size:0.76rem;color:#8a938e;margin-top:2px;">Revenue: ${fmt(row.revenue)} EGP · ${row.sessionCount} session(s)${row.profitShare != null ? ` · profit share: ${fmt(row.profitShare)} EGP` : ''}</div>
       ${row.collected !== undefined ? `<div style="font-size:0.72rem;color:#8a938e;margin-top:3px;">Payments recorded on this doctor's visits (the By-doctor table number): <strong>${fmt(row.collected)}</strong>${row.excluded > 0.5 ? ` · not counted here: <strong style="color:var(--danger);">−${fmt(row.excluded)}</strong>` : ''}${Math.abs(row.splitAdj) > 0.5 ? ` · suggested package split (not applied): <strong>${row.splitAdj > 0 ? '+' : '−'}${fmt(Math.abs(row.splitAdj))}</strong>` : ''}</div>
+      ${row.ownItems ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.78rem;color:var(--maroon);font-weight:700;">Tick the patients he/she brought (${row.ownItems.filter(x=> x.own).length} of ${row.ownItems.length})</summary>${row.ownItems.map(x=> `<label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;padding:5px 0;border-bottom:1px solid var(--line);"><input type="checkbox" class="own-pt" data-id="${escapeHtml(x.id)}"${x.own ? ' checked' : ''}><span style="flex:1;">${escapeHtml(x.date)} · ${escapeHtml(x.name)}</span><b>${fmt(x.amount)}</b></label>`).join('') || '<div style="font-size:0.76rem;color:#8a938e;">No paid visits in this period.</div>'}</details>` : ''}
       ${(row.excludedItems || []).slice(0, 8).map(x=> `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;padding:4px 8px;background:#fdf3f2;border-radius:8px;"><span style="font-size:0.74rem;color:#a33d3d;">${escapeHtml(x.name)} · ${fmt(x.amount)} EGP — ${escapeHtml(x.why)}</span><button type="button" class="ghost payroll-fix-btn" data-id="${escapeHtml(String(x.id))}" data-why="${escapeHtml(x.why)}" style="font-size:0.72rem;padding:4px 10px;flex-shrink:0;">Count it</button></div>`).join('')}` : ''}
       ${withdrawn > 0 ? `<div style="font-size:0.76rem;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);color:${remaining < 0 ? 'var(--danger)' : '#1b8a4a'};">Withdrawn so far: ${fmt(withdrawn)} EGP · ${remaining < 0 ? `Over by ${fmt(Math.abs(remaining))} EGP` : `Remaining: ${fmt(remaining)} EGP`}</div>` : ''}
     </div>`;
@@ -12135,6 +12218,127 @@ el('paidNoAmountBtn').addEventListener('click', loadPaidNoAmount);
 el('dupCheckBtn').addEventListener('click', runDuplicatePaymentCheck);
 el('ledgerBtn').addEventListener('click', runMoneyLedger);
 el('payAmtBtn').addEventListener('click', runPaymentsByAmount);
+
+// ---- HR: cases vs shift, attendance ----
+const hrTimeStr = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+const hrMin = hm => { const [h,m] = String(hm).split(':'); return parseInt(h,10)*60 + parseInt(m,10); };
+function hrDefaultRange(a, b, days){
+  if(el(a).value && el(b).value) return;
+  const t = new Date(); const f = new Date(t.getTime() - days*86400000);
+  el(a).value = hrYmd(f); el(b).value = hrYmd(t);
+}
+async function hrWorkload(){
+  const out = el('hrWlOut'); hrDefaultRange('hrWlFrom','hrWlTo',30);
+  const staff = (CLINIC.hr_staff || []).filter(s=> s.kind !== 'secretary' && s.shifts && Object.keys(s.shifts).length);
+  if(!staff.length){ out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Enter shift hours for your doctors in "HR — staff and working days" first.</div>'; return; }
+  const from = el('hrWlFrom').value, to = el('hrWlTo').value;
+  if(!from || !to || from > to){ out.innerHTML = '<div style="color:var(--danger);font-size:0.8rem;">Pick a valid date range.</div>'; return; }
+  out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Calculating…</div>';
+  try{
+    const sD = new Date(from + 'T00:00:00'), eD = new Date(to + 'T23:59:59');
+    const [appts, unavail, dec] = await Promise.all([
+      fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(sD.toISOString())}&end=${encodeURIComponent(eD.toISOString())}`, { headers: authHeader() }).then(r=> r.ok ? r.json() : Promise.reject(new Error('Could not load appointments'))),
+      fetch(`${BACKEND_URL}/api/doctor-unavailability?start=${from}&end=${to}`, { headers: authHeader() }).then(r=> r.ok ? r.json() : []),
+      hrApi(`/api/hr/leaves?start=${from}&end=${to}`).catch(()=>[])
+    ]);
+    const live = (appts || []).filter(ev=> ev.status !== 'cancelled' && ev.start_time);
+    const html = staff.map(s=>{
+      const mine = live.filter(ev=> hrMatch(ev.doctor_name, s));
+      const durs = mine.map(ev=> ev.end_time ? (new Date(ev.end_time) - new Date(ev.start_time))/60000 : 0).filter(x=> x >= 10 && x <= 180).sort((a,b)=> a-b);
+      const typical = durs.length ? durs[Math.floor(durs.length/2)] : 30;
+      const off = new Set(); (unavail||[]).forEach(u=>{ if(hrMatch(u.doctor_name, s)) off.add(String(u.date).slice(0,10)); });
+      (dec||[]).forEach(d=>{ if((d.kind==='leave'||d.kind==='closed') && (d.doctor_name===s.label)) off.add(String(d.date).slice(0,10)); });
+      const byDay = {}; mine.forEach(ev=>{ const k = hrYmd(new Date(ev.start_time)); (byDay[k] = byDay[k] || []).push(ev); });
+      let shiftDays = 0, noCase = 0, inCases = 0, bookedMin = 0, shiftMin = 0, outCases = 0; const rows = [];
+      for(let d = new Date(sD); d <= eD; d = new Date(d.getFullYear(), d.getMonth(), d.getDate()+1)){
+        const k = hrYmd(d), sh = s.shifts[d.getDay()]; if(!sh || off.has(k)) continue;
+        const evs = byDay[k] || []; if(!evs.length){ noCase++; continue; }
+        const a = hrMin(sh[0]), b = hrMin(sh[1]); let cin = 0, cout = 0, bm = 0;
+        evs.forEach(ev=>{
+          const st = new Date(ev.start_time), en = ev.end_time ? new Date(ev.end_time) : new Date(st.getTime() + typical*60000);
+          const m1 = st.getHours()*60 + st.getMinutes(), m2 = m1 + (en - st)/60000;
+          if(m1 >= a && m1 < b) cin++; else cout++;
+          bm += Math.max(0, Math.min(m2, b) - Math.max(m1, a));
+        });
+        shiftDays++; inCases += cin; outCases += cout; bookedMin += bm; shiftMin += (b - a);
+        rows.push({ k, wd: HR_DAY_NAMES[d.getDay()], sh, cin, cout, cap: Math.round((b-a)/typical*10)/10, util: Math.round(bm/(b-a)*100) });
+      }
+      const util = shiftMin ? Math.round(bookedMin/shiftMin*100) : 0;
+      const verdict = !shiftDays ? 'no data' : util > 100 ? 'More than the shift' : util >= 60 ? 'Fits the shift' : 'Less than the shift';
+      const col = !shiftDays ? '#8a938e' : util > 100 ? '#a35b00' : util >= 60 ? '#1f7a4d' : '#b3261e';
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--paper);">
+        <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><b>${escapeHtml(s.label)}</b><b style="color:${col};">${verdict}${shiftDays ? ' · ' + util + '%' : ''}</b></div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-top:4px;">${shiftDays} shift days with cases · ${inCases} cases inside the shift (avg ${shiftDays ? Math.round(inCases/shiftDays*10)/10 : 0} per day) · usual session ${Math.round(typical)} min${outCases ? ' · <b>' + outCases + ' cases outside the shift</b>' : ''}${noCase ? ' · ' + noCase + ' shift days with no cases (not counted)' : ''}</div>
+        ${rows.length ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.76rem;color:#5b6863;">Day by day</summary>${rows.reverse().map(r=> `<div style="font-size:0.76rem;padding:3px 0;border-bottom:1px solid var(--line);">${r.k} ${r.wd} · ${r.sh[0]}–${r.sh[1]} · ${r.cin} cases of ~${r.cap} capacity (${r.util}%)${r.cout ? ' · +' + r.cout + ' outside' : ''}</div>`).join('')}</details>` : ''}
+      </div>`;
+    }).join('');
+    out.innerHTML = html + '<div style="font-size:0.72rem;color:#8a938e;">Under 60% = less than the shift, 60–100% = fits, over 100% = more than the shift. Leave days are not counted.</div>';
+  }catch(e){ out.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`; }
+}
+async function hrAttendance(){
+  const out = el('hrAtOut'); hrDefaultRange('hrAtFrom','hrAtTo',14);
+  const from = el('hrAtFrom').value, to = el('hrAtTo').value;
+  if(!from || !to || from > to){ out.innerHTML = '<div style="color:var(--danger);font-size:0.8rem;">Pick a valid date range.</div>'; return; }
+  out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">Loading…</div>';
+  try{
+    const rows = await hrApi(`/api/hr/attendance?start=${from}&end=${to}`);
+    if(!rows.length){ out.innerHTML = '<div style="font-size:0.8rem;color:#8a938e;">No check-ins in this period.</div>'; return; }
+    const staff = CLINIC.hr_staff || [];
+    const people = {};
+    rows.forEach(r=>{ const k = r.person_email; (people[k] = people[k] || { name: r.person_name || k, email: k, rows: [] }).rows.push(r); });
+    out.innerHTML = Object.values(people).map(p=>{
+      const st = staff.find(s=> hrMatch(p.name, s) || hrMatch(p.email, s));
+      let totalMin = 0; const days = new Set();
+      const lines = p.rows.map(r=>{
+        const ci = new Date(r.check_in), co = r.check_out ? new Date(r.check_out) : null, day = String(r.day).slice(0,10);
+        days.add(day); const mins = co ? Math.round((co - ci)/60000) : 0; totalMin += mins;
+        let note = '';
+        const sh = st && st.shifts && st.shifts[new Date(day + 'T12:00:00').getDay()];
+        if(sh){
+          const lateBy = ci.getHours()*60 + ci.getMinutes() - hrMin(sh[0]);
+          if(lateBy > 5) note += ` <span style="color:#b3261e;">late ${lateBy} min</span>`;
+          if(co){ const early = hrMin(sh[1]) - (co.getHours()*60 + co.getMinutes()); if(early > 5) note += ` <span style="color:#b3261e;">left ${early} min early</span>`; else if(early < -5) note += ` <span style="color:#a35b00;">+${-early} min extra</span>`; }
+        }
+        return `<div class="hr-at" data-id="${escapeHtml(r.id)}" data-in="${hrTimeStr(ci)}" data-out="${co ? hrTimeStr(co) : ''}" style="font-size:0.78rem;padding:5px 0;border-bottom:1px solid var(--line);display:flex;gap:6px;flex-wrap:wrap;align-items:center;"><span style="flex:1;min-width:190px;">${day} · ${hrTimeStr(ci)} → ${co ? hrTimeStr(co) : '<i>still in</i>'}${co ? ' · ' + Math.floor(mins/60) + 'h ' + (mins%60) + 'm' : ''}${note}</span><button type="button" class="ghost hr-at-edit" style="font-size:0.72rem;padding:3px 8px;">Edit</button><button type="button" class="ghost hr-at-del" style="font-size:0.72rem;padding:3px 8px;">🗑️</button></div>`;
+      }).join('');
+      return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--paper);"><div style="font-weight:700;">${escapeHtml(p.name)} <span style="font-weight:400;font-size:0.76rem;color:#5b6863;">· ${days.size} days · ${Math.floor(totalMin/60)}h ${totalMin%60}m total</span></div>${lines}</div>`;
+    }).join('');
+    out.querySelectorAll('.hr-at-edit').forEach(b=> b.onclick = async ()=>{
+      const row = b.closest('.hr-at');
+      const ci = prompt('Check-in time (HH:MM)', row.dataset.in); if(ci === null) return;
+      const co = prompt('Check-out time (HH:MM, empty = still in)', row.dataset.out); if(co === null) return;
+      try{ await hrApi('/api/hr/attendance/' + encodeURIComponent(row.dataset.id), { method:'PATCH', body: JSON.stringify({ checkIn: ci.trim(), checkOut: co.trim() }) }); hrAttendance(); }
+      catch(e){ alert('Could not save: ' + (e.message || e)); }
+    });
+    out.querySelectorAll('.hr-at-del').forEach(b=> b.onclick = async ()=>{
+      if(!confirm('Delete this record?')) return;
+      try{ await hrApi('/api/hr/attendance/' + encodeURIComponent(b.closest('.hr-at').dataset.id), { method:'DELETE' }); hrAttendance(); }
+      catch(e){ alert('Could not delete: ' + (e.message || e)); }
+    });
+  }catch(e){ out.innerHTML = `<div style="font-size:0.8rem;color:var(--danger);">Could not load: ${escapeHtml(e.message || String(e))}</div>`; }
+}
+// Staff check-in / check-out card (shown to secretaries)
+async function loadAttendanceCard(){
+  const card = el('attendanceCard'); if(!card) return;
+  if(!signedInDoctor || signedInDoctor.role !== 'secretary'){ card.style.display = 'none'; return; }
+  try{
+    const d = await hrApi('/api/attendance/me');
+    const rows = d.rows || [], open = rows.find(r=> !r.check_out);
+    const t = v => hrTimeStr(new Date(v));
+    card.style.display = 'block';
+    card.innerHTML = `<div style="font-weight:700;margin-bottom:6px;">Attendance — today</div>
+      <div style="font-size:0.82rem;color:#5b6863;margin-bottom:8px;">${rows.length ? rows.map(r=> t(r.check_in) + ' → ' + (r.check_out ? t(r.check_out) : '…')).join(' · ') : 'Not checked in yet.'}</div>
+      <button type="button" class="primary" id="attBtn" style="width:100%;padding:12px;">${open ? 'Check out' : 'Check in'}</button>
+      <div id="attMsg" style="font-size:0.76rem;color:var(--danger);margin-top:6px;"></div>`;
+    el('attBtn').onclick = async ()=>{
+      el('attBtn').disabled = true;
+      try{ await hrApi(open ? '/api/attendance/out' : '/api/attendance/in', { method:'POST', body:'{}' }); loadAttendanceCard(); }
+      catch(e){ el('attBtn').disabled = false; el('attMsg').textContent = 'Could not save: ' + (e.message || e); }
+    };
+  }catch(e){ card.style.display = 'none'; }
+}
+el('hrWlGo').addEventListener('click', hrWorkload);
+el('hrAtGo').addEventListener('click', hrAttendance);
 el('hrAddStaff').addEventListener('click', ()=>{ const w = el('hrStaffRows'); if(!w.querySelector('.hr-staff')) w.innerHTML = ''; w.insertAdjacentHTML('beforeend', hrStaffRowHtml()); hrWireDeletes(); });
 el('hrImportRules').addEventListener('click', ()=>{
   const have = new Set(hrReadStaffEditor().map(s=> s.keyword));
@@ -12990,7 +13194,8 @@ function clinicRuleRow(r){
     <select class="cl-r-kind" style="width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;margin-bottom:6px;">
       ${sel('revenue_share','Gets a % of her/his own collected money')}${sel('partner','Partner: % of own money + equal share of profit')}${sel('fixed_plus_rate','Fixed monthly + amount per session')}</select>
     <div style="display:flex;gap:6px;align-items:center;">${inp('cl-r-share','% (e.g. 50)',r.share!=null?Math.round(r.share*100):'','30%')}${inp('cl-r-fixed','Fixed EGP',r.fixed,'35%')}${inp('cl-r-rate','Per session',r.rate,'35%')}
-    <button type="button" class="cl-r-del" style="border:none;background:transparent;color:var(--danger);font-size:1.1rem;cursor:pointer;">🗑️</button></div></div>`;
+    <button type="button" class="cl-r-del" style="border:none;background:transparent;color:var(--danger);font-size:1.1rem;cursor:pointer;">🗑️</button></div>
+    <div style="margin-top:6px;">${inp('cl-r-own','% if he/she brought the patient (optional, e.g. 66.67)',r.own_share!=null?Math.round(r.own_share*10000)/100:'','100%')}</div></div>`;
 }
 function renderClinicForm(){
   const f = el('clinicForm'); if(!f) return;
@@ -13058,6 +13263,7 @@ async function saveClinicConfig(){
     const o = { keyword:q('.cl-r-keyword'), label:q('.cl-r-label'), kind };
     if(kind === 'fixed_plus_rate'){ o.fixed = parseFloat(q('.cl-r-fixed')) || 0; o.rate = parseFloat(q('.cl-r-rate')) || 0; }
     else if(q('.cl-r-share') !== ''){ o.share = Math.min(1, Math.max(0, (parseFloat(q('.cl-r-share')) || 0) / 100)); }
+    if(kind === 'revenue_share' && q('.cl-r-own') !== ''){ o.own_share = Math.min(1, Math.max(0, (parseFloat(q('.cl-r-own')) || 0) / 100)); }
     return o;
   }).filter(o=> o.keyword && o.label);
   const templates = {};
