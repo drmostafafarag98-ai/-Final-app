@@ -13376,6 +13376,29 @@ function onboardText(row){
   if(ac.notes) L.push('Notes: ' + ac.notes);
   return L.join('\n');
 }
+function onboardSeedSql(row){
+  const d = row.data || {}, c = d.clinic || {}, p = d.payments || {};
+  const DI = { Sun:0, Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6 };
+  const hr = [], rules = [];
+  (d.team || []).forEach(t=>{
+    const name = String(t.name || '').trim(); if(!name) return;
+    const kw = name.split(/\s+/)[0].toLowerCase();
+    const days = (t.days || []).map(x=> DI[x]).filter(x=> x !== undefined);
+    const shifts = {}; if(t.shift_from && t.shift_to && t.shift_from < t.shift_to) days.forEach(x=> shifts[x] = [t.shift_from, t.shift_to]);
+    hr.push({ label: name, keyword: kw, kind: t.role === 'secretary' ? 'secretary' : 'doctor', days, shifts, allowance: 0, case_rate: 0 });
+    const pct = (parseFloat(t.percent) || 0) / 100;
+    if(t.role === 'secretary' || t.pay === 'fixed') rules.push({ keyword: kw, kind: 'fixed_plus_rate', label: name, fixed: parseFloat(t.fixed) || 0, rate: 0 });
+    else if(t.pay === 'fixed_rate') rules.push({ keyword: kw, kind: 'fixed_plus_rate', label: name, fixed: parseFloat(t.fixed) || 0, rate: parseFloat(t.per_session) || 0 });
+    else if(t.pay === 'partner') rules.push({ keyword: kw, kind: 'partner', label: name, share: pct || 0.5 });
+    else rules.push({ keyword: kw, kind: 'revenue_share', label: name, share: pct });
+  });
+  const fixed = (d.fixed_costs || []).filter(f=> f.name && parseFloat(f.amount) > 0).map(f=> ({ name: f.name, amount: parseFloat(f.amount), method: 'cash' }));
+  const cfg = { name: c.name || '', name_ar: c.name_ar || '', address: c.address || '', address_ar: c.address_ar || '', map_url: c.map_url || '', phone: c.phone || '',
+    instapay_url: p.instapay_url || '', instapay_handle: p.instapay_handle || '', review_url: c.review_url || '', tagline: c.tagline || '',
+    logo: c.logo || '', stamp: c.stamp || '', fixed_costs: fixed, hr_staff: hr, payroll_rules: rules };
+  const json = JSON.stringify(cfg).replace(/'/g, "''");
+  return "insert into public.booking_settings (id, \"data\", updated_at)\nvalues (2, '" + json + "'::jsonb, now())\non conflict (id) do update set \"data\" = excluded.\"data\", updated_at = now();";
+}
 async function loadOnboardBox(){
   const box = el('onboardBox'); if(!box) return;
   if(!signedInDoctor || signedInDoctor.role !== 'owner'){ box.style.display = 'none'; return; }
@@ -13394,8 +13417,9 @@ async function loadOnboardBox(){
     list.innerHTML = rows.map((r,i)=> `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--paper);">
       <div style="display:flex;justify-content:space-between;gap:8px;"><b>${escapeHtml(r.clinic_name)}</b><span style="color:#8a938e;font-size:0.74rem;">${escapeHtml(String(r.created_at).slice(0,10))}</span></div>
       <details style="margin-top:6px;"><summary style="cursor:pointer;color:var(--maroon);">Show details</summary><pre style="white-space:pre-wrap;font-size:0.76rem;margin:8px 0;">${escapeHtml(onboardText(r))}</pre></details>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="ghost onb-copy" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Copy as text</button><button type="button" class="ghost onb-json" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Download file</button><button type="button" class="ghost onb-del" data-id="${escapeHtml(r.id)}" style="font-size:0.76rem;padding:6px 10px;">🗑️</button></div></div>`).join('');
+      <div style="display:flex;gap:6px;flex-wrap:wrap;"><button type="button" class="ghost onb-copy" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Copy as text</button><button type="button" class="ghost onb-sql" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Make setup SQL</button><button type="button" class="ghost onb-json" data-i="${i}" style="font-size:0.76rem;padding:6px 10px;">Download file</button><button type="button" class="ghost onb-del" data-id="${escapeHtml(r.id)}" style="font-size:0.76rem;padding:6px 10px;">🗑️</button></div></div>`).join('');
     list.querySelectorAll('.onb-copy').forEach(b=> b.onclick = async ()=>{ try{ await navigator.clipboard.writeText(onboardText(rows[b.dataset.i])); b.textContent = 'Copied ✓'; }catch(e){ alert('Could not copy.'); } });
+    list.querySelectorAll('.onb-sql').forEach(b=> b.onclick = async ()=>{ const q = onboardSeedSql(rows[b.dataset.i]); try{ await navigator.clipboard.writeText(q); b.textContent = 'SQL copied ✓'; }catch(e){ prompt('Copy this SQL:', q); } });
     list.querySelectorAll('.onb-json').forEach(b=> b.onclick = ()=>{ const r = rows[b.dataset.i]; const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(r.data, null, 2)], { type:'application/json' })); a.download = String(r.clinic_name || 'clinic').replace(/[^\w\-]+/g, '_') + '.json'; a.click(); });
     list.querySelectorAll('.onb-del').forEach(b=> b.onclick = async ()=>{ if(!confirm('Delete this request?')) return; try{ await hrApi('/api/onboard/' + encodeURIComponent(b.dataset.id), { method:'DELETE' }); loadOnboardBox(); }catch(e){ alert('Could not delete.'); } });
   }catch(e){ el('onbList').textContent = 'Could not load: ' + (e.message || e); }
