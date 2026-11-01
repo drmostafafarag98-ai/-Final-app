@@ -11594,7 +11594,37 @@ function openPrescriptionOverlay(){
   el('prescriptionBodyText').focus();
 }
 
-function downloadPrescriptionPdf(){
+function makeWatermark(src){
+  return new Promise(res=>{
+    try{
+      const im = new Image();
+      im.onload = ()=>{
+        try{
+          const k = Math.min(1, 500 / Math.max(im.naturalWidth, im.naturalHeight));
+          const w = Math.max(1, Math.round(im.naturalWidth * k)), h = Math.max(1, Math.round(im.naturalHeight * k));
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);
+          const d = x.getImageData(0, 0, w, h), p = d.data;
+          const at = (cx, cy)=>{ const i = (cy * w + cx) * 4; return [p[i], p[i+1], p[i+2], p[i+3]]; };
+          const cs = [at(2,2), at(w-3,2), at(2,h-3), at(w-3,h-3)];
+          const transparent = cs.every(v=> v[3] < 20);
+          const bg = [0,1,2].map(j=> cs.reduce((a,v)=> a + v[j], 0) / 4);
+          for(let i = 0; i < p.length; i += 4){
+            let a;
+            if(transparent) a = p[i+3] / 255;
+            else { const dist = (Math.abs(p[i]-bg[0]) + Math.abs(p[i+1]-bg[1]) + Math.abs(p[i+2]-bg[2])) / 3 / 255; a = Math.max(0, Math.min(1, (dist - 0.1) / 0.45)); }
+            p[i] = 110; p[i+1] = 150; p[i+2] = 215; p[i+3] = Math.round(a * 255);
+          }
+          x.putImageData(d, 0, 0);
+          res(c.toDataURL('image/png'));
+        }catch(e){ res(''); }
+      };
+      im.onerror = ()=> res('');
+      im.src = src;
+    }catch(e){ res(''); }
+  });
+}
+async function downloadPrescriptionPdf(){
   const bodyText = el('prescriptionBodyText').value;
   if(!bodyText.trim()){
     el('status').textContent = 'Write the prescription content first.';
@@ -11603,9 +11633,11 @@ function downloadPrescriptionPdf(){
   const patientName = el('patientName').value || '';
   const sessionDateVal = el('sessionDate').value || new Date().toLocaleDateString('en-GB').replace(/\//g,'/');
   const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const wmSrc = (!isEmpowerBrand() && CLINIC.logo) ? await makeWatermark(CLINIC.logo) : '';
   const container = el('printableNote');
   container.className = 'rx-mode';
-  container.innerHTML = `<div class="rx-page" style="min-height:248mm;"><div class="rx-header">${(!isEmpowerBrand() && CLINIC.logo) ? `<img src="${clinicLogoSrc()}" style="max-height:80px;max-width:240px;width:auto;height:auto;object-fit:contain;display:block;">` : `<div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">${rxWordHtml()}</div><div class="rx-tagline">Physical Therapy and Rehabilitation</div>`}</div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field name"><strong>NAME:</strong><span class="val" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</span></div><div class="field date"><strong>DATE:</strong><span class="val" title="${escapeHtml(sessionDateVal)}">${escapeHtml(sessionDateVal)}</span></div><div class="field doctor"><strong>DOCTOR:</strong><span class="val" title="${escapeHtml(doctorLabel)}">${escapeHtml(doctorLabel)}</span></div></div><div class="rx-body-wrap">${(!isEmpowerBrand() && CLINIC.logo) ? '' : `<img src="${clinicLogoSrc()}" class="rx-watermark">`}<div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${clinicStampSrc()}"></div><div class="rx-footer"><img src="${clinicFooterSrc()}"></div></div>`;
+  container.style.setProperty('--rx-red', isEmpowerBrand() ? '#b23b3b' : '#1f4e8c');
+  container.innerHTML = `<div class="rx-page" style="min-height:248mm;"><div class="rx-header">${(!isEmpowerBrand() && CLINIC.logo) ? `<img src="${clinicLogoSrc()}" style="max-height:80px;max-width:240px;width:auto;height:auto;object-fit:contain;display:block;">` : `<div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">${rxWordHtml()}</div><div class="rx-tagline">Physical Therapy and Rehabilitation</div>`}</div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field name"><strong>NAME:</strong><span class="val" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</span></div><div class="field date"><strong>DATE:</strong><span class="val" title="${escapeHtml(sessionDateVal)}">${escapeHtml(sessionDateVal)}</span></div><div class="field doctor"><strong>DOCTOR:</strong><span class="val" title="${escapeHtml(doctorLabel)}">${escapeHtml(doctorLabel)}</span></div></div><div class="rx-body-wrap">${(!isEmpowerBrand() && CLINIC.logo) ? (wmSrc ? `<img src="${wmSrc}" class="rx-watermark" style="opacity:0.22;width:55%;">` : '') : `<img src="${clinicLogoSrc()}" class="rx-watermark">`}<div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${clinicStampSrc()}"></div><div class="rx-footer"><img src="${clinicFooterSrc()}"></div></div>`;
   printWhenReady();
   container.className = '';
 }
@@ -11695,6 +11727,7 @@ function downloadInvoicePdf(){
   const dateDisplay = `${dd} / ${mo} / ${yyyy.slice(2)}`;
   const container = el('printableNote');
   container.className = 'rx-mode';
+  container.style.setProperty('--rx-red', isEmpowerBrand() ? '#b23b3b' : '#1f4e8c');
   container.innerHTML = `<div class="rx-page" style="min-height:248mm;"><div class="inv-header" style="text-align:center;min-height:0;"><img src="${clinicLogoSrc()}" style="max-height:95px;max-width:260px;width:auto;height:auto;object-fit:contain;display:block;margin:0 auto 8px;"></div><div class="inv-title">Payment receipt</div><div class="inv-fields"><div class="field"><span class="label">Patient's Name :</span><span class="val">${escapeHtml(patientName)}</span></div><div class="field"><span class="label">Date :</span><span class="val" style="flex:0 0 160px;">${escapeHtml(dateDisplay)}</span></div></div><div class="inv-fields"><div class="field"><span class="label">Payment Type :</span><span class="val">${escapeHtml(typeLabel)}</span></div></div><table class="inv-table"><tr><th>Number of Sessions</th><th>${escapeHtml(amountHeader)}</th><th>Total Payment</th></tr><tr><td>${escapeHtml(String(sessions))}</td><td>${escapeHtml(String(isPackage ? total : price))}</td><td>${escapeHtml(String(total))}</td></tr></table><div class="inv-signature"><div><div class="sig-label">Signature</div><div class="sig-line"></div>${doctorName ? `<div style="text-align:center;font-size:0.85rem;margin-top:4px;">${escapeHtml(doctorName)}</div>` : ''}</div></div><div class="rx-stamp" style="margin-top:24px;"><img src="${clinicStampSrc()}" style="width:190px;"></div>${isEmpowerBrand() ? '<div class="inv-bottom-triangle"></div>' : ''}<div class="inv-footer-text" ${isEmpowerBrand() ? '' : 'style="left:18mm;bottom:12mm;border-top:1px solid #c9d0cc;padding-top:6px;"'}><span>${escapeHtml(CLINIC.address)}</span><span>&#9742; ${escapeHtml(CLINIC.phone)}</span></div></div>`;
   // A "Save as PDF" dialog suggests the page <title> as the default
   // filename, so set it to "patient name - payment type" just for the
