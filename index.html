@@ -13541,5 +13541,81 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   document.addEventListener('DOMContentLoaded', function(){ fix(); try{ new MutationObserver(function(){ fix(); }).observe(document.body,{childList:true,subtree:true}); }catch(e){} });
 })();
 </script>
+<script>
+(function(){
+  var STEPS = function(){
+    var ft = (typeof CLINIC !== 'undefined' && CLINIC && CLINIC.features) || {};
+    var role = (typeof signedInDoctor !== 'undefined' && signedInDoctor && signedInDoctor.role) || 'doctor';
+    var owner = role === 'owner';
+    var S = [];
+    S.push({ i:'👋', en:['Welcome to مساعد','This short guide shows you the main things in about one minute. You can open it again any time from Settings, then "How to use the app".'], ar:['أهلاً بيك في مساعد','الشرح ده بياخد دقيقة ويوريك الأساسيات. تقدر تفتحه تاني في أي وقت من الإعدادات، ثم "طريقة الاستخدام".'] });
+    S.push({ i:'📅', en:['1. The calendar','Your appointments are here. Tap a day to see its schedule. Tap the + button to book: write the patient name and phone, choose the date, time, doctor and visit type (Session, Check-up or Recovery), then press Book appointment.'], ar:['١. التقويم','مواعيدك كلها هنا. دوس على أي يوم تشوف جدوله. دوس زرار + عشان تحجز: اكتب اسم المريض وتليفونه، واختار التاريخ والوقت والدكتور ونوع الزيارة (جلسة أو كشف أو ريكفري)، وبعدين دوس Book appointment.'] });
+    S.push({ i:'🧾', en:['2. Open a patient','Tap any appointment. You will see 4 tabs: History (past visits), Payment (record cash or InstaPay and packages), Edit (change the date, time or doctor) and Chat (send WhatsApp messages).'], ar:['٢. فتح المريض','دوس على أي موعد. هتلاقي ٤ تابات: History (الزيارات السابقة)، وPayment (تسجيل الدفع كاش أو انستا باي والباكدجات)، وEdit (تغيير الميعاد أو الدكتور)، وChat (رسايل واتساب).'] });
+    S.push({ i:'💬', en:['3. WhatsApp messages','In the Chat tab choose a message (confirmation, directions, payment request...). It opens your own WhatsApp with the message ready, and you press send. Nothing is sent without you.'], ar:['٣. رسايل واتساب','من تاب Chat اختار الرسالة (تأكيد الموعد، إزاي توصل، طلب الدفع...). هيفتح واتساب بتاعك والرسالة جاهزة وأنت بتدوس إرسال. مفيش حاجة بتتبعت من غير ما تدوس.'] });
+    S.push({ i:'🖨️', en:['4. Invoice' + (ft.docs === false ? '' : ' and prescription'),'In the patient window press Invoice to print or save a payment receipt as PDF.' + (ft.docs === false ? '' : ' Prescriptions are written from the Docs tab.')], ar:['٤. الفاتورة' + (ft.docs === false ? '' : ' والروشتة'),'من شاشة المريض دوس Invoice عشان تطبع إيصال الدفع أو تحفظه PDF.' + (ft.docs === false ? '' : ' والروشتة بتتكتب من تاب Docs.')] });
+    if(owner || (typeof signedInDoctor !== 'undefined' && signedInDoctor && signedInDoctor.can_view_dashboard)){
+      S.push({ i:'📊', en:['5. Stats and money','The Stats tab shows today\'s numbers, income, expenses and packages. Add every expense there so your profit is correct.'], ar:['٥. الإحصائيات والفلوس','تاب Stats بيوريك أرقام النهاردة والدخل والمصاريف والباكدجات. سجّل كل مصروف هناك عشان الربح يطلع صح.'] });
+    }
+    S.push({ i:'⚙️', en:['' + (owner ? '6. Settings' : '5. Settings'),'Change the app language here.' + (owner ? ' In the Clinic tab you can edit the clinic name, address, logo, stamp, InstaPay and the patient messages. In the Team tab you add doctors and the secretary.' : '')], ar:['' + (owner ? '٦. الإعدادات' : '٥. الإعدادات'),'غيّر لغة التطبيق من هنا.' + (owner ? ' وفي تاب Clinic تعدّل اسم العيادة والعنوان واللوجو والختم وانستا باي ورسايل المرضى. وفي تاب Team تضيف الدكاترة والسكرتيرة.' : '')] });
+    S.push({ i:'✅', en:['You are ready','Start by booking your first appointment. If something looks wrong, take a screenshot and send it to support. You can reopen this guide from Settings.'], ar:['خلاص جاهز','ابدأ بحجز أول موعد. لو أي حاجة شكلها غلط، صوّر الشاشة وابعتها للدعم. وتقدر تفتح الشرح ده تاني من الإعدادات.'] });
+    return S;
+  };
+  var lang = 'en', idx = 0, ov = null;
+  function key(){ try{ return 'guide_seen_v1_' + ((signedInDoctor && signedInDoctor.email) || ''); }catch(e){ return 'guide_seen_v1'; } }
+  function seen(){ try{ return localStorage.getItem(key()) === '1'; }catch(e){ return false; } }
+  function mark(){ try{ localStorage.setItem(key(), '1'); }catch(e){} }
+  function close(){ if(ov){ ov.remove(); ov = null; } mark(); }
+  function render(){
+    var steps = STEPS(); if(idx >= steps.length) idx = steps.length - 1;
+    var s = steps[idx], t = s[lang], rtl = lang === 'ar';
+    var dots = steps.map(function(_,k){ return '<span style="width:7px;height:7px;border-radius:50%;background:'+(k===idx?'#1f5c56':'#cfd8d4')+';display:inline-block;"></span>'; }).join('<span style="width:5px;display:inline-block;"></span>');
+    var last = idx === steps.length - 1;
+    ov.innerHTML = '<div dir="'+(rtl?'rtl':'ltr')+'" style="background:#fff;border-radius:16px;max-width:420px;width:calc(100% - 32px);padding:20px 20px 16px;box-shadow:0 12px 40px rgba(0,0,0,.3);font-family:inherit;">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><button type="button" id="gdLang" style="border:1px solid #cfd8d4;background:#fff;border-radius:999px;padding:4px 12px;font-size:0.78rem;cursor:pointer;">'+(rtl?'English':'عربي')+'</button><button type="button" id="gdSkip" style="border:none;background:none;color:#8a938e;font-size:0.82rem;cursor:pointer;">'+(rtl?'تخطي':'Skip')+'</button></div>'
+      + '<div style="font-size:2.2rem;line-height:1;margin:6px 0 10px;">'+s.i+'</div>'
+      + '<div style="font-weight:800;font-size:1.15rem;color:#1f3547;margin-bottom:8px;">'+t[0]+'</div>'
+      + '<div style="font-size:0.95rem;line-height:1.7;color:#333;min-height:120px;">'+t[1]+'</div>'
+      + '<div style="text-align:center;margin:14px 0 12px;">'+dots+'</div>'
+      + '<div style="display:flex;gap:8px;justify-content:space-between;"><button type="button" id="gdBack" style="padding:10px 16px;border:1px solid #cfd8d4;background:#fff;border-radius:10px;font-size:0.9rem;cursor:pointer;visibility:'+(idx===0?'hidden':'visible')+';">'+(rtl?'رجوع':'Back')+'</button><button type="button" id="gdNext" style="padding:10px 22px;border:none;background:#1f5c56;color:#fff;border-radius:10px;font-size:0.95rem;font-weight:700;cursor:pointer;flex:1;max-width:200px;">'+(last?(rtl?'يلا نبدأ':'Start'):(rtl?'التالي':'Next'))+'</button></div></div>';
+    ov.querySelector('#gdLang').onclick = function(){ lang = rtl ? 'en' : 'ar'; render(); };
+    ov.querySelector('#gdSkip').onclick = close;
+    ov.querySelector('#gdBack').onclick = function(){ idx = Math.max(0, idx - 1); render(); };
+    ov.querySelector('#gdNext').onclick = function(){ if(last) close(); else { idx++; render(); } };
+  }
+  window.showAppGuide = function(){
+    if(ov) return;
+    try{ var sel = document.getElementById('appLangSelect'); lang = (sel && sel.value === 'ar') ? 'ar' : 'en'; }catch(e){ lang = 'en'; }
+    idx = 0;
+    ov = document.createElement('div');
+    ov.id = 'appGuideOverlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center;';
+    document.body.appendChild(ov);
+    render();
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    try{
+      var host = document.getElementById('appLangSelect');
+      if(host && host.parentElement && host.parentElement.parentElement){
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'ghost'; b.id = 'guideOpenBtn'; b.style.cssText = 'margin-bottom:14px;';
+        b.textContent = '📖 How to use the app / طريقة الاستخدام';
+        b.onclick = function(){ window.showAppGuide(); };
+        host.parentElement.insertAdjacentElement('afterend', b);
+      }
+    }catch(e){}
+    var tries = 0;
+    var timer = setInterval(function(){
+      tries++;
+      try{
+        if(typeof signedInDoctor !== 'undefined' && signedInDoctor && signedInDoctor.status === 'approved'){
+          clearInterval(timer);
+          if(!seen()) setTimeout(function(){ if(!seen()) window.showAppGuide(); }, 1500);
+        }
+      }catch(e){}
+      if(tries > 120) clearInterval(timer);
+    }, 1000);
+  });
+})();
+</script>
 </body>
 </html>
