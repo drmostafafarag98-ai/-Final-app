@@ -2,7 +2,11 @@
   "clinics": {
     "EMPOWER": {
       "name": "Empower Physiotherapy - Heliopolis",
-      "backend": "https://pt-script-backend.onrender.com"
+      "backend": "https://empower.musaedapp.com"
+    },
+    "PHYSIOHUB": {
+      "name": "Physio Hub",
+      "backend": "https://physiohub-backend-9ood.onrender.com"
     }
   }
 }
