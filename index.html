@@ -1448,14 +1448,14 @@
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — cases vs shift <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Compares each doctor's booked cases with the shift hours you entered. Capacity = shift length ÷ the doctor's usual session length.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="date" id="hrWlFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="date" id="hrWlTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrWlGo" style="padding:8px 14px;">Calculate</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="text" inputmode="none" id="hrWlFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="text" inputmode="none" id="hrWlTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrWlGo" style="padding:8px 14px;">Calculate</button></div>
         <div id="hrWlOut" style="margin-top:12px;"></div>
       </div>
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — attendance <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Check-in / check-out times recorded by staff from the app, compared with their shift.</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="date" id="hrAtFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="date" id="hrAtTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrAtGo" style="padding:8px 14px;">Show</button></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="text" inputmode="none" id="hrAtFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="text" inputmode="none" id="hrAtTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><button type="button" class="primary" id="hrAtGo" style="padding:8px 14px;">Show</button></div>
         <div id="hrAtOut" style="margin-top:12px;"></div>
       </div>
 
@@ -1468,7 +1468,7 @@
           <button type="button" class="ghost" id="hrImportRules" style="font-size:0.8rem;padding:8px 12px;">Import names from pay rules</button>
         </div>
         <label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:12px;">Count leave starting from</label>
-        <input type="date" id="hrStartInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.85rem;">
+        <input type="text" inputmode="none" id="hrStartInput" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.85rem;">
         <div style="margin-top:12px;"><button type="button" class="primary" id="hrSaveStaff">Save</button> <span id="hrStaffStatus" style="font-size:0.78rem;color:#8a938e;"></span></div>
       </div>
     </div>
@@ -1837,6 +1837,18 @@
         </div>
         <div id="miniDateGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;"></div>
         <button type="button" class="ghost" id="miniDatePickerCloseBtn" style="width:100%;margin-top:14px;">Cancel</button>
+      </div>
+    </div>
+
+    <div id="timePickerOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:80;align-items:center;justify-content:center;padding:16px;">
+      <div style="background:var(--panel);border-radius:var(--radius);max-width:340px;width:100%;padding:16px;">
+        <div style="text-align:center;font-size:1.5rem;font-weight:700;color:var(--maroon);margin-bottom:10px;" id="tpLabel"></div>
+        <div style="font-size:0.74rem;color:#8a938e;margin-bottom:4px;">Hour</div>
+        <div id="tpHours" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px;"></div>
+        <div style="font-size:0.74rem;color:#8a938e;margin-bottom:4px;">Minutes</div>
+        <div id="tpMins" style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:10px;"></div>
+        <div id="tpAmPm" style="display:flex;background:#eef0ee;border-radius:999px;padding:3px;gap:2px;margin-bottom:12px;"><button type="button" data-p="AM" style="flex:1;border:none;padding:8px;border-radius:999px;cursor:pointer;">AM</button><button type="button" data-p="PM" style="flex:1;border:none;padding:8px;border-radius:999px;cursor:pointer;">PM</button></div>
+        <div style="display:flex;gap:8px;"><button type="button" class="ghost" id="tpClear" style="flex:1;">Clear</button><button type="button" class="ghost" id="tpCancel" style="flex:1;">Cancel</button><button type="button" class="primary" id="tpSet" style="flex:1;">Set</button></div>
       </div>
     </div>
 
@@ -2758,19 +2770,19 @@ async function hrApi(path, opts){
 }
 function hrStaffRowHtml(s){
   s = s || { label:'', keyword:'', days:[6,0,1,2,3,4], allowance:'' };
-  const tin = (cls,v)=> `<input type="time" class="${cls}" value="${escapeHtml(v||'')}" style="padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:0.78rem;">`;
+  const tin = (cls,v)=> `<input type="text" readonly inputmode="none" class="hr-time ${cls}" data-t="${escapeHtml(v||'')}" value="${escapeHtml(hr12(v||''))}" placeholder="--:--" style="width:84px;cursor:pointer;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.78rem;text-align:center;">`;
   const chips = [6,0,1,2,3,4,5].map(d=>{ const sh = (s.shifts||{})[d] || []; return `<div class="hr-dayrow" data-d="${d}" style="display:flex;align-items:center;gap:6px;margin:3px 0;"><label style="display:inline-flex;align-items:center;gap:4px;font-size:0.78rem;width:62px;"><input type="checkbox" class="hr-day" value="${d}"${(s.days||[]).includes(d)?' checked':''}>${HR_DAY_NAMES[d]}</label>${tin('hr-from',sh[0])}<span style="font-size:0.74rem;color:#8a938e;">→</span>${tin('hr-to',sh[1])}</div>`; }).join('');
   const kindSel = `<select class="hr-kind" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.82rem;"><option value="doctor"${s.kind==='secretary'?'':' selected'}>Doctor</option><option value="secretary"${s.kind==='secretary'?' selected':''}>Secretary / staff</option></select>`;
   const inp = (cls,ph,val,w,type)=> `<input type="${type||'text'}" class="${cls}" placeholder="${ph}" value="${escapeHtml(val==null?'':String(val))}" style="width:${w};box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.82rem;">`;
   return `<div class="hr-staff" style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:var(--paper);">
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">${inp('hr-label','Name shown (e.g. Dr. Sara)',s.label,'44%')}${inp('hr-keyword','Match word (e.g. sara)',s.keyword,'30%')}${inp('hr-allow','Leave days / year',s.allowance,'110px','number')}${kindSel}<button type="button" class="hr-del" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:1rem;">🗑️</button></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px;">${inp('hr-label','Name shown (e.g. Dr. Sara)',s.label,'44%')}${inp('hr-keyword','Match word (e.g. sara)',s.keyword,'30%')}${inp('hr-allow','Leave days / year',s.allowance,'110px','number')}${inp('hr-rate','EGP per case outside shift',s.case_rate||'','150px','number')}${kindSel}<button type="button" class="hr-del" style="background:transparent;border:none;color:#8a938e;cursor:pointer;font-size:1rem;">🗑️</button></div>
     <div style="font-size:0.72rem;color:#8a938e;margin:4px 0;">Tick the working days and enter the shift hours (optional) — used to compare cases and attendance with the shift.</div>
     <div>${chips}</div></div>`;
 }
 function hrRenderStaffEditor(){
   el('hrStaffRows').innerHTML = (CLINIC.hr_staff || []).map(hrStaffRowHtml).join('') || '<div style="font-size:0.8rem;color:#8a938e;">No doctors yet. Add one, or import the names from your pay rules.</div>';
   el('hrStartInput').value = hrStartDate();
-  hrWireDeletes();
+  hrWireDeletes(); hrWireTimeInputs(el('hrStaffRows'));
 }
 function hrWireDeletes(){ document.querySelectorAll('#hrStaffRows .hr-del').forEach(b=> b.onclick = ()=> b.closest('.hr-staff').remove()); }
 function hrReadStaffEditor(){
@@ -2779,8 +2791,9 @@ function hrReadStaffEditor(){
     keyword: r.querySelector('.hr-keyword').value.trim().toLowerCase(),
     kind: r.querySelector('.hr-kind').value,
     days: Array.from(r.querySelectorAll('.hr-day:checked')).map(c=> parseInt(c.value,10)),
-    shifts: (()=>{ const o = {}; r.querySelectorAll('.hr-dayrow').forEach(row=>{ const d = parseInt(row.dataset.d,10); if(!row.querySelector('.hr-day').checked) return; const a = row.querySelector('.hr-from').value, b = row.querySelector('.hr-to').value; if(a && b && a < b) o[d] = [a,b]; }); return o; })(),
-    allowance: parseFloat(r.querySelector('.hr-allow').value) || 0
+    shifts: (()=>{ const o = {}; r.querySelectorAll('.hr-dayrow').forEach(row=>{ const d = parseInt(row.dataset.d,10); if(!row.querySelector('.hr-day').checked) return; const a = row.querySelector('.hr-from').dataset.t || '', b = row.querySelector('.hr-to').dataset.t || ''; if(a && b && a < b) o[d] = [a,b]; }); return o; })(),
+    allowance: parseFloat(r.querySelector('.hr-allow').value) || 0,
+    case_rate: parseFloat(r.querySelector('.hr-rate').value) || 0
   })).filter(s=> s.label && s.keyword);
 }
 async function hrSaveStaff(){
@@ -2921,9 +2934,10 @@ function hrRenderOtSummary(staff){
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><b>${escapeHtml(s.label)}</b><span style="font-size:0.86rem;"><b>${rows.length}</b> overtime day${rows.length===1?'':'s'}${hrs ? ` · ${hrs} hours` : ''}</span></div>
       <details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.78rem;color:#5b6863;">Show dates</summary>
         ${rows.map(d=> `<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:4px 0;border-bottom:1px solid var(--line);"><span>${new Date(String(d.date).slice(0,10)+'T12:00:00').toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short'})}${d.hours ? ' · ' + d.hours + ' h' : ''}${d.note ? ' · ' + escapeHtml(d.note) : ''}</span><button type="button" class="hr-ot-rm" data-id="${escapeHtml(String(d.id))}" style="background:transparent;border:none;color:#8a938e;cursor:pointer;">✕</button></div>`).join('') || '<div style="font-size:0.78rem;color:#8a938e;">No overtime this year.</div>'}
-        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;"><input type="date" class="hr-ot-date" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="number" class="hr-ot-h" placeholder="hours" step="0.5" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="text" class="hr-ot-note" placeholder="note (optional)" style="flex:1;min-width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><button type="button" class="ghost hr-ot-add" data-si="${si}" style="font-size:0.76rem;padding:6px 10px;">+ Add overtime</button></div>
+        <div style="display:flex;gap:6px;margin-top:8px;align-items:center;flex-wrap:wrap;"><input type="text" inputmode="none" class="hr-ot-date" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="number" class="hr-ot-h" placeholder="hours" step="0.5" style="width:70px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><input type="text" class="hr-ot-note" placeholder="note (optional)" style="flex:1;min-width:110px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:0.8rem;"><button type="button" class="ghost hr-ot-add" data-si="${si}" style="font-size:0.76rem;padding:6px 10px;">+ Add overtime</button></div>
       </details></div>`;
   }).join('');
+  document.querySelectorAll('#hrOtSummary .hr-ot-date').forEach(makeDateInputCustom);
   document.querySelectorAll('#hrOtSummary .hr-ot-rm').forEach(b=> b.onclick = async ()=>{
     if(!confirm('Remove this overtime entry?')) return;
     try{ await hrApi(`/api/hr/leaves/${encodeURIComponent(b.dataset.id)}`, { method:'DELETE' }); loadHr(); }catch(e){ alert('Could not remove: ' + (e.message || e)); }
@@ -7730,11 +7744,15 @@ async function calculatePayroll(){
     const collectedByKey = {};
     const excludedByKey = {};
     const excludedItemsByKey = {};
-    const ownRevByKey = {}, ownItemsByKey = {};
+    const ownRevByKey = {}, ownItemsByKey = {}, extraCaseByKey = {};
     active.forEach(ev=>{
       const doctorName = ev.doctor_name || 'Unassigned';
       const rule = matchPayrollRule(doctorName);
       const key = rule ? rule.label : `unmatched:${doctorName.trim().toLowerCase()}`;
+      if(rule){
+        const hs = (CLINIC.hr_staff || []).find(x=> x.kind !== 'secretary' && x.case_rate > 0 && x.shifts && Object.keys(x.shifts).length && hrMatch(doctorName, x));
+        if(hs && hrOutsideShift(ev, hs)){ const e = extraCaseByKey[key] = extraCaseByKey[key] || { count: 0, amount: 0, rate: hs.case_rate }; e.count++; e.amount += hs.case_rate; }
+      }
       if(!rule) unmatchedNames[key] = doctorName;
       sessionsByKey[key] = (sessionsByKey[key] || 0) + 1;
       const notCounted = !ev.paid || ev.is_free;
@@ -7790,6 +7808,8 @@ async function calculatePayroll(){
         basePay = rule.fixed + rule.rate * sessionCount;
         formula = `Fixed ${rule.fixed} + ${rule.rate}/session × ${sessionCount} sessions`;
       }
+      const exC = extraCaseByKey[key];
+      if(exC && exC.amount){ basePay += exC.amount; formula += ` + ${exC.count} case${exC.count===1?'':'s'} outside shift × ${exC.rate}`; }
       const adjAmt = adjByKey[key] || 0;
       if(adjAmt){ basePay += adjAmt; formula += ` ${adjAmt > 0 ? '+' : '−'} ${Math.abs(Math.round(adjAmt))} adjustment`; }
       totalPayout += basePay;
@@ -10948,7 +10968,7 @@ function openMiniDatePicker(){
 // appears) but keeps working exactly like before for any code reading
 // .value, since we still write "YYYY-MM-DD" into it and fire 'change'.
 function makeDateInputCustom(inputId){
-  const input = el(inputId);
+  const input = typeof inputId === 'string' ? el(inputId) : inputId;
   if(!input) return;
   input.readOnly = true;
   input.style.cursor = 'pointer';
@@ -10966,7 +10986,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput','payAmtFrom','payAmtTo'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput','payAmtFrom','payAmtTo','hrWlFrom','hrWlTo','hrAtFrom','hrAtTo','hrStartInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -12243,6 +12263,47 @@ el('ledgerBtn').addEventListener('click', runMoneyLedger);
 el('payAmtBtn').addEventListener('click', runPaymentsByAmount);
 
 // ---- HR: cases vs shift, attendance ----
+
+// ---- Custom time picker (same look as the app's date picker) ----
+let tpState = { h: 9, m: 0, p: 'AM', cb: null };
+function hr12(t){ if(!t) return ''; const [h,m] = t.split(':').map(Number); return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2,'0')} ${h >= 12 ? 'PM' : 'AM'}`; }
+function tpRender(){
+  const on = (a)=> a ? 'background:var(--maroon);color:#fff;' : 'background:var(--paper);color:var(--ink);';
+  el('tpLabel').textContent = `${tpState.h}:${String(tpState.m).padStart(2,'0')} ${tpState.p}`;
+  el('tpHours').innerHTML = Array.from({length:12}, (_,i)=> i+1).map(h=> `<button type="button" data-h="${h}" style="border:1px solid var(--line);border-radius:8px;padding:9px 0;cursor:pointer;${on(h === tpState.h)}">${h}</button>`).join('');
+  el('tpMins').innerHTML = Array.from({length:12}, (_,i)=> i*5).map(m=> `<button type="button" data-m="${m}" style="border:1px solid var(--line);border-radius:8px;padding:9px 0;cursor:pointer;${on(m === tpState.m)}">${String(m).padStart(2,'0')}</button>`).join('');
+  el('tpAmPm').querySelectorAll('button').forEach(b=>{ const a = b.dataset.p === tpState.p; b.style.background = a ? 'var(--maroon)' : 'transparent'; b.style.color = a ? '#fff' : 'var(--ink)'; });
+  el('tpHours').querySelectorAll('button').forEach(b=> b.onclick = ()=>{ tpState.h = parseInt(b.dataset.h,10); tpRender(); });
+  el('tpMins').querySelectorAll('button').forEach(b=> b.onclick = ()=>{ tpState.m = parseInt(b.dataset.m,10); tpRender(); });
+}
+function openTimePickerFor(t24, cb){
+  let h = 9, m = 0, p = 'AM';
+  if(t24){ const [a,b] = t24.split(':').map(Number); p = a >= 12 ? 'PM' : 'AM'; h = a % 12 === 0 ? 12 : a % 12; m = Math.round(b/5)*5 % 60; }
+  tpState = { h, m, p, cb };
+  tpRender(); el('timePickerOverlay').style.display = 'flex';
+}
+(function(){
+  el('tpAmPm').querySelectorAll('button').forEach(b=> b.onclick = ()=>{ tpState.p = b.dataset.p; tpRender(); });
+  el('tpCancel').onclick = ()=>{ el('timePickerOverlay').style.display = 'none'; };
+  el('tpClear').onclick = ()=>{ const cb = tpState.cb; el('timePickerOverlay').style.display = 'none'; cb && cb(''); };
+  el('tpSet').onclick = ()=>{
+    let h24 = tpState.h % 12; if(tpState.p === 'PM') h24 += 12;
+    const cb = tpState.cb; el('timePickerOverlay').style.display = 'none';
+    cb && cb(`${String(h24).padStart(2,'0')}:${String(tpState.m).padStart(2,'0')}`);
+  };
+})();
+function hrWireTimeInputs(root){
+  (root || document).querySelectorAll('input.hr-time').forEach(inp=>{
+    if(inp.dataset.wired) return; inp.dataset.wired = '1';
+    inp.addEventListener('click', ()=> openTimePickerFor(inp.dataset.t || '', (v)=>{ inp.dataset.t = v; inp.value = hr12(v); }));
+  });
+}
+function hrOutsideShift(ev, s){
+  const st = new Date(ev.start_time), sh = s.shifts && s.shifts[st.getDay()];
+  if(!sh) return true;
+  const m = st.getHours()*60 + st.getMinutes();
+  return !(m >= hrMin(sh[0]) && m < hrMin(sh[1]));
+}
 const hrTimeStr = d => String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
 const hrMin = hm => { const [h,m] = String(hm).split(':'); return parseInt(h,10)*60 + parseInt(m,10); };
 function hrDefaultRange(a, b, days){
@@ -12291,7 +12352,7 @@ async function hrWorkload(){
       const col = !shiftDays ? '#8a938e' : util > 100 ? '#a35b00' : util >= 60 ? '#1f7a4d' : '#b3261e';
       return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--paper);">
         <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;"><b>${escapeHtml(s.label)}</b><b style="color:${col};">${verdict}${shiftDays ? ' · ' + util + '%' : ''}</b></div>
-        <div style="font-size:0.78rem;color:#5b6863;margin-top:4px;">${shiftDays} shift days with cases · ${inCases} cases inside the shift (avg ${shiftDays ? Math.round(inCases/shiftDays*10)/10 : 0} per day) · usual session ${Math.round(typical)} min${outCases ? ' · <b>' + outCases + ' cases outside the shift</b>' : ''}${noCase ? ' · ' + noCase + ' shift days with no cases (not counted)' : ''}</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-top:4px;">${shiftDays} shift days with cases · ${inCases} cases inside the shift (avg ${shiftDays ? Math.round(inCases/shiftDays*10)/10 : 0} per day) · usual session ${Math.round(typical)} min${outCases ? ' · <b>' + outCases + ' cases outside the shift</b>' + (s.case_rate > 0 ? ' = <b>+' + Math.round(outCases * s.case_rate).toLocaleString() + ' EGP</b> extra pay (counted in payroll)' : '') : ''}${noCase ? ' · ' + noCase + ' shift days with no cases (not counted)' : ''}</div>
         ${rows.length ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.76rem;color:#5b6863;">Day by day</summary>${rows.reverse().map(r=> `<div style="font-size:0.76rem;padding:3px 0;border-bottom:1px solid var(--line);">${r.k} ${r.wd} · ${r.sh[0]}–${r.sh[1]} · ${r.cin} cases of ~${r.cap} capacity (${r.util}%)${r.cout ? ' · +' + r.cout + ' outside' : ''}</div>`).join('')}</details>` : ''}
       </div>`;
     }).join('');
@@ -12362,14 +12423,14 @@ async function loadAttendanceCard(){
 }
 el('hrWlGo').addEventListener('click', hrWorkload);
 el('hrAtGo').addEventListener('click', hrAttendance);
-el('hrAddStaff').addEventListener('click', ()=>{ const w = el('hrStaffRows'); if(!w.querySelector('.hr-staff')) w.innerHTML = ''; w.insertAdjacentHTML('beforeend', hrStaffRowHtml()); hrWireDeletes(); });
+el('hrAddStaff').addEventListener('click', ()=>{ const w = el('hrStaffRows'); if(!w.querySelector('.hr-staff')) w.innerHTML = ''; w.insertAdjacentHTML('beforeend', hrStaffRowHtml()); hrWireDeletes(); hrWireTimeInputs(w); });
 el('hrImportRules').addEventListener('click', ()=>{
   const have = new Set(hrReadStaffEditor().map(s=> s.keyword));
   const add = (PAYROLL_RULES || []).filter(r=> r.keyword && !have.has(String(r.keyword).toLowerCase()));
   if(!add.length){ alert('No new names to import.'); return; }
   const w = el('hrStaffRows'); if(!w.querySelector('.hr-staff')) w.innerHTML = '';
   add.forEach(r=> w.insertAdjacentHTML('beforeend', hrStaffRowHtml({ label: r.label, keyword: String(r.keyword).toLowerCase(), days:[6,0,1,2,3,4], allowance:'' })));
-  hrWireDeletes();
+  hrWireDeletes(); hrWireTimeInputs(w);
 });
 el('hrSaveStaff').addEventListener('click', hrSaveStaff);
 el('hrYearPrev').addEventListener('click', ()=>{ hrYear--; hrRenderSummary(); hrRenderOtSummary(); });
