@@ -4378,7 +4378,7 @@ function nameWordsSubset(a, b){
   const [short, long] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
   return short.every(w=> long.includes(w));
 }
-async function confirmNoSimilarActivePackage(patientName){
+async function confirmNoSimilarActivePackage(patientName, patientPhone){
   try{
     const res = await fetch(`${BACKEND_URL}/api/packages/active`, { headers: authHeader() });
     if(!res.ok) return true;
@@ -4387,9 +4387,15 @@ async function confirmNoSimilarActivePackage(patientName){
     // ("tantawy" and "eltantawy" are the same family name).
     const norm = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ').split(' ').map(w=> w.replace(/^(el|al)(?=[a-z]{3,})/, '')).join(' ');
     const me = norm(patientName);
+    // Two different phone numbers = two different people, even if one name is part of the other ("khaled" / "khaled ibrahim").
+    const ph = v => String(v || '').replace(/\D/g, '').slice(-10);
+    const myPh = ph(patientPhone);
     const similar = pkgs.filter(p=>{
       const n = norm(p.patient_name);
-      return n === me || (me.length >= 3 && n.length >= 3 && nameWordsSubset(n, me));
+      if(n === me) return true;
+      const theirPh = ph(p.patient_phone);
+      if(myPh.length >= 8 && theirPh.length >= 8) return myPh === theirPh;
+      return me.length >= 3 && n.length >= 3 && nameWordsSubset(n, me);
     });
     if(similar.length === 0) return true;
     const lines = similar.map(p=> `• ${p.patient_name}: ${p.used_sessions} of ${p.total_sessions} sessions used`).join('\n');
@@ -9225,7 +9231,7 @@ async function sellNextPackage(){
     return;
   }
   el('sellNextPackageStatus').textContent = 'Checking for an existing package…';
-  if(!(await confirmNoSimilarActivePackage(patientName))){
+  if(!(await confirmNoSimilarActivePackage(patientName, currentPaymentTarget && currentPaymentTarget.patient_phone))){
     el('sellNextPackageStatus').textContent = 'Cancelled — nothing was saved.';
     return;
   }
@@ -9487,7 +9493,7 @@ async function submitPayment(method){
   const packageSessions = parseInt(el('paymentPackageSessionsInput').value, 10) || 0;
   if(startsPackage && packageSessions >= 2 && patientName){
     el('paymentOverlayStatus').textContent = 'Checking for an existing package…';
-    const proceed = await confirmNoSimilarActivePackage(patientName);
+    const proceed = await confirmNoSimilarActivePackage(patientName, currentPaymentTarget && currentPaymentTarget.patient_phone);
     if(!proceed){
       el('paymentOverlayStatus').textContent = 'Cancelled — nothing was saved.';
       return;
