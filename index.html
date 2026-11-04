@@ -12030,7 +12030,7 @@ async function loadNowVisit(){
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   try{
-    const res = await fetch(`${BACKEND_URL}/api/appointments/undocumented?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}`, { headers: authHeader() });
+    const res = await fetch(`${BACKEND_URL}/api/appointments/undocumented?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(end.toISOString())}&soon=1`, { headers: authHeader() });
     if(!res.ok){ card.style.display = 'none'; return; }
     const items = (await res.json()) || [];
     const t = Date.now();
