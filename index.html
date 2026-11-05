@@ -13675,5 +13675,62 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   });
 })();
 </script>
+<script id="leadReminder">
+(function(){
+  var DAYS = 3;
+  function ensureBanner(){
+    var b = document.getElementById('leadBanner');
+    if(b) return b;
+    var anchor = document.getElementById('undocBanner');
+    if(!anchor || !anchor.parentNode) return null;
+    b = document.createElement('div');
+    b.id = 'leadBanner';
+    b.style.cssText = 'display:none;background:#fde8e1;border-radius:14px;padding:12px 14px;margin-bottom:12px;cursor:pointer;align-items:center;gap:10px;';
+    anchor.parentNode.insertBefore(b, anchor);
+    b.addEventListener('click', function(){
+      try{ switchMainView('booking'); }catch(e){}
+      setTimeout(function(){ var l = document.getElementById('bkLeadList'); if(l && l.scrollIntoView) l.scrollIntoView({behavior:'smooth', block:'center'}); }, 400);
+    });
+    return b;
+  }
+  function setBadge(n){
+    var nav = document.getElementById('navBookingBtn'); if(!nav) return;
+    var dot = document.getElementById('leadNavDot');
+    if(!n){ if(dot) dot.remove(); return; }
+    if(!dot){
+      dot = document.createElement('span'); dot.id = 'leadNavDot';
+      dot.style.cssText = 'position:absolute;top:6px;right:calc(50% - 20px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#d4502a;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;';
+      nav.style.position = 'relative'; nav.appendChild(dot);
+    }
+    dot.textContent = String(n);
+  }
+  async function refresh(){
+    try{
+      var banner = ensureBanner();
+      if(typeof signedInDoctor === 'undefined' || !signedInDoctor || !isApproved()) return;
+      if(!(signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary')) return;
+      var nav = document.getElementById('navBookingBtn');
+      if(!nav || getComputedStyle(nav).display === 'none') { if(banner) banner.style.display='none'; return; }
+      var res = await fetch(BACKEND_URL + '/api/booking/leads', { headers: authHeader() });
+      if(!res.ok) return;
+      var rows = await res.json();
+      var cutoff = Date.now() - DAYS*86400000;
+      var recent = (rows||[]).filter(function(r){ return r.last_seen && new Date(r.last_seen).getTime() >= cutoff; });
+      setBadge(recent.length);
+      if(!banner) return;
+      if(!recent.length){ banner.style.display = 'none'; return; }
+      var names = recent.slice(0,2).map(function(r){ return escapeHtml(r.name || r.phone || ''); }).join('، ');
+      banner.innerHTML = '<span style="font-size:1.1rem;">🔔</span><div style="flex:1;min-width:0;"><div style="font-size:0.86rem;font-weight:700;color:#8a3a18;">'+recent.length+(recent.length===1?' person started booking but did not finish':' people started booking but did not finish')+'</div><div style="font-size:0.76rem;color:#8a3a18;opacity:.85;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+names+(recent.length>2?' …':'')+' · tap to message them</div></div><span style="color:#8a3a18;font-size:1.1rem;">›</span>';
+      banner.style.display = 'flex';
+    }catch(e){}
+  }
+  window.refreshLeadReminder = refresh;
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(refresh, 5000);
+    setInterval(function(){ if(document.visibilityState === 'visible') refresh(); }, 90000);
+    document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') refresh(); });
+  });
+})();
+</script>
 </body>
 </html>
