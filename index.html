@@ -4355,7 +4355,7 @@ async function loadPackagePolicyCheck(){
         btn.disabled = true;
         try{
           await markPackagePolicySent(btn.getAttribute('data-id'));
-          const message = WHATSAPP_TEMPLATES.package_policy.build();
+          const message = await buildPackagePolicyMessage(btn.getAttribute('data-id'));
           location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(btn.getAttribute('data-phone'))}?text=${encodeURIComponent(message)}`);
         }catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
       });
@@ -4498,6 +4498,24 @@ async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
     alert('Could not create the link: ' + (e.message || e));
   }finally{
     if(btn) btn.disabled = false;
+  }
+}
+
+// Package policy + the patient's private follow-up link in ONE message, so the
+// patient can track their remaining sessions/balance from the moment they pay.
+// If the link can't be created (offline, server error) the policy still goes out alone.
+async function buildPackagePolicyMessage(pkgId){
+  const policy = WHATSAPP_TEMPLATES.package_policy.build();
+  if(!pkgId) return policy;
+  try{
+    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ markSent: true }) });
+    if(!res.ok) throw new Error(`Server error ${res.status}`);
+    const { url } = await res.json();
+    if(!url) return policy;
+    return `${policy}\n\n📊 You can follow your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}`;
+  }catch(e){
+    console.error('Package link not added to policy message:', e);
+    return policy;
   }
 }
 
@@ -9292,7 +9310,8 @@ async function sellNextPackage(){
     const sellPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
     if(sellPhone && createdPkg && createdPkg.id && confirm(`Package saved for ${patientName} — send the package validity & refund policy now?`)){
       try{ await markPackagePolicySent(createdPkg.id); }catch(e){ console.error(e); }
-      location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(sellPhone)}?text=${encodeURIComponent(WHATSAPP_TEMPLATES.package_policy.build())}`);
+      const policyMsg = await buildPackagePolicyMessage(createdPkg.id);
+      location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(sellPhone)}?text=${encodeURIComponent(policyMsg)}`);
     }
     el('sellNextPackageSessionsInput').value = '';
     el('sellNextPackageTotalPriceInput').value = '';
@@ -9549,8 +9568,8 @@ async function submitPayment(method){
     if(newPackageStarted){
       const patientPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
       if(patientPhone && confirm(`New package started for ${patientName} — send the package validity & refund policy now?`)){
-        const message = WHATSAPP_TEMPLATES.package_policy.build();
         if(newPackageId){ try{ await markPackagePolicySent(newPackageId); }catch(e){ console.error(e); } }
+        const message = await buildPackagePolicyMessage(newPackageId);
         location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(patientPhone)}?text=${encodeURIComponent(message)}`);
       }else if(!patientPhone){
         el('scheduleStatus').textContent = 'New package started. (No phone on file — send the policy from the reminders list once you have one.)';
