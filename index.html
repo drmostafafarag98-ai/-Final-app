@@ -819,7 +819,11 @@ header button{ background:#fff !important; color:var(--ink) !important; border:1
 .dashboard-card-num{ font-family:'Fraunces',serif; font-size:1.5rem !important; }
 #nowVisitCard{ background:var(--maroon) !important; border:none !important; border-radius:20px !important; padding:14px 16px !important; }
 #nowVisitCard, #nowVisitCard div{ color:#f6f4ee !important; }
-#nowVisitCard div[style*="0.76rem"]{ opacity:.85; }
+#nowVisitCard .now-time{ font-size:.86rem; font-weight:700; letter-spacing:.2px; }
+#nowVisitCard .now-chip{ font-size:.72rem; font-weight:600; padding:3px 10px; border-radius:999px; background:rgba(246,244,238,.16); color:#f6f4ee !important; }
+.section-title.collapsible-title{ text-transform:none !important; letter-spacing:0 !important; font-size:.95rem !important; font-weight:700 !important; color:var(--ink) !important; margin:0 !important; padding:16px 4px !important; border-bottom:1px solid var(--line); }
+.section-title.collapsible-title svg{ color:var(--maroon); width:18px; height:18px; }
+.section-title.collapsible-title .collapsible-chevron{ color:#8a938e; width:16px; height:16px; }
 #nowVisitCard button.primary{ background:#f6f4ee !important; color:var(--maroon-deep) !important; border:none !important; box-shadow:none !important; font-weight:700; border-radius:12px !important; }
 #undocBanner{ background:#fbefd9 !important; border:none !important; border-radius:14px !important; }
 #undocBanner #undocTitle{ color:#6b4a12 !important; }
@@ -12094,7 +12098,7 @@ async function loadNowVisit(){
       const when = fmt(i.start_time) + (i.end_time ? ' – ' + fmt(i.end_time) : '');
       return `<div class="now-row" data-id="${i.id}" style="display:flex;align-items:center;gap:10px;padding:6px 0;cursor:pointer;">
         <div style="flex:1;min-width:0;"><div style="font-weight:700;font-size:1rem;">${escapeHtml(i.patient_name || '')}</div>
-        <div style="font-size:0.76rem;color:#5b6863;">${when} · ${kind}${i.doctor_name ? ' · ' + escapeHtml(i.doctor_name) : ''}</div></div>
+        <div class="now-sub" style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:4px;"><span class="now-time">${when}</span><span class="now-chip">${kind}</span>${i.doctor_name ? '<span class="now-chip">' + escapeHtml(i.doctor_name) + '</span>' : ''}</div></div>
         <button type="button" class="primary" style="padding:10px 14px;white-space:nowrap;">Document</button></div>`;
     }).join('');
     const byId = new Map(current.map(i=>[String(i.id), i]));
