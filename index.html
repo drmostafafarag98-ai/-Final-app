@@ -795,6 +795,54 @@
   #trashOverlay, #timeTreeImportOverlay, #miniDatePickerOverlay, #quickBookOverlay, #patientSummaryOverlay,
   #prescriptionOverlay, #invoiceOverlay{ padding-top:calc(16px + env(safe-area-inset-top)) !important; }
 </style>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600&display=swap" rel="stylesheet">
+<style id="themeA">
+/* ===== Theme A: Calm Ivory ===== */
+:root{
+  --ink:#1c2a28; --paper:#f6f4ee; --panel:#fff; --line:#e1ddd1;
+  --maroon:#1f5c56; --maroon-deep:#164a45; --gold:#c79a55;
+  --radius:16px; --card-radius:20px;
+  --card-shadow:0 1px 2px rgba(28,42,40,.06);
+}
+body{ font-family:'Plus Jakarta Sans','Noto Naskh Arabic',system-ui,sans-serif; }
+.display{ font-family:'Plus Jakarta Sans','Noto Naskh Arabic',sans-serif; }
+header{ background:var(--paper) !important; color:var(--ink) !important; border-bottom:none !important; padding:18px 20px 6px !important; align-items:center !important; }
+header .tag{ color:#5b6a67 !important; }
+header h1.logo-shimmer{ background:none !important; -webkit-text-fill-color:var(--maroon) !important; color:var(--maroon) !important; animation:none !important; padding:0 !important; margin:0 !important; }
+header button{ background:#fff !important; color:var(--ink) !important; border:1px solid var(--line) !important; border-radius:14px !important; min-height:44px; min-width:44px; }
+#mainNavBar{ background:#fff !important; border-right:1px solid var(--line) !important; }
+.main-nav-btn{ color:#5b6a67 !important; margin:4px 6px; border-radius:14px; padding:12px 2px !important; }
+.main-nav-btn.active{ background:#e3efec !important; color:var(--maroon) !important; border-right:none !important; font-weight:700; }
+.main-nav-label{ font-size:.66rem !important; font-weight:600; }
+.dashboard-card{ border-radius:18px !important; box-shadow:var(--card-shadow) !important; }
+.dashboard-card:hover{ box-shadow:0 4px 12px rgba(28,42,40,.10) !important; }
+.dashboard-card-num{ font-family:'Fraunces',serif; font-size:1.5rem !important; }
+#nowVisitCard{ background:var(--maroon) !important; border:none !important; border-radius:20px !important; padding:14px 16px !important; }
+#nowVisitCard, #nowVisitCard div{ color:#f6f4ee !important; }
+#nowVisitCard div[style*="0.76rem"]{ opacity:.85; }
+#nowVisitCard button.primary{ background:#f6f4ee !important; color:var(--maroon-deep) !important; border:none !important; box-shadow:none !important; font-weight:700; border-radius:12px !important; }
+#undocBanner{ background:#fbefd9 !important; border:none !important; border-radius:14px !important; }
+#undocBanner #undocTitle{ color:#6b4a12 !important; }
+#attendanceCard{ border-radius:18px !important; }
+#calendarView > div, #calendarView .card{ border-radius:20px; }
+#calGrid > div{ border-radius:14px !important; }
+button.primary{ border-radius:14px; }
+button.ghost{ border-radius:14px; }
+input,select,textarea{ border-radius:12px; }
+.section-title{ color:#5b6a67; }
+@media (max-width:640px){
+  #mainNavBar{
+    top:auto !important; bottom:0 !important; left:0 !important; right:0 !important; width:auto !important;
+    height:72px; flex-direction:row !important; padding:0 6px !important; transform:none !important;
+    border-right:none !important; border-top:1px solid var(--line); box-shadow:0 -4px 16px rgba(28,42,40,.06) !important;
+    justify-content:space-around; align-items:center !important; padding-bottom:env(safe-area-inset-bottom);
+  }
+  .main-nav-btn{ flex:1; margin:6px 3px; padding:8px 2px !important; min-height:56px; justify-content:center; }
+  #mainNavToggleBtn{ display:none !important; }
+  #mainNavBackdrop, #mainNavBackdrop.open{ display:none !important; }
+  #appBody{ padding-bottom:90px; }
+}
+</style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
