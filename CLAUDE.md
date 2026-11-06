@@ -43,7 +43,7 @@ Steps:
 2. [done] Create Supabase account with own email, project `musaed-support`, connect it to Claude.
 3. [done] Run `support/schema.sql` in `musaed-support`, put its URL + publishable key in the
    widget, test, merge. Project ref: `qprxyvvtqhtdzidzrcwi` (eu-central-1).
-4. [in progress] Telegram alert to the owner on each new report: `support/telegram.sql` (trigger →
+4. [done] Telegram alert to the owner on each new report: `support/telegram.sql` (trigger →
    pg_net) → Edge Function `support/functions/support-telegram` (deployed, verify_jwt off, does its
    own checks). Bot `@musaed_support2_bot`; token is the Edge Function secret `TELEGRAM_BOT_TOKEN`
    (never in the repo); owner's chat id is learned from their first message and kept in
