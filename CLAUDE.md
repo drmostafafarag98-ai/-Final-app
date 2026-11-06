@@ -43,9 +43,14 @@ Steps:
 2. [done] Create Supabase account with own email, project `musaed-support`, connect it to Claude.
 3. [done] Run `support/schema.sql` in `musaed-support`, put its URL + publishable key in the
    widget, test, merge. Project ref: `qprxyvvtqhtdzidzrcwi` (eu-central-1).
-4. [Claude] Telegram alert to the owner on each new report (DB webhook → Edge Function; bot token
-   stored as an Edge Function secret, never in the repo).
-5. [Claude] Scheduled task (every few hours): read `status = 'new'` reports, triage —
+4. [in progress] Telegram alert to the owner on each new report: `support/telegram.sql` (trigger →
+   pg_net) → Edge Function `support/functions/support-telegram` (deployed, verify_jwt off, does its
+   own checks). Bot `@musaed_support2_bot`; token is the Edge Function secret `TELEGRAM_BOT_TOKEN`
+   (never in the repo); owner's chat id is learned from their first message and kept in
+   `support_config`.
+5. [done, needs Supabase connector added to it by the owner] Scheduled task "Musaed support triage",
+   once a day 20:51 Cairo (owner chose: Telegram alert + owner tells Claude "شوف الشكاوى" when busy,
+   daily run as a safety net): read `status = 'new'` reports, triage —
    usage question → write `reply`, status `answered`; code bug → fix, PR, merge, write `reply`,
    status `fixed`, `fix_pr_url`; data problem in a clinic / anything risky → status
    `needs_owner` and tell the owner. Reply to doctors in simple Egyptian Arabic.
