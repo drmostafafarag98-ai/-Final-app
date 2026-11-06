@@ -4535,6 +4535,13 @@ async function recordPackageBalancePayment(pkgId, patientName){
   }
 }
 
+// The server builds the link from its own Render address; patients should see the clinic's
+// own domain (the same one the online booking link uses), so rebuild it on BACKEND_URL.
+function clinicPackageLink(serverUrl){
+  const token = String(serverUrl || '').split('/').filter(Boolean).pop();
+  return token ? `${String(BACKEND_URL).replace(/\/+$/, '')}/e/${token}` : serverUrl;
+}
+
 // Creates (once) the patient's private "my package" link and opens WhatsApp with it.
 async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
   if(btn) btn.disabled = true;
@@ -4544,7 +4551,7 @@ async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
-    const { url } = await res.json();
+    const url = clinicPackageLink((await res.json()).url);
     const msg = `Hello ${name} 🌷\nYou can check your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}\n\n${CLINIC.name}`;
     if(phone){
       window.open(waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`), '_blank');
@@ -4568,9 +4575,11 @@ async function buildPackagePolicyMessage(pkgId){
   try{
     const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ markSent: true }) });
     if(!res.ok) throw new Error(`Server error ${res.status}`);
-    const { url } = await res.json();
-    if(!url) return policy;
-    return `${policy}\n\n📊 You can follow your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}`;
+    const { url: serverUrl } = await res.json();
+    if(!serverUrl) return policy;
+    const url = clinicPackageLink(serverUrl);
+    // Link goes FIRST — most patients don't read to the end of the policy.
+    return `📊 *Track your package here* — sessions left & balance, updates automatically:\n${url}\n\n${policy}`;
   }catch(e){
     console.error('Package link not added to policy message:', e);
     return policy;
