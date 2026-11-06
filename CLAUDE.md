@@ -48,12 +48,12 @@ Steps:
    own checks). Bot `@musaed_support2_bot`; token is the Edge Function secret `TELEGRAM_BOT_TOKEN`
    (never in the repo); owner's chat id is learned from their first message and kept in
    `support_config`.
-5. [changed] No Claude scheduled task: a task cannot get the Supabase connector (tried; old task
-   "Musaed support triage" is disabled). Instead pg_cron job `support-daily-reminder` sends the owner
-   a Telegram nudge at 21:00 Cairo if reports are waiting (`new`/`in_progress`/`needs_owner`).
+5. [done] Scheduled task "Musaed support triage" (fresh session, every 2h 10:13–22:13 Cairo).
+   Tasks can't get the Supabase connector, so it reads/writes reports via REST: the musaed-support
+   secret key is a network secret on the "Zaki" environment (header `apikey`, injected by the proxy).
+   Its prompt first curls for `status=eq.new` and stops if `[]`; otherwise follows `support/TRIAGE.md`.
+   Also: pg_cron `support-daily-reminder` sends a Telegram nudge at 21:00 Cairo if reports wait.
    When the owner writes "شوف الشكاوى", follow `support/TRIAGE.md` in that session.
-   Planned: scheduled task (every 2h, 10:00–22:00 Cairo) reading reports via REST with a secret key
-   saved as a network secret on the "Zaki" environment (header `apikey`), waiting on the owner.
 
 ## Checks before merging
 - Extract the inline `<script>` blocks from `index.html` and run `node --check` on each.
