@@ -33,3 +33,7 @@ revoke all on function public.support_notify_new_report() from public, anon, aut
 create trigger support_reports_notify
   after insert on public.support_reports
   for each row execute function public.support_notify_new_report();
+
+-- The Edge Function uses the service_role key; new projects do not grant it table rights by default.
+grant select, insert, update on table public.support_reports to service_role;
+grant select, insert, update on table public.support_config to service_role;
