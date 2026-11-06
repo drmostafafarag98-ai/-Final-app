@@ -40,9 +40,9 @@ Design (decided with the owner):
 
 Steps:
 1. [done] Schema file + widget code (hidden).
-2. [owner] Create Supabase account with own email, project `musaed-support`, connect it to Claude.
-3. [Claude] Run `support/schema.sql` in `musaed-support`, put its URL + publishable key in the
-   widget, test, merge.
+2. [done] Create Supabase account with own email, project `musaed-support`, connect it to Claude.
+3. [done] Run `support/schema.sql` in `musaed-support`, put its URL + publishable key in the
+   widget, test, merge. Project ref: `qprxyvvtqhtdzidzrcwi` (eu-central-1).
 4. [Claude] Telegram alert to the owner on each new report (DB webhook → Edge Function; bot token
    stored as an Edge Function secret, never in the repo).
 5. [Claude] Scheduled task (every few hours): read `status = 'new'` reports, triage —
