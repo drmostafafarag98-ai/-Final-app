@@ -52,6 +52,8 @@ Steps:
    "Musaed support triage" is disabled). Instead pg_cron job `support-daily-reminder` sends the owner
    a Telegram nudge at 21:00 Cairo if reports are waiting (`new`/`in_progress`/`needs_owner`).
    When the owner writes "شوف الشكاوى", follow `support/TRIAGE.md` in that session.
+   Planned: scheduled task (every 2h, 10:00–22:00 Cairo) reading reports via REST with a secret key
+   saved as a network secret on the "Zaki" environment (header `apikey`), waiting on the owner.
 
 ## Checks before merging
 - Extract the inline `<script>` blocks from `index.html` and run `node --check` on each.
