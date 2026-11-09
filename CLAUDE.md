@@ -58,3 +58,4 @@ Steps:
 ## Checks before merging
 - Extract the inline `<script>` blocks from `index.html` and run `node --check` on each.
 - `node --check server.js` if the backend changed.
+
