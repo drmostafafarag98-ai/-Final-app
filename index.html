@@ -13959,5 +13959,131 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
 })();
 </script>
 <script id="docsHook">(function(){var _r=renderSessionList;renderSessionList=function(){_r.apply(this,arguments);try{var v=document.getElementById('docsHomeView');if(v&&v.style.display!=='none'&&window.renderDocsHome)window.renderDocsHome();}catch(e){}};})();</script>
+<!-- ===== Support: "عندي مشكلة" — reports go to the OWNER's support Supabase project (see support/schema.sql) ===== -->
+<style>
+  #supportFab{ display:none; position:fixed; right:16px; bottom:18px; z-index:60; width:46px; height:46px; border-radius:50%;
+    border:none; background:var(--maroon); color:#fff; font-size:1.25rem; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.2); }
+  #supportFab .dot{ display:none; position:absolute; top:4px; right:4px; width:11px; height:11px; border-radius:50%; background:#e0533d; border:2px solid #fff; }
+  @media (max-width:640px){ #supportFab{ bottom:calc(84px + env(safe-area-inset-bottom)); right:12px; width:42px; height:42px; } }
+  #supportOverlay textarea{ width:100%; box-sizing:border-box; min-height:120px; padding:10px 12px; border:1px solid var(--line); font:inherit; background:var(--panel); color:var(--ink); }
+  .support-item{ border:1px solid var(--line); border-radius:12px; padding:9px 11px; margin-bottom:8px; font-size:0.82rem; }
+  .support-item .st{ font-size:0.72rem; font-weight:700; }
+  .support-item .reply{ margin-top:6px; padding:7px 9px; border-radius:10px; background:rgba(31,92,86,.08); white-space:pre-wrap; }
+</style>
+<button type="button" id="supportFab" title="عندي مشكلة / Report a problem" aria-label="Report a problem">?<span class="dot"></span></button>
+<div id="supportOverlay" dir="rtl" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:96;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
+      <span style="font-weight:700;color:var(--maroon);">🆘 عندي مشكلة</span>
+      <button type="button" id="supportCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
+    </div>
+    <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+      <div style="font-size:0.8rem;color:#5b6863;margin-bottom:8px;">اكتب المشكلة بالتفصيل: كنت بتعمل إيه، وإيه اللي حصل، وكنت متوقع يحصل إيه. هنرد عليك هنا.</div>
+      <div style="font-size:0.74rem;color:var(--danger);margin-bottom:8px;">⚠️ من فضلك ماتكتبش أسماء أو أرقام تليفونات أو بيانات مرضى.</div>
+      <textarea id="supportMessage" dir="auto" maxlength="4000" placeholder="مثال: لما بدوس Save في الدفع بيظهر خطأ ومش بيحفظ…"></textarea>
+      <button type="button" class="primary" id="supportSendBtn" style="width:100%;margin-top:10px;">إرسال</button>
+      <div id="supportStatus" style="font-size:0.8rem;min-height:1.2em;margin-top:8px;color:#5b6863;"></div>
+      <div id="supportHistoryWrap" style="display:none;margin-top:14px;">
+        <div style="font-size:0.8rem;font-weight:700;color:var(--maroon);margin-bottom:8px;">مشاكلك اللي بعتها</div>
+        <div id="supportHistory"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script id="supportWidget">
+(function(){
+  // Owner's support project (musaed-support). Empty = feature hidden.
+  // The publishable key is public by design; the database only allows the two functions in support/schema.sql.
+  var SUPPORT_URL = 'https://qprxyvvtqhtdzidzrcwi.supabase.co';
+  var SUPPORT_KEY = 'sb_publishable_M8Ar_IoU0uSip2cC4wY_bA_jq4S1cz_';
+  var APP_VERSION = '2026-11';
+  if(!SUPPORT_URL || !SUPPORT_KEY) return;
+
+  var IDS_KEY = 'support_report_ids', SEEN_KEY = 'support_seen_replies';
+  var recentErrors = [];
+  function remember(kind, msg){
+    try{
+      recentErrors.push({ t: new Date().toISOString(), kind: kind, msg: String(msg).slice(0, 500) });
+      if(recentErrors.length > 10) recentErrors.shift();
+    }catch(e){}
+  }
+  window.addEventListener('error', function(e){ remember('error', (e.message || '') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '')); });
+  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; remember('promise', r && (r.message || r)); });
+  var origErr = console.error;
+  console.error = function(){ try{ remember('console', Array.prototype.map.call(arguments, function(a){ return a && a.message ? a.message : (typeof a === 'string' ? a : JSON.stringify(a)); }).join(' ')); }catch(e){} return origErr.apply(console, arguments); };
+
+  function lsGet(k, d){ try{ var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
+  function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function rpc(name, body){
+    return fetch(SUPPORT_URL.replace(/\/+$/, '') + '/rest/v1/rpc/' + name, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPPORT_KEY }, body: JSON.stringify(body)
+    }).then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ if(!r.ok) throw new Error((j && j.message) || ('Error ' + r.status)); return j; }); });
+  }
+  function doctor(){ try{ return (typeof signedInDoctor !== 'undefined' && signedInDoctor) || null; }catch(e){ return null; } }
+  function currentPage(){ var b = document.querySelector('.main-nav-btn.active'); return b ? (b.getAttribute('title') || b.id) : ''; }
+
+  var STATUS = { new: ['اتبعتت ✔', '#8a938e'], in_progress: ['بنشتغل عليها 🔧', '#b8894f'], answered: ['اترد عليها 💬', 'var(--maroon)'],
+                 fixed: ['اتصلحت ✅', 'var(--maroon)'], needs_owner: ['محوّلة لصاحب البرنامج 👤', '#b8894f'], closed: ['اتقفلت', '#8a938e'] };
+
+  function refresh(render){
+    var ids = lsGet(IDS_KEY, []);
+    if(!ids.length){ if(render) $('supportHistoryWrap').style.display = 'none'; return; }
+    rpc('support_report_status', { p_ids: ids }).then(function(rows){
+      rows = rows || [];
+      var seen = lsGet(SEEN_KEY, {});
+      var unseen = rows.some(function(r){ return r.reply && seen[r.id] !== r.replied_at; });
+      document.querySelector('#supportFab .dot').style.display = unseen ? 'block' : 'none';
+      if(!render) return;
+      $('supportHistoryWrap').style.display = rows.length ? 'block' : 'none';
+      $('supportHistory').innerHTML = rows.map(function(r){
+        var s = STATUS[r.status] || [r.status, '#8a938e'];
+        return '<div class="support-item"><div class="st" style="color:' + s[1] + ';">' + s[0] + ' · ' + new Date(r.created_at).toLocaleDateString() + '</div>'
+          + '<div dir="auto" style="margin-top:3px;">' + esc(r.message) + '</div>'
+          + (r.reply ? '<div class="reply" dir="auto">' + esc(r.reply) + '</div>' : '') + '</div>';
+      }).join('');
+      rows.forEach(function(r){ if(r.reply) seen[r.id] = r.replied_at; });
+      lsSet(SEEN_KEY, seen);
+      document.querySelector('#supportFab .dot').style.display = 'none';
+    }).catch(function(e){ if(render) $('supportStatus').textContent = ''; });
+  }
+
+  function open(){ $('supportOverlay').style.display = 'flex'; $('supportStatus').textContent = ''; refresh(true); setTimeout(function(){ $('supportMessage').focus(); }, 50); }
+  function close(){ $('supportOverlay').style.display = 'none'; }
+
+  function send(){
+    var msg = $('supportMessage').value.trim();
+    if(msg.length < 3){ $('supportStatus').textContent = 'اكتب المشكلة الأول.'; return; }
+    var d = doctor() || {}, g = function(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } };
+    $('supportSendBtn').disabled = true; $('supportStatus').textContent = 'بيتبعت…';
+    rpc('submit_support_report', {
+      p_message: msg, p_clinic_code: g('clinic_code'), p_clinic_name: g('clinic_name'),
+      p_doctor_email: d.email || '', p_doctor_name: d.name || '', p_page: currentPage(),
+      p_user_agent: navigator.userAgent, p_app_lang: g('app_lang'), p_app_version: APP_VERSION,
+      p_recent_errors: recentErrors.length ? recentErrors : null
+    }).then(function(id){
+      var ids = lsGet(IDS_KEY, []); if(id){ ids.unshift(id); lsSet(IDS_KEY, ids.slice(0, 50)); }
+      $('supportMessage').value = '';
+      $('supportStatus').textContent = '✅ وصلتنا، وهنرد عليك هنا في أقرب وقت.';
+      refresh(true);
+    }).catch(function(e){
+      $('supportStatus').textContent = '❌ ماتبعتتش: ' + (e.message || e) + '. جرب تاني بعد شوية.';
+    }).then(function(){ $('supportSendBtn').disabled = false; });
+  }
+
+  function init(){
+    $('supportFab').addEventListener('click', open);
+    $('supportCloseBtn').addEventListener('click', close);
+    $('supportOverlay').addEventListener('click', function(e){ if(e.target === this) close(); });
+    $('supportSendBtn').addEventListener('click', send);
+    // Show the button only once someone is signed in (not on the login / clinic-code screens).
+    setInterval(function(){ $('supportFab').style.display = doctor() ? 'block' : 'none'; }, 1500);
+    refresh(false);
+    setInterval(function(){ refresh(false); }, 10 * 60 * 1000);
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
 </body>
 </html>
