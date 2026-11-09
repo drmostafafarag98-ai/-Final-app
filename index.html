@@ -1565,6 +1565,15 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
       </div>
       </div>
 
+      <div class="section-title" id="branchesTitle">Branches — month settlement</div>
+      <div id="branchesPanel" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">When a package is sold in one branch and the session is done in another, the selling branch owes the treating branch the session price (package price ÷ number of sessions). Each doctor's branch is set in Settings → Team.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px;">
+          <input type="month" id="branchesMonth" style="padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--paper);font-size:0.85rem;">
+          <button type="button" class="ghost" id="branchesGo" style="font-size:0.82rem;padding:8px 14px;">Show</button>
+        </div>
+        <div id="branchesOut" style="font-size:0.85rem;"></div>
+      </div>
       <div class="section-title collapsible-title" id="hrReviewTitle" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — needs your decision <span id="hrReviewCount"></span> <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Days a doctor was supposed to work but had no patients booked, and was not marked unavailable. Tell the app what happened so the leave count stays right.</div>
@@ -8766,6 +8775,11 @@ function renderDoctorsRoster(items){
         <input type="text" class="doctor-phone-input" data-email="${d.email}" value="${escapeHtml(d.phone || '')}" placeholder="01xxxxxxxxx" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--paper);width:130px;">
         <button type="button" class="ghost doctor-phone-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Save</button>
       </div>
+      ${(CLINIC && CLINIC.features && CLINIC.features.branches) ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;">
+        <span style="font-size:0.72rem;color:#8a938e;">Branch:</span>
+        <input type="text" class="doctor-branch-input" data-email="${d.email}" value="${escapeHtml(d.branch || '')}" placeholder="e.g. Heliopolis" style="font-size:0.72rem;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--paper);width:130px;">
+        <button type="button" class="ghost doctor-branch-btn" data-email="${d.email}" style="font-size:0.72rem;padding:3px 8px;">Save</button>
+      </div>` : ''}
       ${d.status === 'approved' ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center;">
         <span style="font-size:0.72rem;color:#8a938e;">Telegram alerts:</span>
         <span style="font-size:0.72rem;font-weight:700;color:${d.telegram_chat_id ? '#0b8043' : '#a33d3d'};">${d.telegram_chat_id ? 'Linked ✓' : 'Not linked'}</span>
@@ -8871,6 +8885,30 @@ function renderDoctorsRoster(items){
         setTimeout(()=>{ btn.textContent = 'Send test'; }, 2000);
       }catch(e){
         alert('Could not send the test: ' + (e.message || e));
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  });
+  container.querySelectorAll('.doctor-branch-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const email = btn.getAttribute('data-email');
+      const input = container.querySelector(`.doctor-branch-input[data-email="${email}"]`);
+      btn.disabled = true;
+      try{
+        const res = await fetch(`${BACKEND_URL}/api/doctors/${encodeURIComponent(email)}/branch`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...authHeader() },
+          body: JSON.stringify({ branch: input.value })
+        });
+        if(!res.ok){
+          const errBody = await res.json().catch(()=>({}));
+          throw new Error(errBody.error || `Server error ${res.status}`);
+        }
+        btn.textContent = 'Saved ✓';
+        setTimeout(()=>{ btn.textContent = 'Save'; }, 1500);
+      }catch(e){
+        alert('Could not save the branch: ' + (e.message || e));
       }finally{
         btn.disabled = false;
       }
@@ -12322,9 +12360,11 @@ const DASH_TABS = [
   { id:'training', label:'Training' },
   { id:'team', label:'Team' },
   { id:'booking', label:'Booking' },
-  { id:'hr', label:'HR' }
+  { id:'hr', label:'HR' },
+  { id:'branches', label:'Branches' }
 ];
 const DASH_TITLE_GROUPS = [
+  ['Branches','branches'],
   ['Today','overview'], ['This month','overview'], ['This year','overview'], ['Custom range','overview'],
   ['Send manually','patients'],
   ['By doctor','money'], ['Money ledger','money'], ['Day Review','money'], ['Doctor Payroll','money'], ['Other Income','money'],
@@ -12385,6 +12425,7 @@ function showDashboardTab(id){
   document.querySelectorAll('#dashTabBar button').forEach(b=> b.classList.toggle('active', b.dataset.tab === id));
   try{ localStorage.setItem('dashTab', id); }catch(e){}
   if(id === 'hr' && typeof loadHr === 'function') loadHr();
+  if(id === 'branches' && typeof loadBranches === 'function') loadBranches();
 }
 document.addEventListener('DOMContentLoaded', setupDashboardTabs);
 
@@ -13500,6 +13541,7 @@ function applyClinicFeatures(){
     if(ft.hr === false) css.push('#dashTabBar button[data-tab="hr"]{display:none !important;}');
     if(ft.team === false) css.push('#dashTabBar button[data-tab="team"]{display:none !important;}');
     if(ft.docs === false) css.push('#navDocumentationBtn{display:none !important;}');
+    css.push(ft.branches === true ? '#dashTabBar button[data-tab="branches"]{display:inline-block !important;}' : '#dashTabBar button[data-tab="branches"]{display:none !important;}');
     st.textContent = css.join('\n');
   }catch(e){}
 }
@@ -13517,6 +13559,7 @@ async function loadClinicConfig(){
     const isOwner = signedInDoctor && signedInDoctor.role === 'owner';
     const b = document.getElementById('adminTabClinicBtn'); if(b) b.style.display = isOwner ? '' : 'none';
     const hb = document.querySelector('#dashTabBar button[data-tab="hr"]'); if(hb) hb.style.display = isOwner ? '' : 'none';
+    const bb = document.querySelector('#dashTabBar button[data-tab="branches"]'); if(bb && !isOwner) bb.style.setProperty('display','none','important');
   }catch(e){ clinicConfigStatus = { code: -1, rules: 0 }; console.error('Could not load clinic settings', e); }
 }
 function clinicField(id, label, val, ph){
@@ -14106,6 +14149,44 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   document.addEventListener('click', function(e){
     var t=e.target.closest ? e.target.closest('.mt-tab') : null; if(t) go(t.getAttribute('data-mt'));
   });
+})();
+</script>
+<script id="branchesSettlement">
+(function(){
+  var fmt=function(n){ return Math.round(Number(n)||0).toLocaleString('en-US'); };
+  var esc=function(t){ return (typeof escapeHtml==='function')?escapeHtml(String(t==null?'':t)):String(t==null?'':t).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); };
+  var lastText='';
+  window.loadBranches=async function(){
+    var inp=document.getElementById('branchesMonth'), out=document.getElementById('branchesOut'); if(!inp||!out) return;
+    if(!inp.value){ var d=new Date(); inp.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+    out.innerHTML='<span style="color:#8a938e;">Loading…</span>';
+    try{
+      var res=await fetch(BACKEND_URL+'/api/branches/settlement?month='+encodeURIComponent(inp.value),{headers:authHeader()});
+      var j=await res.json().catch(function(){return {};});
+      if(!res.ok) throw new Error(j.error||('Server error '+res.status));
+      var h='', txt='Branch settlement '+j.month+'\n';
+      if(j.doctorsWithoutBranch&&j.doctorsWithoutBranch.length) h+='<div style="background:#fbf0da;border-radius:12px;padding:10px 12px;margin-bottom:10px;color:#6b4a10;">These people have no branch yet, so their sessions are not counted: <b>'+esc(j.doctorsWithoutBranch.join(', '))+'</b>. Set it in Settings → Team.</div>';
+      if(!j.net.length){ h+='<div style="color:#5b6863;">No package sessions between different branches this month.</div>'; txt+='Nothing to settle.\n'; }
+      j.net.forEach(function(n){
+        h+='<div style="background:#fff;border-radius:16px;padding:14px;margin-bottom:10px;box-shadow:0 1px 2px rgba(28,42,40,.06);"><div style="font-weight:800;font-size:1rem;">'+esc(n.from)+' pays '+esc(n.to)+': '+fmt(n.amount)+' EGP</div><div style="color:#5b6863;font-size:0.78rem;margin-top:4px;">'+n.sessions+' session(s) for '+esc(n.from)+'\u2019s packages done at '+esc(n.to)+(n.backSessions?', minus '+n.backSessions+' session(s) the other way ('+fmt(n.backAmount)+' EGP)':'')+'</div></div>';
+        txt+=n.from+' pays '+n.to+': '+fmt(n.amount)+' EGP\n';
+      });
+      if(j.rows.length){
+        h+='<details style="margin-top:6px;"><summary style="cursor:pointer;font-weight:700;color:var(--maroon);">Every session ('+j.rows.length+')</summary><div style="margin-top:8px;">';
+        j.rows.forEach(function(r){
+          var dt=new Date(r.date).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+          h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);"><span>'+esc(dt)+' · '+esc(r.patient)+'<br><span style="color:#8a938e;font-size:0.74rem;">'+esc(r.saleBranch)+' → '+esc(r.visitBranch)+' · '+esc(r.doctor)+' · session '+r.session+' of '+r.of+'</span></span><b>'+fmt(r.value)+'</b></div>';
+          txt+=dt+' | '+r.patient+' | '+r.saleBranch+' -> '+r.visitBranch+' | '+fmt(r.value)+'\n';
+        });
+        h+='</div></details>';
+      }
+      if(j.unmatched&&j.unmatched.length) h+='<div style="margin-top:10px;color:#8a938e;font-size:0.76rem;">'+j.unmatched.length+' package session(s) could not be matched to a package with a price, so they are not counted: '+esc(j.unmatched.map(function(u){return u.patient;}).join(', '))+'.</div>';
+      if(j.net.length) h+='<button type="button" class="ghost" id="branchesCopy" style="margin-top:12px;font-size:0.8rem;padding:8px 14px;">Copy summary</button>';
+      lastText=txt; out.innerHTML=h;
+      var cb=document.getElementById('branchesCopy'); if(cb) cb.onclick=async function(){ try{ await navigator.clipboard.writeText(lastText); cb.textContent='Copied ✓'; setTimeout(function(){cb.textContent='Copy summary';},1500);}catch(e){ alert(lastText);} };
+    }catch(e){ out.innerHTML='<span style="color:#b3261e;">'+esc(e.message||e)+'</span>'; }
+  };
+  document.addEventListener('click',function(e){ if(e.target&&e.target.id==='branchesGo') window.loadBranches(); });
 })();
 </script>
 </body>
