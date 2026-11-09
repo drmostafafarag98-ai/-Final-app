@@ -3585,6 +3585,105 @@ app.post('/api/doctors/:email/phone', requireOwnerOrPermission('manage_team'), a
   }
 });
 
+// ---- POST /api/doctors/:email/branch ----
+// Owner sets which branch a doctor works in (free text, e.g. "Heliopolis").
+// Empty = no branch. Needs the column from sql/branches.sql.
+app.post('/api/doctors/:email/branch', requireOwnerDoctor, async (req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
+  const branch = String((req.body && req.body.branch) || '').trim().slice(0, 60);
+  try {
+    const patchRes = await fetch(`${SUPABASE_URL}/rest/v1/doctors?email=eq.${encodeURIComponent(req.params.email)}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      body: JSON.stringify({ branch: branch || null }),
+    });
+    const updated = await patchRes.json();
+    if (!patchRes.ok) {
+      const msg = JSON.stringify(updated);
+      if (/branch/i.test(msg)) return res.status(400).json({ error: 'The "branch" column is missing. Run sql/branches.sql in Supabase first.' });
+      throw new Error(msg);
+    }
+    if (!Array.isArray(updated) || updated.length === 0) return res.status(404).json({ error: 'Doctor not found.' });
+    res.json({ ok: true, branch: updated[0].branch || '' });
+  } catch (err) {
+    console.error('Set-branch error:', err);
+    res.status(500).json({ error: 'Failed to save the branch: ' + err.message });
+  }
+});
+
+// ---- GET /api/branches/settlement?month=YYYY-MM ----
+// Owner only. A package belongs to the branch of the doctor who sold it
+// (packages.created_by). Each session covered by it counts as done in the
+// branch of the doctor who treated (appointments.doctor_name). When those
+// two branches differ, the selling branch owes the treating branch
+// total_price / total_sessions for that session. Read-only: changes nothing.
+app.get('/api/branches/settlement', requireOwnerDoctor, async (req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
+  const month = String(req.query.month || '').trim();
+  const m = /^(\d{4})-(\d{2})$/.exec(month);
+  if (!m || +m[2] < 1 || +m[2] > 12) return res.status(400).json({ error: 'month must look like 2026-11.' });
+  const y = +m[1], mo = +m[2];
+  const nextY = mo === 12 ? y + 1 : y, nextM = mo === 12 ? 1 : mo + 1;
+  const from = `${month}-01T00:00:00+02:00`;
+  const to = `${nextY}-${String(nextM).padStart(2, '0')}-01T00:00:00+02:00`;
+  const headers = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
+  try {
+    const docRes = await fetch(`${SUPABASE_URL}/rest/v1/doctors?select=email,name,branch`, { headers });
+    const docs = await docRes.json();
+    if (!docRes.ok) {
+      if (/branch/i.test(JSON.stringify(docs))) return res.status(400).json({ error: 'The "branch" column is missing. Run sql/branches.sql in Supabase first.' });
+      throw new Error(JSON.stringify(docs));
+    }
+    const byEmail = new Map(), byName = new Map();
+    for (const d of docs) {
+      const b = String(d.branch || '').trim();
+      if (d.email) byEmail.set(String(d.email).toLowerCase(), b);
+      if (d.name) byName.set(String(d.name).trim().toLowerCase(), b);
+    }
+    const apRes = await fetch(`${SUPABASE_URL}/rest/v1/appointments?start_time=gte.${encodeURIComponent(from)}&start_time=lt.${encodeURIComponent(to)}&deleted_at=is.null&select=id,patient_name,start_time,doctor_name,status,notes&order=start_time.asc&limit=5000`, { headers });
+    const appts = await apRes.json();
+    if (!apRes.ok) throw new Error(JSON.stringify(appts));
+    const pkRes = await fetch(`${SUPABASE_URL}/rest/v1/packages?select=id,patient_name,total_sessions,used_sessions,total_price,created_by,created_at&order=created_at.asc&limit=5000`, { headers });
+    const pkgs = await pkRes.json();
+    if (!pkRes.ok) throw new Error(JSON.stringify(pkgs));
+
+    const COVER = /^covered by package\s*[—–-]\s*session\s+(\d+)\s+of\s+(\d+)/i;
+    const seen = new Set(), rows = [], unmatched = [], noBranch = new Set();
+    for (const a of (Array.isArray(appts) ? appts : [])) {
+      if (a.status === 'cancelled') continue;
+      const note = (Array.isArray(a.notes) ? a.notes : []).map(n => String((n && n.text) || '').trim()).find(t => COVER.test(t));
+      if (!note) continue;
+      const mm = COVER.exec(note); const X = +mm[1], N = +mm[2];
+      const cands = (Array.isArray(pkgs) ? pkgs : []).filter(p => Number(p.total_sessions) === N && Number(p.used_sessions) >= X && samePatientLoosely(p.patient_name, a.patient_name));
+      const pkg = cands[0];
+      if (!pkg || !(Number(pkg.total_price) > 0)) { unmatched.push({ date: a.start_time, patient: a.patient_name, doctor: a.doctor_name, why: !pkg ? 'package not found' : 'package has no price' }); continue; }
+      const key = pkg.id + ':' + X;
+      if (seen.has(key)) continue; seen.add(key);
+      const visitBranch = byName.get(String(a.doctor_name || '').trim().toLowerCase()) || '';
+      const saleBranch = byEmail.get(String(pkg.created_by || '').toLowerCase()) || '';
+      if (!visitBranch) noBranch.add(a.doctor_name || '?');
+      if (!saleBranch) noBranch.add(String(pkg.created_by || '?'));
+      if (!visitBranch || !saleBranch || visitBranch === saleBranch) continue;
+      rows.push({ date: a.start_time, patient: a.patient_name, doctor: a.doctor_name, session: X, of: N, visitBranch, saleBranch, value: Math.round((Number(pkg.total_price) / N) * 100) / 100 });
+    }
+    // gross: sale branch owes visit branch; net per pair of branches
+    const gross = new Map();
+    for (const r of rows) { const k = r.saleBranch + '\u0001' + r.visitBranch; const g = gross.get(k) || { from: r.saleBranch, to: r.visitBranch, amount: 0, sessions: 0 }; g.amount += r.value; g.sessions++; gross.set(k, g); }
+    const net = [], done = new Set();
+    for (const g of gross.values()) {
+      const pair = [g.from, g.to].sort().join('\u0001'); if (done.has(pair)) continue; done.add(pair);
+      const back = gross.get(g.to + '\u0001' + g.from);
+      const diff = g.amount - (back ? back.amount : 0);
+      if (diff > 0) net.push({ from: g.from, to: g.to, amount: Math.round(diff * 100) / 100, sessions: g.sessions, backSessions: back ? back.sessions : 0, backAmount: back ? Math.round(back.amount * 100) / 100 : 0 });
+      else if (diff < 0) net.push({ from: g.to, to: g.from, amount: Math.round(-diff * 100) / 100, sessions: back.sessions, backSessions: g.sessions, backAmount: Math.round(g.amount * 100) / 100 });
+    }
+    res.json({ month, net, rows, unmatched, doctorsWithoutBranch: [...noBranch] });
+  } catch (err) {
+    console.error('Branch settlement error:', err);
+    res.status(500).json({ error: 'Failed to build the report: ' + err.message });
+  }
+});
+
 // ---- POST /api/doctors/:email/permissions ----
 // Owner sets the granular permissions object for a team member. Body is
 // the full set of booleans, e.g. { view_payments: true, send_whatsapp:
