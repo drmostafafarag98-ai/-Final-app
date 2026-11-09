@@ -920,6 +920,18 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
 .set-panel button.provider-btn.active,.set-panel button.aux-provider-btn.active{background:#1f5c56 !important;color:#f6f4ee !important;border-color:#1f5c56 !important}
 .set-panel #doctorSignOutEverywhereBtn{min-height:40px;color:#c0392b !important;font-weight:600}
 .set-panel #showBootstrapBtn{min-height:40px;font-weight:600;font-size:12px !important;color:#566562}
+
+/* More tools: tabs */
+#moreTools .mt-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+#moreTools .mt-tabs::-webkit-scrollbar{display:none}
+#moreTools .mt-tab{flex:none;width:auto;padding:9px 14px;border-radius:999px;border:0;background:#fff;color:#566562;font-size:.82rem;font-weight:700;box-shadow:0 1px 2px rgba(28,42,40,.08);cursor:pointer;white-space:nowrap}
+#moreTools .mt-tab.active{background:var(--maroon);color:#f6f4ee}
+#moreTools .mt-panel{background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 2px rgba(28,42,40,.06);margin-bottom:12px}
+#moreTools .mt-panel[hidden]{display:none}
+#moreTools .mt-panel>button{margin-bottom:0!important}
+#moreTools .mt-panel input,#moreTools .mt-panel select{flex:1 1 100%!important;width:100%;min-width:0!important;box-sizing:border-box;height:46px;border:1.5px solid var(--line)!important;border-radius:14px!important;padding:0 14px!important;font-size:.92rem!important}
+#moreTools .mt-panel #addManualDoctorBtn,#moreTools .mt-panel #sendAllRemindersBtn{width:100%;height:48px;border-radius:14px;background:var(--maroon);color:#f6f4ee;border:0;font-weight:800;font-size:.92rem!important}
+#moreTools .consent-banner{border-radius:14px}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1628,14 +1640,10 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
       <datalist id="knownPatientsList"></datalist>
 
     </div>
-    <details id="moreTools" style="margin-bottom:18px;"><summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--maroon);padding:6px 2px;">⚙️ More tools</summary><div style="padding-top:10px;">
-    <button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button>
-    <button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button>
-    <div class="consent-banner">
-      Confirm the patient has agreed to this session being recorded before you start.
-    </div>
-    <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;">
-      <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
+    <details id="moreTools" style="margin-bottom:18px;"><summary style="cursor:pointer;font-size:0.82rem;font-weight:700;color:var(--maroon);padding:6px 2px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:6px;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>More tools</summary><div style="padding-top:10px;"><div class="mt-tabs" role="tablist"><button type="button" class="mt-tab" data-mt="import">Import</button><button type="button" class="mt-tab" id="mtTabTrash" data-mt="trash">Trash</button><button type="button" class="mt-tab active" data-mt="rem">Reminders</button><button type="button" class="mt-tab" data-mt="doc">Add doctor</button></div>
+    <div class="mt-panel" data-mt="import" hidden><button type="button" class="ghost" id="openTimeTreeImportBtn" style="width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Import from TimeTree</button></div>
+    <div class="mt-panel" data-mt="trash" hidden><button type="button" class="ghost" id="openTrashBtn" style="display:none;width:100%;margin-bottom:12px;font-size:0.82rem;display:flex;align-items:center;justify-content:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Trash (deleted days, last 7 days)</button></div>
+      <div class="mt-panel" data-mt="doc" hidden>
         <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);margin-bottom:8px;">➕ Add a doctor to the roster (owner only — no sign-in needed yet)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <input type="text" id="manualDoctorNameInput" placeholder="Doctor's name" style="flex:1;min-width:140px;padding:9px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);font-size:0.85rem;">
@@ -1650,7 +1658,7 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
         <div id="manualDoctorStatus" style="font-size:0.75rem;color:#8a938e;margin-top:6px;"></div>
       </div>
 
-      <div style="border-top:1px solid var(--line);padding-top:12px;margin-top:14px;">
+      <div class="mt-panel" data-mt="rem">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
           <div style="font-size:0.8rem;font-weight:600;color:var(--maroon);">📱 Send appointment reminders</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;">
@@ -1672,6 +1680,8 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
         <div id="tomorrowRemindersList"></div>
         <div id="tomorrowRemindersStatus" style="font-size:0.78rem;color:#8a938e;"></div>
       </div>
+    <div class="consent-banner">
+      Confirm the patient has agreed to this session being recorded before you start.
     </div>
     </div></details>
     </div>
@@ -6849,6 +6859,7 @@ function applyLoginResult(doctor){
   signedInDoctor = doctor;
   updateSignInStatusUI();
   el('openTrashBtn').style.display = (signedInDoctor.role === 'owner') ? 'flex' : 'none';
+  try{ var _tt=el('mtTabTrash'); if(_tt) _tt.style.display = (signedInDoctor.role === 'owner') ? '' : 'none'; }catch(e){}
   el('payrollSectionWrap').style.display = hasClientPermission('view_payroll') ? 'block' : 'none';
   if(signedInDoctor.status === 'approved'){
     loadSessionsFromServer();
@@ -14083,6 +14094,18 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     setInterval(function(){ refresh(false); }, 10 * 60 * 1000);
   }
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+<script id="moreToolsTabs">
+(function(){
+  function go(k){
+    var root=document.getElementById('moreTools'); if(!root) return;
+    root.querySelectorAll('.mt-tab').forEach(function(t){ t.classList.toggle('active', t.getAttribute('data-mt')===k); });
+    root.querySelectorAll('.mt-panel').forEach(function(p){ p.hidden = p.getAttribute('data-mt')!==k; });
+  }
+  document.addEventListener('click', function(e){
+    var t=e.target.closest ? e.target.closest('.mt-tab') : null; if(t) go(t.getAttribute('data-mt'));
+  });
 })();
 </script>
 </body>
