@@ -920,6 +920,8 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
 .set-panel button.provider-btn.active,.set-panel button.aux-provider-btn.active{background:#1f5c56 !important;color:#f6f4ee !important;border-color:#1f5c56 !important}
 .set-panel #doctorSignOutEverywhereBtn{min-height:40px;color:#c0392b !important;font-weight:600}
 .set-panel #showBootstrapBtn{min-height:40px;font-weight:600;font-size:12px !important;color:#566562}
+/* Day list: show full patient names on phones (badges wrap to the next line instead of cutting the name) */
+@media (max-width:640px){.appointment-row{flex-wrap:wrap !important;row-gap:4px !important}.appointment-row .patient-name-link{flex:1 1 130px !important;white-space:normal !important;overflow:visible !important;text-overflow:clip !important}}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
