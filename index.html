@@ -852,6 +852,42 @@ input,select,textarea{ border-radius:12px; }
   #mainNavBackdrop, #mainNavBackdrop.open{ display:none !important; }
   #appBody{ padding-bottom:90px; }
 }
+
+/* ---- Docs home (Keep-style) ---- */
+.view-docs #todayDetails, .view-docs #nowVisitCard, .view-docs #undocBanner{ display:none !important; }
+#docsHomeView{ position:relative; padding-bottom:90px; }
+.docs-head{ margin-bottom:14px; }
+.docs-title{ font-size:1.5rem; font-weight:800; letter-spacing:-.3px; margin-bottom:12px; }
+.docs-search{ position:relative; }
+.docs-search svg{ position:absolute; left:16px; top:16px; color:#566562; }
+.docs-search input{ width:100%; height:52px; border-radius:26px; border:none; background:#fff; padding:0 18px 0 46px; font-size:1rem; box-shadow:0 1px 3px rgba(28,42,40,.10); }
+.docs-label{ font-size:.72rem; font-weight:700; color:#566562; letter-spacing:.6px; margin:14px 0 8px; }
+.docs-today{ display:flex; gap:8px; overflow-x:auto; padding-bottom:4px; }
+.docs-today-chip{ flex:0 0 auto; height:44px; padding:0 16px; border-radius:22px; border:none; background:#fff; box-shadow:0 1px 2px rgba(28,42,40,.10); font-size:.84rem; font-weight:700; color:var(--ink); display:flex; align-items:center; gap:8px; cursor:pointer; white-space:nowrap; }
+.docs-today-chip .dot{ width:8px; height:8px; border-radius:50%; background:#c79a55; }
+.docs-chips{ display:none; gap:8px; overflow-x:auto; margin:14px 0 0; }
+.docs-chip{ flex:0 0 auto; height:40px; padding:0 14px; border-radius:20px; border:1.5px solid var(--line); background:#fff; font-size:.8rem; font-weight:600; color:var(--ink); cursor:pointer; }
+.docs-chip.on{ background:#e3efec; border-color:var(--maroon); color:#164640; font-weight:700; }
+.docs-grid{ columns:2 150px; column-gap:10px; margin-top:16px; }
+.docs-card{ break-inside:avoid; margin-bottom:10px; border-radius:20px; padding:14px; cursor:pointer; outline:none; }
+.docs-card:focus-visible{ box-shadow:0 0 0 3px rgba(31,92,86,.35); }
+.dc-name{ font-size:.95rem; font-weight:800; }
+.dc-when{ font-size:.75rem; color:#4b5a57; margin-top:2px; font-weight:500; }
+.dc-snip{ font-size:.82rem; line-height:1.5; margin-top:8px; color:#26332f; word-break:break-word; }
+.dc-tag{ display:inline-block; margin-top:10px; font-size:.7rem; font-weight:700; padding:3px 9px; border-radius:10px; background:rgba(255,255,255,.7); }
+.docs-empty{ column-span:all; font-size:.9rem; color:#566562; padding:20px 4px; }
+.docs-fab{ position:fixed; right:20px; bottom:92px; width:58px; height:58px; border-radius:20px; border:none; background:var(--maroon); color:#fff; box-shadow:0 8px 20px rgba(31,92,86,.35); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:30; }
+@media (min-width:641px){ .docs-fab{ bottom:28px; } .docs-grid{ columns:3 200px; } }
+/* patient file popup */
+#noteExpandOverlay > div{ border-radius:24px !important; }
+#noteExpandTabBar{ padding:0 8px; gap:4px; }
+.note-expand-tab-btn{ border-radius:20px 20px 0 0 !important; }
+#noteExpandStartRecordingBtn, #noteExpandFollowupBtn{ height:52px; border-radius:16px !important; font-weight:700; }
+#noteExpandTextarea{ border-radius:16px !important; background:#fbfaf6 !important; }
+@media (max-width:640px){
+  #noteExpandOverlay{ padding:0 !important; align-items:flex-end !important; }
+  #noteExpandOverlay > div{ max-width:none !important; max-height:94vh !important; border-radius:24px 24px 0 0 !important; }
+}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -1692,7 +1728,7 @@ input,select,textarea{ border-radius:12px; }
         </div>
         <div id="noteExpandActionStatus" style="font-size:0.75rem;color:#8a938e;padding:0 16px 8px;"></div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
-          <button type="button" class="ghost" id="noteExpandFollowupBtn" style="width:100%;">📝 Open full documentation page (record, exercises, AI note)</button>
+          <button type="button" class="ghost" id="noteExpandFollowupBtn" style="width:100%;">📝 Open full page (record, exercises, AI note)</button>
         </div>
       </div>
     </div>
@@ -2043,7 +2079,17 @@ input,select,textarea{ border-radius:12px; }
       </div>
     </div>
 
-    <div id="documentationView" style="display:none;">
+    <div id="docsHomeView" style="display:none;">
+  <div class="docs-head">
+    <div class="docs-title">Documentation</div>
+    <div class="docs-search"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="docsSearchInput" placeholder="Search a patient" autocomplete="off" aria-label="Search a patient"></div>
+  </div>
+  <div id="docsTodayWrap" style="display:none;"><div class="docs-label" id="docsTodayLabel"></div><div class="docs-today" id="docsToday"></div></div>
+  <div id="docsDoctorChips" class="docs-chips"></div>
+  <div id="docsGrid" class="docs-grid"></div>
+  <button type="button" id="docsFab" class="docs-fab" aria-label="New patient note"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+</div>
+<div id="documentationView" style="display:none;">
     <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--card-radius);box-shadow:var(--card-shadow);padding:16px;margin-bottom:16px;">
     <div class="section-title" style="margin-top:0;">Patient</div>
     <div class="patient-row">
@@ -4413,7 +4459,7 @@ async function loadPackagePolicyCheck(){
         btn.disabled = true;
         try{
           await markPackagePolicySent(btn.getAttribute('data-id'));
-          const message = await buildPackagePolicyMessage(btn.getAttribute('data-id'));
+          const message = WHATSAPP_TEMPLATES.package_policy.build();
           location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(btn.getAttribute('data-phone'))}?text=${encodeURIComponent(message)}`);
         }catch(e){ btn.disabled = false; alert('Could not save: ' + (e.message || e)); }
       });
@@ -4535,13 +4581,6 @@ async function recordPackageBalancePayment(pkgId, patientName){
   }
 }
 
-// The server builds the link from its own Render address; patients should see the clinic's
-// own domain (the same one the online booking link uses), so rebuild it on BACKEND_URL.
-function clinicPackageLink(serverUrl){
-  const token = String(serverUrl || '').split('/').filter(Boolean).pop();
-  return token ? `${String(BACKEND_URL).replace(/\/+$/, '')}/e/${token}` : serverUrl;
-}
-
 // Creates (once) the patient's private "my package" link and opens WhatsApp with it.
 async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
   if(btn) btn.disabled = true;
@@ -4551,7 +4590,7 @@ async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
       const errBody = await res.json().catch(()=>({}));
       throw new Error(errBody.error || `Server error ${res.status}`);
     }
-    const url = clinicPackageLink((await res.json()).url);
+    const { url } = await res.json();
     const msg = `Hello ${name} 🌷\nYou can check your remaining package sessions and balance anytime using this link (it updates automatically):\n${url}\n\n${CLINIC.name}`;
     if(phone){
       window.open(waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(phone)}?text=${encodeURIComponent(msg)}`), '_blank');
@@ -4563,26 +4602,6 @@ async function sendPackageBalanceLink(pkgId, phone, name, btn, markSent){
     alert('Could not create the link: ' + (e.message || e));
   }finally{
     if(btn) btn.disabled = false;
-  }
-}
-
-// Package policy + the patient's private follow-up link in ONE message, so the
-// patient can track their remaining sessions/balance from the moment they pay.
-// If the link can't be created (offline, server error) the policy still goes out alone.
-async function buildPackagePolicyMessage(pkgId){
-  const policy = WHATSAPP_TEMPLATES.package_policy.build();
-  if(!pkgId) return policy;
-  try{
-    const res = await fetch(`${BACKEND_URL}/api/packages/${encodeURIComponent(pkgId)}/share-link`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() }, body: JSON.stringify({ markSent: true }) });
-    if(!res.ok) throw new Error(`Server error ${res.status}`);
-    const { url: serverUrl } = await res.json();
-    if(!serverUrl) return policy;
-    const url = clinicPackageLink(serverUrl);
-    // Link goes FIRST — most patients don't read to the end of the policy.
-    return `📊 *Track your package here* — sessions left & balance, updates automatically:\n${url}\n\n${policy}`;
-  }catch(e){
-    console.error('Package link not added to policy message:', e);
-    return policy;
   }
 }
 
@@ -5262,6 +5281,23 @@ async function toggleNoteExpandMic(){
 // Open a patient's notes popup straight from an appointment. Picks the
 // session written for that appointment's date if there is one, otherwise
 // opens a blank "New session" tab dated to the appointment.
+// A patient booked online/by the secretary gets a BLANK file automatically (see server). When the doctor
+// starts documenting, reuse that blank file instead of creating a second one for the same visit.
+function findReusableBlankSession(patientName){
+  const lower = (patientName || '').trim().toLowerCase();
+  if(!lower) return null;
+  const ids = Object.keys(sessions).filter(id=>{
+    const x = sessions[id];
+    return ((x.patientName || '').trim().toLowerCase()) === lower && !((x.note || '').trim()) && !((x.transcriptLines || []).length);
+  }).sort((a,b)=> (sessions[b].createdAt || 0) - (sessions[a].createdAt || 0));
+  return ids[0] || null;
+}
+function prepareBlankSession(id, dateStr, type){
+  const s = sessions[id]; if(!s) return;
+  if(dateStr) s.date = dateStr;
+  if(type) s.sessionType = type;
+}
+
 function openPatientDocsFromAppointment(ev){
   if(!ev || !ev.patient_name) return;
   const name = ev.patient_name.trim();
@@ -5272,10 +5308,16 @@ function openPatientDocsFromAppointment(ev){
   const dateStr = ev.start_time
     ? new Date(ev.start_time).toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'})
     : todayStr();
-  const match = ids.find(id=> sessions[id].date === dateStr);
+  const match = ids.find(id=> sessions[id].date === dateStr && (((sessions[id].note || '').trim()) || (sessions[id].transcriptLines || []).length));
   const draftType = ev.visit_type === 'checkup' ? 'assessment'
     : ev.visit_type === 'recovery' ? 'recovery'
-    : (ids.length ? 'followup' : 'assessment');
+    : (ids.filter(id=> ((sessions[id].note || '').trim()) || (sessions[id].transcriptLines || []).length).length ? 'followup' : 'assessment');
+  const blank = match ? null : findReusableBlankSession(name);
+  if(blank){
+    prepareBlankSession(blank, dateStr, draftType);
+    openNoteExpand(name, ids[0] || blank, { ids, draftDate: dateStr, draftType, selectId: blank, openDraft: false });
+    return;
+  }
   openNoteExpand(name, ids[0] || null, { ids, draftDate: dateStr, draftType, selectId: match, openDraft: !match });
 }
 
@@ -5412,6 +5454,13 @@ function startNewSession(){
 function startFollowupForPatient(patientName, opts){
   opts = opts || {};
   if(micTestActive) stopMicTest();
+  const reuseBlank = findReusableBlankSession(patientName);
+  if(reuseBlank){
+    prepareBlankSession(reuseBlank, opts.date || todayStr(), opts.type === 'assessment' ? 'assessment' : 'followup');
+    loadSession(reuseBlank);
+    el('status').textContent = `Opened ${patientName}'s open file. Record when ready.`;
+    return;
+  }
   activeSessionId = newSessionId();
   el('patientName').value = patientName;
   el('sessionDate').value = opts.date || todayStr();
@@ -9377,8 +9426,7 @@ async function sellNextPackage(){
     const sellPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
     if(sellPhone && createdPkg && createdPkg.id && confirm(`Package saved for ${patientName} — send the package validity & refund policy now?`)){
       try{ await markPackagePolicySent(createdPkg.id); }catch(e){ console.error(e); }
-      const policyMsg = await buildPackagePolicyMessage(createdPkg.id);
-      location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(sellPhone)}?text=${encodeURIComponent(policyMsg)}`);
+      location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(sellPhone)}?text=${encodeURIComponent(WHATSAPP_TEMPLATES.package_policy.build())}`);
     }
     el('sellNextPackageSessionsInput').value = '';
     el('sellNextPackageTotalPriceInput').value = '';
@@ -9635,8 +9683,8 @@ async function submitPayment(method){
     if(newPackageStarted){
       const patientPhone = currentPaymentTarget ? currentPaymentTarget.patient_phone : '';
       if(patientPhone && confirm(`New package started for ${patientName} — send the package validity & refund policy now?`)){
+        const message = WHATSAPP_TEMPLATES.package_policy.build();
         if(newPackageId){ try{ await markPackagePolicySent(newPackageId); }catch(e){ console.error(e); } }
-        const message = await buildPackagePolicyMessage(newPackageId);
         location.href = waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(patientPhone)}?text=${encodeURIComponent(message)}`);
       }else if(!patientPhone){
         el('scheduleStatus').textContent = 'New package started. (No phone on file — send the policy from the reminders list once you have one.)';
@@ -12292,11 +12340,13 @@ function switchMainView(view){
   el('calendarView').style.display = view === 'calendar' ? 'block' : 'none';
   el('dashboardStatsView').style.display = view === 'dashboard' ? 'block' : 'none';
   el('documentationView').style.display = view === 'documentation' ? 'block' : 'none';
+  el('docsHomeView').style.display = view === 'docs' ? 'block' : 'none';
+  document.body.classList.toggle('view-docs', view === 'docs');
   el('bookingView').style.display = view === 'booking' ? 'block' : 'none';
   el('navBookingBtn').classList.toggle('active', view === 'booking');
   el('navCalendarBtn').classList.toggle('active', view === 'calendar');
   el('navDashboardBtn').classList.toggle('active', view === 'dashboard');
-  el('navDocumentationBtn').classList.toggle('active', view === 'documentation');
+  el('navDocumentationBtn').classList.toggle('active', view === 'documentation' || view === 'docs');
   el('sidebarToggleBtn').style.display = view === 'documentation' ? 'inline-block' : 'none';
   if(view === 'calendar' || view === 'dashboard' || view === 'booking'){
     if(el('sidebarPanel').classList.contains('open')) closeSidebar();
@@ -12312,6 +12362,8 @@ function switchMainView(view){
     loadDashboardStats();
   } else if(view === 'documentation'){
     refreshInlineStatsRow();
+  } else if(view === 'docs'){
+    renderDocsHome(); loadDocsToday();
   }
 }
 el('navCalendarBtn').addEventListener('click', ()=> switchMainView('calendar'));
@@ -12585,7 +12637,7 @@ document.querySelectorAll('.collapsible-title').forEach(title=>{
 });
 el('addExpenseBtn').addEventListener('click', addExpense);
 el('calcPayrollBtn').addEventListener('click', calculatePayroll);
-el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('documentation'));
+el('navDocumentationBtn').addEventListener('click', ()=> switchMainView('docs'));
 
 el('calPrevMonthBtn').addEventListener('click', goToPrevMonth);
 el('calNextMonthBtn').addEventListener('click', goToNextMonth);
@@ -12803,9 +12855,17 @@ el('noteExpandFollowupBtn').addEventListener('click', ()=>{
       return ((x.patientName || '').trim().toLowerCase()) === lowerName && x.date === date && (x.sessionType || 'assessment') === type;
     }).sort((p,q)=> (sessions[q].createdAt || 0) - (sessions[p].createdAt || 0))[0];
     if(dup) openId = dup;
+    if(!openId){
+      const blank = findReusableBlankSession(patient);
+      if(blank){ prepareBlankSession(blank, date, type); openId = blank; }
+    }
   }
   if(openId){
     loadSession(openId);
+    if(carryText && !(sessions[openId] && ((sessions[openId].note || '').trim()))){
+      el('noteSection').style.display = 'block';
+      el('noteText').value = carryText;
+    }
   } else {
     startFollowupForPatient(patient, { type, date });
     if(carryText){
@@ -13766,131 +13826,96 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   });
 })();
 </script>
-<!-- ===== Support: "عندي مشكلة" — reports go to the OWNER's support Supabase project (see support/schema.sql) ===== -->
-<style>
-  #supportFab{ display:none; position:fixed; right:16px; bottom:18px; z-index:60; width:46px; height:46px; border-radius:50%;
-    border:none; background:var(--maroon); color:#fff; font-size:1.25rem; cursor:pointer; box-shadow:0 4px 14px rgba(0,0,0,.2); }
-  #supportFab .dot{ display:none; position:absolute; top:4px; right:4px; width:11px; height:11px; border-radius:50%; background:#e0533d; border:2px solid #fff; }
-  @media (max-width:640px){ #supportFab{ bottom:calc(84px + env(safe-area-inset-bottom)); right:12px; width:42px; height:42px; } }
-  #supportOverlay textarea{ width:100%; box-sizing:border-box; min-height:120px; padding:10px 12px; border:1px solid var(--line); font:inherit; background:var(--panel); color:var(--ink); }
-  .support-item{ border:1px solid var(--line); border-radius:12px; padding:9px 11px; margin-bottom:8px; font-size:0.82rem; }
-  .support-item .st{ font-size:0.72rem; font-weight:700; }
-  .support-item .reply{ margin-top:6px; padding:7px 9px; border-radius:10px; background:rgba(31,92,86,.08); white-space:pre-wrap; }
-</style>
-<button type="button" id="supportFab" title="عندي مشكلة / Report a problem" aria-label="Report a problem">?<span class="dot"></span></button>
-<div id="supportOverlay" dir="rtl" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:96;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--panel);border-radius:var(--radius);max-width:460px;width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;">
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);">
-      <span style="font-weight:700;color:var(--maroon);">🆘 عندي مشكلة</span>
-      <button type="button" id="supportCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
-    </div>
-    <div style="padding:14px 16px;flex:1;overflow-y:auto;">
-      <div style="font-size:0.8rem;color:#5b6863;margin-bottom:8px;">اكتب المشكلة بالتفصيل: كنت بتعمل إيه، وإيه اللي حصل، وكنت متوقع يحصل إيه. هنرد عليك هنا.</div>
-      <div style="font-size:0.74rem;color:var(--danger);margin-bottom:8px;">⚠️ من فضلك ماتكتبش أسماء أو أرقام تليفونات أو بيانات مرضى.</div>
-      <textarea id="supportMessage" dir="auto" maxlength="4000" placeholder="مثال: لما بدوس Save في الدفع بيظهر خطأ ومش بيحفظ…"></textarea>
-      <button type="button" class="primary" id="supportSendBtn" style="width:100%;margin-top:10px;">إرسال</button>
-      <div id="supportStatus" style="font-size:0.8rem;min-height:1.2em;margin-top:8px;color:#5b6863;"></div>
-      <div id="supportHistoryWrap" style="display:none;margin-top:14px;">
-        <div style="font-size:0.8rem;font-weight:700;color:var(--maroon);margin-bottom:8px;">مشاكلك اللي بعتها</div>
-        <div id="supportHistory"></div>
-      </div>
-    </div>
-  </div>
-</div>
-<script id="supportWidget">
+<script id="docsHomeJs">
 (function(){
-  // Owner's support project (musaed-support). Empty = feature hidden.
-  // The publishable key is public by design; the database only allows the two functions in support/schema.sql.
-  var SUPPORT_URL = 'https://qprxyvvtqhtdzidzrcwi.supabase.co';
-  var SUPPORT_KEY = 'sb_publishable_M8Ar_IoU0uSip2cC4wY_bA_jq4S1cz_';
-  var APP_VERSION = '2026-11';
-  if(!SUPPORT_URL || !SUPPORT_KEY) return;
-
-  var IDS_KEY = 'support_report_ids', SEEN_KEY = 'support_seen_replies';
-  var recentErrors = [];
-  function remember(kind, msg){
+  var docsDoctorFilter = '';
+  var TONES = { assessment:'#dcefe8', followup:'#dce8f4', recovery:'#f7e1d6', blank:'#f3ead3' };
+  function hasContent(s){ return !!((s.note||'').trim() || (s.transcriptLines||[]).length); }
+  function typeKey(s){ return s.sessionType === 'followup' ? 'followup' : (s.sessionType === 'recovery' ? 'recovery' : 'assessment'); }
+  function typeLabel(k){ return k === 'followup' ? 'Follow-up' : (k === 'recovery' ? 'Recovery' : 'Assessment'); }
+  function snippet(s){
+    var t = (s.note || '').replace(/[#*_]/g,'').replace(/\s+/g,' ').trim();
+    if(!t) t = (s.transcriptLines||[]).map(function(l){return l.text}).join(' ').replace(/\s+/g,' ').trim();
+    return t.length > 120 ? t.slice(0,117) + '…' : t;
+  }
+  function groups(){
+    var by = {};
+    Object.keys(sessions).forEach(function(id){
+      var s = sessions[id]; var nm = (s.patientName || 'Unnamed patient').trim() || 'Unnamed patient';
+      var k = nm.toLowerCase();
+      if(!by[k]) by[k] = { name: nm, ids: [], latest: -1 };
+      by[k].ids.push(id);
+      if((s.createdAt||0) >= by[k].latest){ by[k].latest = s.createdAt||0; by[k].name = nm; }
+    });
+    return Object.keys(by).map(function(k){ var g = by[k]; g.ids.sort(function(a,b){ return (sessions[b].createdAt||0)-(sessions[a].createdAt||0); }); return g; })
+      .sort(function(a,b){ return b.latest - a.latest; });
+  }
+  function renderDocsHome(){
+    var grid = document.getElementById('docsGrid'); if(!grid) return;
+    var q = (document.getElementById('docsSearchInput').value || '').trim().toLowerCase();
+    var all = groups();
+    // doctor filter chips (only when more than one doctor has files)
+    var docs = {}; Object.keys(sessions).forEach(function(id){ var d = (sessions[id].doctorName||'').trim(); if(d) docs[d] = 1; });
+    var dn = Object.keys(docs).sort();
+    var chips = document.getElementById('docsDoctorChips');
+    if(dn.length > 1){
+      chips.innerHTML = ['All'].concat(dn).map(function(n){ var on = (n === 'All' && !docsDoctorFilter) || n === docsDoctorFilter; return '<button type="button" class="docs-chip'+(on?' on':'')+'" data-d="'+escapeHtml(n === 'All' ? '' : n)+'">'+escapeHtml(n)+'</button>'; }).join('');
+      chips.style.display = 'flex';
+      chips.querySelectorAll('.docs-chip').forEach(function(b){ b.onclick = function(){ docsDoctorFilter = b.getAttribute('data-d'); renderDocsHome(); }; });
+    } else { chips.style.display = 'none'; docsDoctorFilter = ''; }
+    var list = all.filter(function(g){
+      if(q && g.name.toLowerCase().indexOf(q) < 0) return false;
+      if(docsDoctorFilter && !g.ids.some(function(id){ return (sessions[id].doctorName||'').trim() === docsDoctorFilter; })) return false;
+      return true;
+    });
+    if(!list.length){ grid.innerHTML = '<div class="docs-empty">'+(q ? 'No patients match "'+escapeHtml(q)+'".' : 'No patient files yet. Tap + to start one.')+'</div>'; return; }
+    var shown = q ? list : list.slice(0, 80);
+    grid.innerHTML = shown.map(function(g){
+      var latest = sessions[g.ids[0]];
+      var withContent = g.ids.filter(function(id){ return hasContent(sessions[id]); });
+      var ref = withContent.length ? sessions[withContent[0]] : latest;
+      var k = withContent.length ? typeKey(ref) : 'blank';
+      var tag = withContent.length ? (typeLabel(k) + ' · ' + withContent.length + (withContent.length === 1 ? ' visit' : ' visits')) : 'New file';
+      var sn = withContent.length ? snippet(ref) : 'No notes yet';
+      return '<div class="docs-card" tabindex="0" role="button" data-patient="'+escapeHtml(g.name)+'" data-latest="'+g.ids[0]+'" style="background:'+TONES[k]+';">'
+        + '<div class="dc-name">'+escapeHtml(g.name)+'</div>'
+        + '<div class="dc-when">'+escapeHtml(ref.date || '')+'</div>'
+        + '<div class="dc-snip">'+escapeHtml(sn)+'</div>'
+        + '<div><span class="dc-tag">'+escapeHtml(tag)+'</span></div></div>';
+    }).join('');
+    grid.querySelectorAll('.docs-card').forEach(function(c){
+      var open = function(){ openNoteExpand(c.getAttribute('data-patient'), c.getAttribute('data-latest')); };
+      c.addEventListener('click', open);
+      c.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); open(); } });
+    });
+  }
+  async function loadDocsToday(){
+    var wrap = document.getElementById('docsTodayWrap'); if(!wrap) return;
     try{
-      recentErrors.push({ t: new Date().toISOString(), kind: kind, msg: String(msg).slice(0, 500) });
-      if(recentErrors.length > 10) recentErrors.shift();
-    }catch(e){}
+      if(!signedInDoctor || !isApproved() || signedInDoctor.role === 'secretary'){ wrap.style.display = 'none'; return; }
+      var now = new Date();
+      var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0,0,0);
+      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23,59,59);
+      var res = await fetch(BACKEND_URL + '/api/appointments/undocumented?start=' + encodeURIComponent(start.toISOString()) + '&end=' + encodeURIComponent(end.toISOString()) + '&soon=1', { headers: authHeader() });
+      if(!res.ok){ wrap.style.display = 'none'; return; }
+      var items = (await res.json()) || [];
+      if(!items.length){ wrap.style.display = 'none'; return; }
+      document.getElementById('docsTodayLabel').textContent = 'TODAY · ' + items.length + ' TO DOCUMENT';
+      var box = document.getElementById('docsToday');
+      box.innerHTML = items.map(function(i){ return '<button type="button" class="docs-today-chip" data-id="'+i.id+'"><span class="dot"></span>'+escapeHtml(i.patient_name||'')+'</button>'; }).join('');
+      var byId = {}; items.forEach(function(i){ byId[String(i.id)] = i; });
+      box.querySelectorAll('.docs-today-chip').forEach(function(b){ b.onclick = function(){ var ev = byId[b.getAttribute('data-id')]; if(ev) openPatientDocsFromAppointment(ev); }; });
+      wrap.style.display = 'block';
+    }catch(e){ wrap.style.display = 'none'; }
   }
-  window.addEventListener('error', function(e){ remember('error', (e.message || '') + (e.filename ? ' @' + e.filename.split('/').pop() + ':' + e.lineno : '')); });
-  window.addEventListener('unhandledrejection', function(e){ var r = e.reason; remember('promise', r && (r.message || r)); });
-  var origErr = console.error;
-  console.error = function(){ try{ remember('console', Array.prototype.map.call(arguments, function(a){ return a && a.message ? a.message : (typeof a === 'string' ? a : JSON.stringify(a)); }).join(' ')); }catch(e){} return origErr.apply(console, arguments); };
-
-  function lsGet(k, d){ try{ var v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v; }catch(e){ return d; } }
-  function lsSet(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-  function $(id){ return document.getElementById(id); }
-  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-  function rpc(name, body){
-    return fetch(SUPPORT_URL.replace(/\/+$/, '') + '/rest/v1/rpc/' + name, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', apikey: SUPPORT_KEY }, body: JSON.stringify(body)
-    }).then(function(r){ return r.json().catch(function(){ return null; }).then(function(j){ if(!r.ok) throw new Error((j && j.message) || ('Error ' + r.status)); return j; }); });
-  }
-  function doctor(){ try{ return (typeof signedInDoctor !== 'undefined' && signedInDoctor) || null; }catch(e){ return null; } }
-  function currentPage(){ var b = document.querySelector('.main-nav-btn.active'); return b ? (b.getAttribute('title') || b.id) : ''; }
-
-  var STATUS = { new: ['اتبعتت ✔', '#8a938e'], in_progress: ['بنشتغل عليها 🔧', '#b8894f'], answered: ['اترد عليها 💬', 'var(--maroon)'],
-                 fixed: ['اتصلحت ✅', 'var(--maroon)'], needs_owner: ['محوّلة لصاحب البرنامج 👤', '#b8894f'], closed: ['اتقفلت', '#8a938e'] };
-
-  function refresh(render){
-    var ids = lsGet(IDS_KEY, []);
-    if(!ids.length){ if(render) $('supportHistoryWrap').style.display = 'none'; return; }
-    rpc('support_report_status', { p_ids: ids }).then(function(rows){
-      rows = rows || [];
-      var seen = lsGet(SEEN_KEY, {});
-      var unseen = rows.some(function(r){ return r.reply && seen[r.id] !== r.replied_at; });
-      document.querySelector('#supportFab .dot').style.display = unseen ? 'block' : 'none';
-      if(!render) return;
-      $('supportHistoryWrap').style.display = rows.length ? 'block' : 'none';
-      $('supportHistory').innerHTML = rows.map(function(r){
-        var s = STATUS[r.status] || [r.status, '#8a938e'];
-        return '<div class="support-item"><div class="st" style="color:' + s[1] + ';">' + s[0] + ' · ' + new Date(r.created_at).toLocaleDateString() + '</div>'
-          + '<div dir="auto" style="margin-top:3px;">' + esc(r.message) + '</div>'
-          + (r.reply ? '<div class="reply" dir="auto">' + esc(r.reply) + '</div>' : '') + '</div>';
-      }).join('');
-      rows.forEach(function(r){ if(r.reply) seen[r.id] = r.replied_at; });
-      lsSet(SEEN_KEY, seen);
-      document.querySelector('#supportFab .dot').style.display = 'none';
-    }).catch(function(e){ if(render) $('supportStatus').textContent = ''; });
-  }
-
-  function open(){ $('supportOverlay').style.display = 'flex'; $('supportStatus').textContent = ''; refresh(true); setTimeout(function(){ $('supportMessage').focus(); }, 50); }
-  function close(){ $('supportOverlay').style.display = 'none'; }
-
-  function send(){
-    var msg = $('supportMessage').value.trim();
-    if(msg.length < 3){ $('supportStatus').textContent = 'اكتب المشكلة الأول.'; return; }
-    var d = doctor() || {}, g = function(k){ try{ return localStorage.getItem(k) || ''; }catch(e){ return ''; } };
-    $('supportSendBtn').disabled = true; $('supportStatus').textContent = 'بيتبعت…';
-    rpc('submit_support_report', {
-      p_message: msg, p_clinic_code: g('clinic_code'), p_clinic_name: g('clinic_name'),
-      p_doctor_email: d.email || '', p_doctor_name: d.name || '', p_page: currentPage(),
-      p_user_agent: navigator.userAgent, p_app_lang: g('app_lang'), p_app_version: APP_VERSION,
-      p_recent_errors: recentErrors.length ? recentErrors : null
-    }).then(function(id){
-      var ids = lsGet(IDS_KEY, []); if(id){ ids.unshift(id); lsSet(IDS_KEY, ids.slice(0, 50)); }
-      $('supportMessage').value = '';
-      $('supportStatus').textContent = '✅ وصلتنا، وهنرد عليك هنا في أقرب وقت.';
-      refresh(true);
-    }).catch(function(e){
-      $('supportStatus').textContent = '❌ ماتبعتتش: ' + (e.message || e) + '. جرب تاني بعد شوية.';
-    }).then(function(){ $('supportSendBtn').disabled = false; });
-  }
-
-  function init(){
-    $('supportFab').addEventListener('click', open);
-    $('supportCloseBtn').addEventListener('click', close);
-    $('supportOverlay').addEventListener('click', function(e){ if(e.target === this) close(); });
-    $('supportSendBtn').addEventListener('click', send);
-    // Show the button only once someone is signed in (not on the login / clinic-code screens).
-    setInterval(function(){ $('supportFab').style.display = doctor() ? 'block' : 'none'; }, 1500);
-    refresh(false);
-    setInterval(function(){ refresh(false); }, 10 * 60 * 1000);
-  }
-  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+  window.renderDocsHome = renderDocsHome;
+  window.loadDocsToday = loadDocsToday;
+  document.addEventListener('DOMContentLoaded', function(){
+    var inp = document.getElementById('docsSearchInput'); if(inp) inp.addEventListener('input', renderDocsHome);
+    var fab = document.getElementById('docsFab'); if(fab) fab.addEventListener('click', function(){ startNewSession(); switchMainView('documentation'); });
+  });
 })();
 </script>
+<script id="docsHook">(function(){var _r=renderSessionList;renderSessionList=function(){_r.apply(this,arguments);try{var v=document.getElementById('docsHomeView');if(v&&v.style.display!=='none'&&window.renderDocsHome)window.renderDocsHome();}catch(e){}};})();</script>
 </body>
 </html>
