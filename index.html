@@ -906,6 +906,9 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
 
 .set-panel .patient-row{box-sizing:border-box;width:100%;max-width:100%;min-width:0;overflow:hidden}.set-panel .patient-row *{box-sizing:border-box;min-width:0;max-width:100%}.set-panel .patient-row button.ghost{width:100%}.set-panel .patient-row > div > button.ghost,.set-panel .patient-row > div > input{width:auto}
 .set-panel .patient-row > input,.set-panel .patient-row > select{flex:none;width:100%}
+.color-pill{height:44px;padding:0 14px;border-radius:22px;border:1.5px solid #e1ddd1;background:#fff;color:#1c2a28;font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;cursor:pointer;font-family:inherit}
+.color-pill .color-dot{width:14px;height:14px;border-radius:50%;flex:none}
+.set-panel .color-pill{min-height:44px}
 /* ===== Settings inner panel ===== */
 .set-panel{background:transparent !important;border:0 !important;padding:0 !important;margin:0 0 18px !important}
 .set-sec{margin:18px 4px 8px;font-size:12px;font-weight:700;color:#566562;letter-spacing:.6px;text-transform:uppercase}
@@ -1119,7 +1122,7 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
     <div class="set-sec">Calendar colour</div>
     <div class="patient-row" style="margin-bottom:8px;flex-direction:column;align-items:stretch;gap:6px;">
       <label style="font-size:0.78rem;color:#5b6863;">Your color on the clinic calendar</label>
-      <div id="doctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:10px;"></div>
+      <div id="doctorColorSwatches" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
     </div>
 
     </div>
@@ -9047,11 +9050,9 @@ function renderDoctorColorSwatches(){
   const container = el('doctorColorSwatches');
   container.innerHTML = Object.keys(CALENDAR_COLOR_HEX).map(id=>{
     const isSelected = doctorColorId === id;
-    return `<button type="button" class="color-swatch-btn" data-color="${id}" title="${CALENDAR_COLOR_NAMES[id]}" style="
-      width:32px;height:32px;border-radius:50%;background:${CALENDAR_COLOR_HEX[id]};cursor:pointer;
-      border:${isSelected ? '3px solid var(--maroon)' : '2px solid transparent'};
-      box-shadow:${isSelected ? '0 0 0 2px #fff, 0 0 0 3px var(--maroon)' : 'none'};
-      padding:0;"></button>`;
+    const hex = CALENDAR_COLOR_HEX[id];
+    const chk = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    return `<button type="button" class="color-swatch-btn color-pill${isSelected ? ' on' : ''}" data-color="${id}" style="${isSelected ? 'background:'+hex+';border-color:'+hex+';color:#fff;' : ''}">${isSelected ? chk : '<span class="color-dot" style="background:'+hex+'"></span>'}${CALENDAR_COLOR_NAMES[id]}</button>`;
   }).join('');
   container.querySelectorAll('.color-swatch-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
