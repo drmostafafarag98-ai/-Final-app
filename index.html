@@ -13693,7 +13693,7 @@ function onboardText(row){
   (d.fixed_costs || []).forEach(f=> L.push(`- ${f.name}: ${f.amount}`));
   L.push(''); L.push(`Online booking: ${bk.online || ''} | session minutes: ${bk.slot_minutes || ''} | opening: ${bk.opening || ''}`);
   if(bk.directions) L.push('Directions: ' + bk.directions);
-  L.push(''); L.push(`Accounts email: ${ac.infra_email || ''} | wanted address: ${ac.subdomain || ''}`);
+  L.push(''); L.push(`Wanted address: ${ac.subdomain || ''}`);
   if(ac.notes) L.push('Notes: ' + ac.notes);
   return L.join('\n');
 }
