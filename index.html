@@ -13412,7 +13412,7 @@ waitForGoogleLibrary(8000).then(ready=>{ if(ready) initGoogleTokenClient(); });
 // their appointments is booked, edited, or cancelled. iOS Safari only
 // supports this for a page that's been "Added to Home Screen" (iOS
 // 16.4+); Android Chrome supports it in a normal tab too.
-const VAPID_PUBLIC_KEY = 'BCrnbbAzLC09f9IrEmQ2xFhK9-NWKiM6DvrZqJ9KWtfYmMJYUxgBzbBJNacShWZHuQOnagnJcWKDyv8DyXEaOs4';
+const VAPID_PUBLIC_KEY = 'BGCBTWh8OptZX9LAgSCpoS32H2NJAA9Qn3fH4KMBedgnS8mbP9YqLfUVgIfKIAzPWB2dIydBnZitLqTK2p_WqKU';
 
 function urlBase64ToUint8Array(base64String){
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -13460,13 +13460,13 @@ async function enableNotifications(){
       el('notificationsStatus').textContent = 'Notifications were not allowed — you can enable them later in your browser/site settings.';
       return;
     }
+    // Always start from a fresh subscription: an older one was made with a previous key and would be rejected.
     let subscription = await reg.pushManager.getSubscription();
-    if(!subscription){
-      subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-      });
-    }
+    if(subscription){ try{ await subscription.unsubscribe(); }catch(e){} }
+    subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
     const res = await fetch(`${BACKEND_URL}/api/push/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeader() },

@@ -20,8 +20,9 @@ self.addEventListener('push', (event) => {
   }
   const options = {
     body: data.body || '',
-    tag: 'empower-appointment',
+    tag: data.tag || 'empower-appointment',
     renotify: true,
+    icon: './icon-192.png',
   };
   event.waitUntil(self.registration.showNotification(data.title || 'Empower', options));
 });
