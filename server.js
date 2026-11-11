@@ -1794,10 +1794,10 @@ async function plEnabled() {
 async function plAppointments(n) {
   const h = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
   const since = new Date(Date.now() - 120 * 86400000).toISOString();
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/appointments?start_time=gte.${encodeURIComponent(since)}&deleted_at=is.null&patient_phone=not.is.null&select=id,patient_name,patient_phone,start_time,end_time,status,doctor_name,doctor_color,visit_type&order=start_time.asc&limit=3000`, { headers: h });
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/appointments?start_time=gte.${encodeURIComponent(since)}&deleted_at=is.null&patient_phone=not.is.null&select=id,patient_name,patient_phone,start_time,end_time,status,doctor_name,doctor_color,visit_type&order=start_time.desc&limit=3000`, { headers: h });
   const rows = await r.json();
   if (!r.ok || !Array.isArray(rows)) return [];
-  return rows.filter(a => normalizeEgyptPhone(a.patient_phone) === n);
+  return rows.filter(a => normalizeEgyptPhone(a.patient_phone) === n).sort((x, y) => new Date(x.start_time) - new Date(y.start_time));
 }
 
 app.post('/api/patient-links', requireApprovedAny, (req, res) => {
@@ -1854,7 +1854,7 @@ app.get('/me/:token', async (req, res) => {
     const clinicPhone = process.env.CLINIC_PHONE || CL.phone || '';
     const intakeHref = CL.intake_url || '/intake';
     const initials = esc(String(CL.name || 'C').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
-    send(`<div class="top"><span class="logo">${initials}</span><div><div class="nm">${esc(CL.name)}</div><div class="sb">${name ? 'Hello ' + esc(name) : 'Your visit page'}</div></div></div>` +
+    send(`<div style="padding:4px 4px 8px"><img src="/clinic-logo.png" alt="${esc(CL.name)}" style="display:block;max-width:100%;max-height:72px;object-fit:contain" onerror="this.style.display='none';document.getElementById('fb').style.display='flex'"><div class="top" id="fb" style="display:none"><span class="logo">${initials}</span><div class="nm">${esc(CL.name)}</div></div><div class="sb" style="margin-top:8px;font-size:14px">${name ? 'Hello ' + esc(name) : 'Your visit page'}</div></div>` +
       upHtml + pkgHtml +
       `<a class="btn p" href="/book">+ Book a new session</a>` +
       `<a class="btn o" href="${esc(intakeHref)}">Fill the intake form</a>` +
