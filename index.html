@@ -10748,11 +10748,11 @@ function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
     amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : '',
     // The patient's own page (sessions, upcoming visits, cancel, book, intake). Empty unless the clinic turned it on.
     link: (extra && extra.link) || '',
-    link_line: (extra && extra.link) ? `See your sessions, cancel or book from your page:\n${extra.link}\n` : ''
+    link_line: (extra && extra.link) ? `*Your appointment page* (see, cancel or book):\n${extra.link}\n` : ''
   };
 }
 const CLINIC_TEMPLATE_DEFAULTS = {
-  confirmation: `Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n{address_line}{map_line}{link_line}\nThank you.\n{clinic}`,
+  confirmation: `Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n\n{link_line}\n{address_line}{map_line}\nThank you.\n{clinic}`,
   elevator: `Directions to {clinic}:\n\n{address}\n{map}`,
   package_policy: `[Owner: write your package validity & refund policy in Settings > Clinic > Messages, then send again]`,
   recovery_session_policy: `[Owner: write your recovery session policy in Settings > Clinic > Messages, then send again]`,
@@ -10767,8 +10767,15 @@ const CLINIC_TEMPLATE_LABELS = {
 function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
   const custom = (CLINIC.templates || {})[key];
   let text = custom && custom.trim() ? custom : CLINIC_TEMPLATE_DEFAULTS[key];
-  // A clinic's own confirmation text won't have the link in it: add the patient-page line at the end.
-  if(key === 'confirmation' && extra && extra.link && !/\{link(_line)?\}/.test(text)) text = String(text).replace(/\s+$/, '') + '\n\n{link_line}';
+  // A clinic's own confirmation text has no link in it: add the patient-page line near the top.
+  if(key === 'confirmation' && extra && extra.link && !/\{link(_line)?\}/.test(text)){
+    // Put the patient link right after the line that states the date/time, so it is visible without scrolling.
+    const ls = String(text).replace(/\s+$/, '').split('\n');
+    let at = ls.findIndex(l => /\{time\}|\{date\}/.test(l));
+    if(at < 0) at = Math.min(1, ls.length - 1);
+    ls.splice(at + 1, 0, '', '{link_line}');
+    text = ls.join('\n');
+  }
   return clinicFill(text, clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
 }
 const WHATSAPP_TEMPLATES = {
