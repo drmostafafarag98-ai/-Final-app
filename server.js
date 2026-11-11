@@ -1764,6 +1764,140 @@ app.get(['/e/:token', '/p/:token', '/empower/:token'], async (req, res) => {
   }
 });
 
+// ---- Patient link: ONE link a patient gets with the confirmation message ----
+// /me/<token> shows their sessions + upcoming appointments (with Cancel), a button to book again
+// and the intake form. The token is the patient's phone + an HMAC signature, so nothing is stored
+// and it can't be guessed. Off unless the clinic has features.patientLink === true.
+function plKey() { return crypto.createHash('sha256').update('patient-link:' + SUPABASE_SERVICE_KEY).digest(); }
+function plSign(n) { return crypto.createHmac('sha256', plKey()).update(String(n)).digest('base64url').slice(0, 22); }
+function patientLinkToken(phone) {
+  const n = normalizeEgyptPhone(phone);
+  if (!n || n.length < 8) return null;
+  return Buffer.from(n).toString('base64url') + '.' + plSign(n);
+}
+function parsePatientToken(token) {
+  try {
+    const [a, sig] = String(token || '').split('.');
+    if (!a || !sig) return null;
+    const n = Buffer.from(a, 'base64url').toString();
+    if (!/^\d{8,15}$/.test(n)) return null;
+    const want = plSign(n);
+    if (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return null;
+    return n;
+  } catch (e) { return null; }
+}
+async function plEnabled() {
+  const CL = await getClinicConfig();
+  return !!(CL && CL.features && CL.features.patientLink === true);
+}
+// All of this patient's recent + upcoming visits (matched by phone, whatever format it was typed in).
+async function plAppointments(n) {
+  const h = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
+  const since = new Date(Date.now() - 120 * 86400000).toISOString();
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/appointments?start_time=gte.${encodeURIComponent(since)}&deleted_at=is.null&patient_phone=not.is.null&select=id,patient_name,patient_phone,start_time,end_time,status,doctor_name,doctor_color,visit_type&order=start_time.asc&limit=3000`, { headers: h });
+  const rows = await r.json();
+  if (!r.ok || !Array.isArray(rows)) return [];
+  return rows.filter(a => normalizeEgyptPhone(a.patient_phone) === n);
+}
+
+app.post('/api/patient-links', requireApprovedAny, (req, res) => {
+  const items = Array.isArray(req.body && req.body.phones) ? req.body.phones.slice(0, 300) : [];
+  const out = {};
+  for (const p of items) { const t = patientLinkToken(p); if (t) out[p] = t; }
+  res.json({ tokens: out });
+});
+
+app.get('/me/:token', async (req, res) => {
+  const CL = await getClinicConfig();
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const send = (body, status) => res.status(status || 200).set({ 'Content-Type': 'text/html; charset=utf-8', 'X-Robots-Tag': 'noindex, nofollow', 'Cache-Control': 'no-store' }).send(
+    `<!doctype html><html lang="en" dir="ltr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${esc(CL.name)}</title>` +
+    `<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">` +
+    `<style>*{box-sizing:border-box}body{margin:0;background:#F6F4EE;color:#1C2A28;font-family:'Plus Jakarta Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif}.w{max-width:440px;margin:0 auto;padding:20px 16px 36px;display:flex;flex-direction:column;gap:10px}` +
+    `.top{display:flex;align-items:center;gap:10px;padding:4px 4px 6px}.logo{width:40px;height:40px;border-radius:12px;background:#1F5C56;color:#F6F4EE;display:flex;align-items:center;justify-content:center;font-weight:800}.nm{font-size:16px;font-weight:800}.sb{font-size:12px;color:#566562}` +
+    `.lab{font-size:12px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:#566562;margin:6px 4px 0}.card{background:#fff;border-radius:20px;padding:16px;box-shadow:0 1px 2px rgba(28,42,40,.06);display:flex;flex-direction:column;gap:10px}` +
+    `.ap{display:flex;align-items:center;gap:12px}.ic{width:44px;height:44px;border-radius:12px;background:#DCEFE8;display:flex;align-items:center;justify-content:center;flex:none}.t1{font-size:16px;font-weight:800}.t2{font-size:13px;color:#566562}` +
+    `.btn{height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;border:0;width:100%;cursor:pointer;text-decoration:none;font-family:inherit}.p{background:#1F5C56;color:#F6F4EE}.o{border:1.5px solid #E1DDD1;color:#1C2A28;background:#fff}.d{border:1.5px solid #E7B5B0;color:#B3261E;background:#fff;height:44px}` +
+    `.big{font-size:40px;font-weight:800;color:#1F5C56;line-height:1}.bar{height:10px;border-radius:6px;background:#ECE8DC;overflow:hidden}.bar i{display:block;height:100%;background:#1F5C56}.mut{font-size:13px;color:#566562}` +
+    `.ov{position:fixed;inset:0;background:rgba(28,42,40,.45);display:none;align-items:flex-end;justify-content:center;z-index:9}.sh{background:#fff;border-radius:24px 24px 0 0;padding:20px 16px 24px;width:100%;max-width:440px;display:flex;flex-direction:column;gap:12px}` +
+    `.msg{border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.45}.ok{background:#E4F2EA;color:#1F4D38}.wn{background:#FBF0DA;color:#6B4A10}</style></head><body><div class="w">${body}</div></body></html>`);
+  const bad = `<div class="card"><div class="t1">Link not valid</div><div class="mut">Please check the link or contact the clinic.</div></div>`;
+  try {
+    const n = parsePatientToken(req.params.token);
+    if (!n || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !(await plEnabled())) return send(bad, 404);
+    const appts = await plAppointments(n);
+    const now = Date.now();
+    const upcoming = appts.filter(a => a.status !== 'cancelled' && new Date(a.start_time).getTime() > now).sort((x, y) => new Date(x.start_time) - new Date(y.start_time)).slice(0, 8);
+    const name = (appts.length ? appts[appts.length - 1].patient_name : '') || '';
+    const fm = iso => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'Africa/Cairo' }).replace(',', ' ·');
+    let pkgHtml = '';
+    if (name) {
+      const h = { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` };
+      const pr = await fetch(`${SUPABASE_URL}/rest/v1/packages?patient_name=eq.${encodeURIComponent(name)}&select=total_sessions,used_sessions,total_price,amount_paid,created_at&order=created_at.desc&limit=5`, { headers: h });
+      const pk = pr.ok ? await pr.json() : [];
+      const p = Array.isArray(pk) ? (pk.find(x => Number(x.used_sessions) < Number(x.total_sessions)) || pk[0]) : null;
+      if (p) {
+        const total = Number(p.total_sessions) || 0, used = Math.min(Number(p.used_sessions) || 0, total), left = Math.max(0, total - used);
+        const due = p.total_price != null ? Math.max(0, Math.round(Number(p.total_price) - Number(p.amount_paid || 0))) : null;
+        pkgHtml = `<div class="card"><div style="display:flex;justify-content:space-between;align-items:baseline"><b style="font-size:15px">Your package</b><span class="mut">${esc(name)}</span></div>` +
+          (left > 0 ? `<div style="display:flex;align-items:baseline;gap:8px"><span class="big">${left}</span><span style="font-size:15px;color:#566562">of ${total} sessions left</span></div>` : `<div class="t1">Package completed ✓</div>`) +
+          `<div class="bar"><i style="width:${total ? Math.round(used / total * 100) : 0}%"></i></div>` +
+          (due != null ? `<div class="mut">${due > 0 ? 'Remaining to pay: <b style="color:#1C2A28">' + due.toLocaleString('en-US') + ' EGP</b>' : 'Fully paid ✓'}</div>` : '') + `</div>`;
+      }
+    }
+    const ic = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1F5C56" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>';
+    const apptCard = a => `<div class="card"><div class="ap"><span class="ic">${ic}</span><div><div class="t1">${esc(fm(a.start_time))}</div><div class="t2">${esc(a.doctor_name || '')}</div></div></div>` +
+      `<button class="btn d" data-id="${esc(a.id)}" data-start="${esc(a.start_time)}" data-label="${esc(fm(a.start_time))}${a.doctor_name ? ' · ' + esc(a.doctor_name) : ''}">Cancel this appointment</button></div>`;
+    const upHtml = upcoming.length
+      ? `<div class="lab">Next appointment</div>${apptCard(upcoming[0])}` + (upcoming.length > 1 ? `<div class="lab">Also coming</div>${upcoming.slice(1).map(apptCard).join('')}` : '')
+      : `<div class="lab">Appointments</div><div class="card"><div class="t2">You have no upcoming appointments.</div></div>`;
+    const clinicPhone = process.env.CLINIC_PHONE || CL.phone || '';
+    const intakeHref = CL.intake_url || '/intake';
+    const initials = esc(String(CL.name || 'C').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
+    send(`<div class="top"><span class="logo">${initials}</span><div><div class="nm">${esc(CL.name)}</div><div class="sb">${name ? 'Hello ' + esc(name) : 'Your visit page'}</div></div></div>` +
+      upHtml + pkgHtml +
+      `<a class="btn p" href="/book">+ Book a new session</a>` +
+      `<a class="btn o" href="${esc(intakeHref)}">Fill the intake form</a>` +
+      (clinicPhone ? `<div class="mut" style="text-align:center;padding:4px">Need help? Contact the clinic: ${esc(clinicPhone)}</div>` : '') +
+      `<div class="ov" id="ov"><div class="sh"><div style="width:40px;height:4px;border-radius:2px;background:#E1DDD1;align-self:center"></div><div class="t1" id="ttl" style="font-size:20px"></div><div style="font-size:15px;font-weight:700" id="lbl"></div><div class="msg" id="msg"></div><button class="btn" id="go"></button><button class="btn o" id="keep">Keep my appointment</button><div class="mut" id="err" style="color:#B3261E"></div></div></div>` +
+      `<script>(function(){var ov=document.getElementById('ov'),cur=null;function $(i){return document.getElementById(i)}` +
+      `document.querySelectorAll('button.d').forEach(function(b){b.onclick=function(){cur=b;var late=(new Date(b.dataset.start).getTime()-Date.now())<6*3600*1000;$('lbl').textContent=b.dataset.label;$('err').textContent='';` +
+      `if(late){$('ttl').textContent='Less than 6 hours to go';$('msg').className='msg wn';$('msg').textContent='Cancelling now counts as a late cancellation, as agreed with the clinic. You can still cancel, or message the clinic first.';$('go').textContent='Cancel anyway';$('go').style.cssText='background:#8A5A12;color:#fff'}` +
+      `else{$('ttl').textContent='Cancel this appointment?';$('msg').className='msg ok';$('msg').textContent='You are cancelling more than 6 hours ahead. It is free, and the time goes back to the clinic.';$('go').textContent='Yes, cancel it';$('go').style.cssText='background:#B3261E;color:#fff'}ov.style.display='flex'}});` +
+      `$('keep').onclick=function(){ov.style.display='none'};` +
+      `$('go').onclick=function(){$('go').disabled=true;fetch('/api/me/${esc(req.params.token)}/cancel',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:cur.dataset.id})}).then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j}})}).then(function(x){if(x.ok){location.reload()}else{$('go').disabled=false;$('err').textContent=x.j.error||'Could not cancel. Please contact the clinic.'}}).catch(function(){$('go').disabled=false;$('err').textContent='Connection problem. Please try again.'})};})();</script>`);
+  } catch (err) {
+    console.error('Patient link page error:', err);
+    send('<div class="card"><div class="t1">Something went wrong</div><div class="mut">Please try again in a moment.</div></div>', 500);
+  }
+});
+
+app.post('/api/me/:token/cancel', async (req, res) => {
+  try {
+    const n = parsePatientToken(req.params.token);
+    if (!n || !SUPABASE_URL || !SUPABASE_SERVICE_KEY || !(await plEnabled())) return res.status(404).json({ error: 'Link not valid.' });
+    const id = String((req.body && req.body.id) || '');
+    if (!/^[0-9a-fA-F-]{8,64}$/.test(id)) return res.status(400).json({ error: 'Bad request.' });
+    const appt = (await plAppointments(n)).find(a => String(a.id) === id);
+    if (!appt) return res.status(404).json({ error: 'Appointment not found.' });
+    if (appt.status === 'cancelled') return res.json({ ok: true, already: true });
+    const startMs = new Date(appt.start_time).getTime();
+    if (!(startMs > Date.now())) return res.status(400).json({ error: 'This appointment has already started.' });
+    const late = (startMs - Date.now()) < 6 * 3600 * 1000;
+    const up = await fetch(`${SUPABASE_URL}/rest/v1/appointments?id=eq.${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+      body: JSON.stringify({ status: 'cancelled', cancelled_at: new Date().toISOString() }),
+    });
+    if (!up.ok) return res.status(500).json({ error: 'Could not cancel. Please contact the clinic.' });
+    res.json({ ok: true, late });
+    pushAppointmentChange(late ? 'patient_cancelled_late' : 'patient_cancelled', appt, null).catch(e => console.error('Push alert failed:', e.message));
+  } catch (err) {
+    console.error('Patient cancel error:', err);
+    res.status(500).json({ error: 'Could not cancel. Please contact the clinic.' });
+  }
+});
+
 // ---- POST /api/packages/:id/policy-sent ---- (mark the package policy as sent, or pass sent:false to clear it)
 app.post('/api/packages/:id/policy-sent', requireApprovedAny, ownPkgGuard, async (req, res) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
@@ -2148,7 +2282,7 @@ async function pushAppointmentChange(kind, appt, actorEmail) {
     ? new Date(appt.start_time).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Cairo' })
     : '';
   const who = appt.patient_name || '';
-  const titles = { new: 'حجز جديد', moved: 'اتغير ميعاد', cancelled: 'ميعاد اتلغى', deleted: 'ميعاد اتمسح' };
+  const titles = { new: 'حجز جديد', moved: 'اتغير ميعاد', cancelled: 'ميعاد اتلغى', deleted: 'ميعاد اتمسح', patient_cancelled: 'المريض لغى ميعاده', patient_cancelled_late: '⚠️ إلغاء متأخر من المريض' };
   await pushGateway({ action: 'notify', emails: [doc.email], title: titles[kind] || 'تحديث في المواعيد', body: `${who} · ${when}`.trim(), tag: `appt-${kind}` });
 }
 

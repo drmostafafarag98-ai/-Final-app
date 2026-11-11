@@ -10745,11 +10745,14 @@ function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
     instapay_url: (CLINIC.instapay_url || CLINIC.instapay_handle) ? `${BACKEND_URL}/pay?n=${encodeURIComponent(name || '')}${amount ? '&a=' + encodeURIComponent(amount) : ''}${amount && extra.reason ? '&r=' + encodeURIComponent(extra.reason) : ''}` : '',
     instapay_direct: CLINIC.instapay_url, instapay_handle: CLINIC.instapay_handle,
     review: CLINIC.review_url, intake: CLINIC.intake_url,
-    amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : ''
+    amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : '',
+    // The patient's own page (sessions, upcoming visits, cancel, book, intake). Empty unless the clinic turned it on.
+    link: (extra && extra.link) || '',
+    link_line: (extra && extra.link) ? `See your sessions, cancel or book from your page:\n${extra.link}\n` : ''
   };
 }
 const CLINIC_TEMPLATE_DEFAULTS = {
-  confirmation: `Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n{address_line}{map_line}\nThank you.\n{clinic}`,
+  confirmation: `Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n{address_line}{map_line}{link_line}\nThank you.\n{clinic}`,
   elevator: `Directions to {clinic}:\n\n{address}\n{map}`,
   package_policy: `[Owner: write your package validity & refund policy in Settings > Clinic > Messages, then send again]`,
   recovery_session_policy: `[Owner: write your recovery session policy in Settings > Clinic > Messages, then send again]`,
@@ -10766,7 +10769,7 @@ function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
   return clinicFill(custom && custom.trim() ? custom : CLINIC_TEMPLATE_DEFAULTS[key], clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
 }
 const WHATSAPP_TEMPLATES = {
-  confirmation: { label: 'Confirmation (with policy)', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn) => clinicBuild('confirmation', name, dateStrEn, timeStrEn, elevatorCode) },
+  confirmation: { label: 'Confirmation (with policy)', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn, extra) => clinicBuild('confirmation', name, dateStrEn, timeStrEn, elevatorCode, extra) },
   elevator: { label: 'Elevator directions', build: (name, timeStr, dateStr, elevatorCode) => clinicBuild('elevator', name, '', '', elevatorCode) },
   package_policy: { label: 'Package validity & refund policy', build: (name) => clinicBuild('package_policy', name, '', '', '') },
   recovery_session_policy: { label: 'Recovery session policy', build: (name) => clinicBuild('recovery_session_policy', name, '', '', '') },
@@ -11250,6 +11253,7 @@ async function loadTomorrowReminders(){
     }
     const items = ((await res.json()) || []).filter(ev=> ev.status !== 'cancelled');
     tomorrowRemindersData = items || [];
+    await attachPatientLinks(tomorrowRemindersData);
     const dayLabel = day.toLocaleDateString(undefined, {weekday:'long', month:'short', day:'numeric'});
     if(!items || items.length === 0){
       el('tomorrowRemindersStatus').textContent = `No appointments on ${dayLabel}.`;
@@ -11282,18 +11286,32 @@ async function loadTomorrowReminders(){
   }
 }
 
+// When the clinic has the patient page switched on, ask the server for each patient's personal link
+// (best effort — if anything fails the message just goes out without the link line).
+async function attachPatientLinks(list){
+  try{
+    if(!(CLINIC && CLINIC.features && CLINIC.features.patientLink === true)) return;
+    const phones = [...new Set((list||[]).map(ev=>ev.patient_phone).filter(Boolean))];
+    if(!phones.length) return;
+    const res = await fetch(`${BACKEND_URL}/api/patient-links`, { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify({ phones }) });
+    if(!res.ok) return;
+    const out = (await res.json()).tokens || {};
+    (list||[]).forEach(ev=>{ if(ev.patient_phone && out[ev.patient_phone]) ev.patient_link = `${BACKEND_URL}/me/${out[ev.patient_phone]}`; });
+  }catch(e){ console.log('Patient links skipped:', e); }
+}
+
 function buildReminderMessage(ev, templateKey){
   const template = WHATSAPP_TEMPLATES[templateKey] || WHATSAPP_TEMPLATES.confirmation;
   const timeStr = ev.start_time ? new Date(ev.start_time).toLocaleTimeString(undefined, {hour:'2-digit', minute:'2-digit'}) : '';
   const timeStrEn = ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-US', {hour:'numeric', minute:'2-digit', hour12:true}) : '';
   const dateStr = ev.start_time ? new Date(ev.start_time).toLocaleDateString('ar-EG', {weekday:'long', day:'numeric', month:'long'}) : '';
   const dateStrEn = ev.start_time ? new Date(ev.start_time).toLocaleDateString('en-GB', {weekday:'long', day:'numeric', month:'long'}) : '';
-  let extra = null;
+  let extra = ev.patient_link ? { link: ev.patient_link } : null;
   if(templateKey === 'instapay_payment'){
     const amount = prompt('Amount due (EGP)? Leave blank to send without an amount line.');
     if(amount && amount.trim()){
       const reason = prompt('For what? (e.g. Check-up / Session / Package)') || '';
-      extra = { amount: amount.trim(), reason: reason.trim() };
+      extra = { ...(extra || {}), amount: amount.trim(), reason: reason.trim() };
       // Remember this amount so marking the session "Paid" later can
       // reuse it instead of asking again.
       fetch(`${BACKEND_URL}/api/appointments/${encodeURIComponent(ev.id)}/notes`, {
@@ -13617,7 +13635,7 @@ function renderClinicForm(){
     <label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">Extra buttons (Name | link)</label>
     <textarea id="clLinks" rows="4" placeholder="Follow us on TikTok | https://tiktok.com/@yourclinic" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);font-size:0.85rem;font-family:inherit;">${escapeHtml((C.links||[]).map(l=> l.label+' | '+l.url).join('\n'))}</textarea>
     <div style="font-weight:700;margin:20px 0 2px;">Messages</div>
-    <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {instapay_url} {instapay_direct} {instapay_handle} {amount_line}</div>
+    <div style="font-size:0.74rem;color:#8a938e;">Leave a box empty to use the standard message. You can use: {name} {date} {time} {clinic} {address} {map} {elevator} {intake} {review} {link} {instapay_url} {instapay_direct} {instapay_handle} {amount_line}</div>
     ${tpl}
     <div style="font-weight:700;margin:20px 0 2px;">Fixed monthly costs</div>
     <div style="font-size:0.74rem;color:#8a938e;">Rent, doorman, internet... They are added to Expenses automatically on the last day of every month, so Doctor Payroll and Net Cash/InstaPay take them into account. You can also add a month by hand from Stats &gt; Expenses.</div>
