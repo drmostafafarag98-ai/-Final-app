@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>مُسَاعِد — New clinic setup</title><meta name="robots" content="noindex,nofollow">
+<style>
+  :root{--ink:#1b2b2b;--paper:#f6f7f5;--panel:#fff;--line:#dfe3df;--green:#1f5c56;--gold:#b8894f;--r:12px;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;padding:16px;}
+  .wrap{max-width:640px;margin:0 auto;}
+  .brand{font-family:"Aref Ruqaa","Amiri",serif;font-weight:700;font-size:2.1rem;color:var(--green);line-height:1.2;margin:6px 0 0;}
+  h1{font-size:1.3rem;margin:8px 0 4px;color:var(--green);}
+  .sub{font-size:0.85rem;color:#5b6863;margin-bottom:16px;line-height:1.5;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:16px;}
+  .card h2{font-size:1rem;margin:0 0 4px;color:var(--green);}
+  .hint{font-size:0.78rem;color:#7a847f;margin:0 0 10px;}
+  label{display:block;font-size:0.8rem;margin:10px 0 3px;font-weight:600;}
+  label small{font-weight:400;color:#8a938e;}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;font-size:0.92rem;background:#fff;font-family:inherit;}
+  textarea{min-height:70px;}
+  .row{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px;background:var(--paper);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .days{display:flex;flex-wrap:wrap;gap:8px 12px;margin:6px 0;}
+  .days label{display:inline-flex;align-items:center;gap:4px;margin:0;font-weight:400;font-size:0.8rem;}
+  .days input{width:auto;}
+  button{font-family:inherit;cursor:pointer;}
+  .add{margin-top:10px;background:#fff;border:1px dashed var(--green);color:var(--green);padding:9px 12px;border-radius:10px;font-size:0.84rem;width:100%;}
+  .del{background:none;border:none;color:#a33;font-size:0.8rem;float:right;}
+  .go{width:100%;padding:14px;border:none;border-radius:12px;background:var(--green);color:#fff;font-size:1rem;font-weight:700;}
+  .go:disabled{opacity:.5;}
+  .msg{font-size:0.85rem;margin:10px 0;min-height:1.2em;}
+  .prev{max-height:70px;max-width:100%;margin-top:6px;display:none;border:1px solid var(--line);border-radius:8px;}
+  .hp{position:absolute;left:-9999px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand" lang="ar" dir="rtl">مُسَاعِد</div>
+  <h1>New clinic setup form</h1>
+  <div class="sub">Please fill in what you can — skip anything you don't know and we'll sort it out together. It takes about 10 minutes.<br>املأ اللي تعرفه، واللي مش عارفه سيبه فاضي وهنكمله مع بعض. حوالي 10 دقايق.</div>
+  <form id="f" autocomplete="off">
+  <input class="hp" id="website" tabindex="-1" autocomplete="off">
+
+  <div class="card"><h2>1. About you · عنك</h2>
+    <label>Your name <small>اسمك</small></label><input id="owner_name">
+    <label>Your phone / WhatsApp <small>رقم تليفونك</small></label><input id="owner_phone" type="tel">
+    <label>Your Gmail address (you will sign in with it) <small>الجيميل اللي هتدخل بيه</small></label><input id="owner_email" type="email">
+  </div>
+
+  <div class="card"><h2>2. The clinic · العيادة</h2>
+    <label>Clinic name (English) <small>اسم العيادة بالإنجليزي</small></label><input id="name">
+    <label>Clinic name (Arabic) <small>اسم العيادة بالعربي</small></label><input id="name_ar">
+    <label>Short line under the name <small>جملة قصيرة تحت الاسم (اختياري)</small></label><input id="tagline">
+    <label>Address (English)</label><textarea id="address"></textarea>
+    <label>Address (Arabic) <small>العنوان بالعربي</small></label><textarea id="address_ar"></textarea>
+    <label>Google Maps link <small>لينك الموقع على الخريطة</small></label><input id="map_url" type="url">
+    <label>Clinic phone / WhatsApp number <small>رقم العيادة</small></label><input id="phone" type="tel">
+    <label>Instagram / Facebook link <small>(اختياري)</small></label><input id="social">
+    <label>Google review link <small>لينك التقييم على جوجل (اختياري)</small></label><input id="review_url" type="url">
+    <label>Clinic logo <small>اللوجو (صورة PNG أو JPG)</small></label><input id="logo_file" type="file" accept="image/*"><img id="logo_prev" class="prev">
+    <label>Stamp image <small>صورة الختم (اختياري)</small></label><input id="stamp_file" type="file" accept="image/*"><img id="stamp_prev" class="prev">
+  </div>
+
+  <div class="card"><h2>3. Payments · الدفع</h2>
+    <label>How do patients pay?</label>
+    <div class="days"><label><input type="checkbox" id="pay_cash" checked>Cash</label><label><input type="checkbox" id="pay_insta" checked>InstaPay</label></div>
+    <label>InstaPay link <small>لينك انستا باي</small></label><input id="instapay_url" type="url">
+    <label>InstaPay address / handle <small>عنوان انستا باي</small></label><input id="instapay_handle">
+  </div>
+
+  <div class="card"><h2>4. The team · الفريق</h2>
+    <div class="hint">Add everyone who works at the clinic: doctors, nutritionist, secretary. · ضيف كل اللي بيشتغل في العيادة.</div>
+    <div id="team"></div>
+    <button type="button" class="add" id="addTeam">+ Add a person</button>
+  </div>
+
+  <div class="card"><h2>5. Services and prices · الخدمات والأسعار</h2>
+    <div class="hint">Check-up, single session, recovery, packages... · الكشف والجلسة والباكدجات.</div>
+    <div id="services"></div>
+    <button type="button" class="add" id="addService">+ Add a service</button>
+    <label>Package validity <small>مدة صلاحية الباكدج (مثلاً 6 جلسات = 3 أسابيع)</small></label><textarea id="package_validity"></textarea>
+    <label>Cancellation policy <small>سياسة الإلغاء (مثلاً قبلها بـ5 ساعات)</small></label><textarea id="cancel_policy"></textarea>
+  </div>
+
+  <div class="card"><h2>6. Monthly fixed costs · المصاريف الثابتة</h2>
+    <div class="hint">Rent, doorman, internet, ads... · الإيجار والبواب والنت والإعلانات.</div>
+    <div id="fixed"></div>
+    <button type="button" class="add" id="addFixed">+ Add a cost</button>
+  </div>
+
+  <div class="card"><h2>7. Online booking · الحجز أونلاين</h2>
+    <label>Do you want patients to book online?</label>
+    <select id="online_booking"><option value="yes">Yes</option><option value="no">No</option><option value="later">Maybe later</option></select>
+    <label>Session length in minutes <small>مدة الجلسة بالدقايق</small></label><input id="slot_minutes" type="number" placeholder="30">
+    <label>Clinic opening days and hours <small>أيام وساعات العمل</small></label><textarea id="opening" placeholder="Sat–Thu 10am–9pm"></textarea>
+    <label>How do patients find the clinic? <small>إزاي المريض يوصل للعيادة (الدور، الأسانسير، كود الباب)</small></label><textarea id="directions"></textarea>
+  </div>
+
+    <div class="card"><h2>8. Patient messages · رسائل المرضى</h2>
+    <p style="font-size:0.82rem;color:#5b6863;margin:0 0 6px;">These are the WhatsApp messages the system sends to patients. Read each one, edit it the way you like, or keep it as it is. Don't change the words inside { } — the system fills them in automatically (for example {name} = patient name, {clinic} = your clinic name, {date} and {time} = the visit).<br>دي الرسائل اللي السيستم بيبعتها للمرضى. اقرأ كل رسالة وعدّلها زي ما تحب أو سيبها زي ما هي. ما تغيّرش الكلمات اللي بين { } لأن السيستم بيملاها لوحده.</p>
+    <div id="tpls"></div>
+  </div>
+
+  <div class="card"><h2>9. Accounts and name · الحسابات</h2>
+    <label>Preferred web address <small>الاسم المطلوب للعنوان (مثلاً: yourclinic)</small></label><input id="subdomain" placeholder="yourclinic">
+    <label>Anything else we should know? <small>أي حاجة تانية</small></label><textarea id="notes"></textarea>
+  </div>
+
+  <div class="msg" id="msg"></div>
+  <button type="submit" class="go" id="go">Send · إرسال</button>
+  </form>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const DAYS = ['Sat','Sun','Mon','Tue','Wed','Thu','Fri'];
+function rowHtml(inner){ return '<div class="row"><button type="button" class="del">remove ✕</button>' + inner + '</div>'; }
+function teamRow(){
+  return rowHtml(`<div class="grid"><div><label>Name</label><input class="t_name"></div><div><label>Role</label><select class="t_role"><option value="doctor">Doctor</option><option value="partner">Partner doctor</option><option value="nutritionist">Nutritionist</option><option value="secretary">Secretary</option><option value="other">Other</option></select></div></div>
+  <label>Gmail (to sign in) <small>اختياري</small></label><input class="t_email" type="email">
+  <label>How is this person paid?</label>
+  <select class="t_pay"><option value="share">A % of the money they collect</option><option value="fixed">Fixed monthly salary</option><option value="fixed_rate">Fixed + amount per session</option><option value="partner">Partner (% + share of profit)</option></select>
+  <div class="grid"><div><label>% <small>النسبة</small></label><input class="t_pct" type="number"></div><div><label>Fixed salary <small>الثابت</small></label><input class="t_fixed" type="number"></div></div>
+  <label>Per session <small>عن كل جلسة (لو فيه)</small></label><input class="t_rate" type="number">
+  <label>Working days and shift hours <small>أيام الشغل ومواعيد الشفت</small></label>
+  <div class="days">${DAYS.map(d=>`<label><input type="checkbox" class="t_day" value="${d}">${d}</label>`).join('')}</div>
+  <div class="grid"><div><label>Shift from</label><input class="t_from" type="time"></div><div><label>Shift to</label><input class="t_to" type="time"></div></div>`);
+}
+function serviceRow(){
+  return rowHtml(`<div class="grid"><div><label>Service name</label><input class="s_name" placeholder="e.g. Check-up"></div><div><label>Price (EGP)</label><input class="s_price" type="number"></div></div>
+  <label>Type</label><select class="s_type"><option value="checkup">Check-up (كشف)</option><option value="session">Session (جلسة)</option><option value="recovery">Recovery (ريكفري)</option><option value="package">Package (باكدج)</option><option value="other">Other</option></select>
+  <label>Number of sessions in it <small>لو باكدج: كام جلسة</small></label><input class="s_count" type="number">`);
+}
+function fixedRow(){
+  return rowHtml(`<div class="grid"><div><label>What</label><input class="f_name" placeholder="Rent"></div><div><label>Amount per month</label><input class="f_amount" type="number"></div></div>`);
+}
+function wireDel(root){ root.querySelectorAll('.del').forEach(b=> b.onclick = ()=> b.closest('.row').remove()); }
+function add(listId, fn){ const l = $(listId); l.insertAdjacentHTML('beforeend', fn()); wireDel(l); }
+$('addTeam').onclick = ()=> add('team', teamRow);
+$('addService').onclick = ()=> add('services', serviceRow);
+$('addFixed').onclick = ()=> add('fixed', fixedRow);
+add('team', teamRow); add('services', serviceRow); add('fixed', fixedRow);
+
+const imgs = { logo:'', stamp:'' };
+function resize(file, maxW, cb){
+  const rd = new FileReader();
+  rd.onload = ()=>{ const im = new Image(); im.onload = ()=>{
+    const k = Math.min(1, maxW / im.width); const cv = document.createElement('canvas'); cv.width = Math.round(im.width*k); cv.height = Math.round(im.height*k);
+    const cx = cv.getContext('2d'); cx.drawImage(im,0,0,cv.width,cv.height);
+    let u = cv.toDataURL('image/png');
+    if(u.length > 250000){ cx.globalCompositeOperation='destination-over'; cx.fillStyle='#fff'; cx.fillRect(0,0,cv.width,cv.height); u = cv.toDataURL('image/jpeg',0.85); }
+    cb(u.length > 380000 ? '' : u); };
+    im.onerror = ()=> cb(''); im.src = rd.result; };
+  rd.readAsDataURL(file);
+}
+[['logo',600],['stamp',400]].forEach(([k,w])=>{
+  $(k+'_file').onchange = e=>{ const f = e.target.files[0]; if(!f) return;
+    resize(f, w, u=>{ if(!u){ alert('This image is too big or not readable. Try a smaller PNG or JPG.'); return; } imgs[k] = u; $(k+'_prev').src = u; $(k+'_prev').style.display = 'block'; }); };
+});
+const TPLS = [
+ ['confirmation','Appointment confirmation · تأكيد الموعد','Sent when a visit is booked. · بتتبعت لما الموعد يتحجز.',"Dear {name}\nWe are writing to confirm your upcoming session at {clinic} on {date} at {time}.\n{address_line}{map_line}\nThank you.\n{clinic}"],
+ ['elevator','Directions · إزاي توصل للعيادة','Sent to help the patient find the clinic. Add floor / lift / door code. · اكتب الدور والأسانسير وكود الباب.',"Directions to {clinic}:\n\n{address}\n{map}"],
+ ['package_policy','Package validity and refund policy · سياسة الباكدج','Sent when a patient buys a package. Write how long it is valid and the refund rules. · اكتب مدة صلاحية الباكدج وسياسة الاسترجاع.',""],
+ ['recovery_session_policy','Recovery session policy · سياسة الريكفري','Sent before a recovery session. Write the rules (timing, cancellation...). · اكتب شروط جلسة الريكفري.',""],
+ ['instapay_payment','InstaPay payment request · طلب الدفع بانستا باي','Sent when the patient pays by InstaPay. · بتتبعت لما المريض يدفع انستا باي.',"{amount_line}{instapay_url}\nClick the link to send money to\n{instapay_handle}\nPowered by InstaPay\n\nPlease send a screenshot of the payment once done."],
+ ['intake_form','Patient intake form · فورم بيانات المريض','Sent before the first visit. · بتتبعت قبل أول زيارة.',"Welcome to {clinic}!\n\nBefore your visit on {date} at {time}, please fill in this short form so we can prepare for you:\n\n{intake}\n\nThank you."],
+ ['package_last_session','Last session in a package · آخر جلسة في الباكدج','Sent after the last session; asks for a Google review. · بتتبعت بعد آخر جلسة وبتطلب تقييم.',"Hi {name},\n\nThis was your last session in your current package. We hope you're feeling much better! 🌿\n\nIf you have a moment, we'd really appreciate a quick Google review, it helps other patients find us:\n{review}\n\nTake care,\n{clinic}"]
+];
+$('tpls').innerHTML = TPLS.map(t=> '<label style="margin-top:14px;font-weight:700;">'+t[1]+'</label><div style="font-size:0.74rem;color:#8a938e;margin-bottom:4px;">'+t[2]+'</div><textarea class="tpl" data-k="'+t[0]+'" rows="6" placeholder="">'+t[3].replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</textarea>').join('');
+const v = id => ($(id).value || '').trim();
+$('f').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const msg = $('msg'); msg.style.color = '#5b6863';
+  if(!v('name') && !v('name_ar')){ msg.style.color = '#a33'; msg.textContent = 'Please write the clinic name.'; return; }
+  const team = Array.from(document.querySelectorAll('#team .row')).map(r=>({
+    name: r.querySelector('.t_name').value.trim(), role: r.querySelector('.t_role').value, email: r.querySelector('.t_email').value.trim(),
+    pay: r.querySelector('.t_pay').value, percent: r.querySelector('.t_pct').value, fixed: r.querySelector('.t_fixed').value, per_session: r.querySelector('.t_rate').value,
+    days: Array.from(r.querySelectorAll('.t_day:checked')).map(c=>c.value), shift_from: r.querySelector('.t_from').value, shift_to: r.querySelector('.t_to').value
+  })).filter(x=> x.name);
+  const services = Array.from(document.querySelectorAll('#services .row')).map(r=>({ name: r.querySelector('.s_name').value.trim(), price: r.querySelector('.s_price').value, type: r.querySelector('.s_type').value, sessions: r.querySelector('.s_count').value })).filter(x=> x.name);
+  const fixed = Array.from(document.querySelectorAll('#fixed .row')).map(r=>({ name: r.querySelector('.f_name').value.trim(), amount: r.querySelector('.f_amount').value })).filter(x=> x.name);
+  const body = { website: v('website'), clinic_name: v('name') || v('name_ar'), data: {
+    owner: { name: v('owner_name'), phone: v('owner_phone'), email: v('owner_email') },
+    clinic: { name: v('name'), name_ar: v('name_ar'), tagline: v('tagline'), address: v('address'), address_ar: v('address_ar'), map_url: v('map_url'), phone: v('phone'), social: v('social'), review_url: v('review_url'), logo: imgs.logo, stamp: imgs.stamp },
+    payments: { cash: $('pay_cash').checked, instapay: $('pay_insta').checked, instapay_url: v('instapay_url'), instapay_handle: v('instapay_handle') },
+    team, services, package_validity: v('package_validity'), cancel_policy: v('cancel_policy'), fixed_costs: fixed,
+    booking: { online: $('online_booking').value, slot_minutes: v('slot_minutes'), opening: v('opening'), directions: v('directions') },
+    templates: Object.fromEntries(Array.from(document.querySelectorAll('.tpl')).map(t=>[t.dataset.k, t.value.trim()]).filter(x=>x[1])),
+    accounts: { subdomain: v('subdomain'), notes: v('notes') } } };
+  $('go').disabled = true; msg.textContent = 'Sending…';
+  try{
+    const r = await fetch('https://empower.musaedapp.com/api/onboard', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(d.error || 'Server error ' + r.status);
+    $('f').style.display = 'none';
+    document.querySelector('.sub').innerHTML = '<b style="color:#1f5c56;font-size:1.05rem;">Thank you! ✓ We received your details.</b><br>شكراً! وصلتنا بياناتك وهنتواصل معاك قريب.';
+    window.scrollTo(0,0);
+  }catch(err){ msg.style.color = '#a33'; msg.textContent = 'Could not send: ' + (err.message || err); $('go').disabled = false; }
+});
+</script>
+</body>
+</html>
