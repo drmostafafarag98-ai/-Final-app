@@ -10766,7 +10766,10 @@ const CLINIC_TEMPLATE_LABELS = {
 };
 function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
   const custom = (CLINIC.templates || {})[key];
-  return clinicFill(custom && custom.trim() ? custom : CLINIC_TEMPLATE_DEFAULTS[key], clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
+  let text = custom && custom.trim() ? custom : CLINIC_TEMPLATE_DEFAULTS[key];
+  // A clinic's own confirmation text won't have the link in it: add the patient-page line at the end.
+  if(key === 'confirmation' && extra && extra.link && !/\{link(_line)?\}/.test(text)) text = String(text).replace(/\s+$/, '') + '\n\n{link_line}';
+  return clinicFill(text, clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
 }
 const WHATSAPP_TEMPLATES = {
   confirmation: { label: 'Confirmation (with policy)', build: (name, timeStr, dateStr, elevatorCode, dateStrEn, timeStrEn, extra) => clinicBuild('confirmation', name, dateStrEn, timeStrEn, elevatorCode, extra) },
