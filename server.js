@@ -2062,6 +2062,14 @@ app.post('/api/appointments', requireApprovedAny, async (req, res) => {
     const data = await upstream.text();
     res.status(upstream.status).type('application/json').send(data);
 
+    if (upstream.ok) {
+      try {
+        const rows = JSON.parse(data);
+        const created = Array.isArray(rows) ? rows[0] : rows;
+        pushAppointmentChange('new', created, req.doctor.email).catch(e => console.error('Push alert failed:', e.message));
+      } catch (e) { /* the alert is optional */ }
+    }
+
     // Give the patient a ready Documentation "file" under their assigned
     // doctor as soon as they're booked — best-effort, never blocks the
     // booking response above.
@@ -2096,6 +2104,65 @@ app.post('/api/appointments', requireApprovedAny, async (req, res) => {
   } catch (err) {
     console.error('Appointments POST error:', err);
     res.status(500).json({ error: 'Failed to book appointment: ' + err.message });
+  }
+});
+
+
+// ---- Push notifications (off until PUSH_GATEWAY_SECRET is set) ----
+// The web-push library is NOT used here on purpose. Notifications are sent by a separate
+// gateway (Supabase Edge Function in the owner's musaed-support project). This server only
+// makes a small best-effort HTTP call to it: it never awaits it before replying, has a short
+// timeout, and swallows every error — so the gateway being down can never affect bookings.
+const PUSH_GATEWAY_URL = process.env.PUSH_GATEWAY_URL || 'https://qprxyvvtqhtdzidzrcwi.supabase.co/functions/v1/push-gateway';
+const PUSH_GATEWAY_SECRET = process.env.PUSH_GATEWAY_SECRET || '';
+const PUSH_CLINIC_ID = (() => { try { return new URL(SUPABASE_URL).hostname; } catch (e) { return SUPABASE_URL || 'clinic'; } })();
+
+async function pushGateway(body) {
+  if (!PUSH_GATEWAY_SECRET) return null;
+  const r = await fetch(PUSH_GATEWAY_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-push-secret': PUSH_GATEWAY_SECRET },
+    body: JSON.stringify({ clinic: PUSH_CLINIC_ID, ...body }),
+    signal: AbortSignal.timeout(6000),
+  });
+  return r.ok ? r.json().catch(() => ({})) : null;
+}
+
+// kind: 'new' | 'moved' | 'cancelled' | 'deleted'. The doctor who owns the visit is told,
+// unless they are the one who made the change.
+async function pushAppointmentChange(kind, appt, actorEmail) {
+  if (!PUSH_GATEWAY_SECRET || !appt) return;
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/doctors?status=eq.approved&select=email,name,color`, {
+    headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
+    signal: AbortSignal.timeout(6000),
+  });
+  const docs = await r.json();
+  if (!Array.isArray(docs) || docs.length === 0) return;
+  const nm = String(appt.doctor_name || '').trim().toLowerCase();
+  const byName = docs.find(d => String(d.name || '').trim().toLowerCase() === nm || String(d.email || '').trim().toLowerCase() === nm);
+  const byColor = appt.doctor_color ? docs.filter(d => d.color === appt.doctor_color) : [];
+  const doc = byName || (byColor.length === 1 ? byColor[0] : null);
+  if (!doc || !doc.email) return;
+  if (actorEmail && String(doc.email).toLowerCase() === String(actorEmail).toLowerCase()) return;
+  const when = appt.start_time
+    ? new Date(appt.start_time).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Cairo' })
+    : '';
+  const who = appt.patient_name || '';
+  const titles = { new: 'حجز جديد', moved: 'اتغير ميعاد', cancelled: 'ميعاد اتلغى', deleted: 'ميعاد اتمسح' };
+  await pushGateway({ action: 'notify', emails: [doc.email], title: titles[kind] || 'تحديث في المواعيد', body: `${who} · ${when}`.trim(), tag: `appt-${kind}` });
+}
+
+// The app sends the device's push subscription here; we hand it to the gateway under the doctor's email.
+app.post('/api/push/subscribe', requireApprovedAny, async (req, res) => {
+  if (!PUSH_GATEWAY_SECRET) return res.status(503).json({ error: 'Notifications are not switched on for this clinic yet.' });
+  try {
+    const subscription = req.body && req.body.subscription;
+    if (!subscription || !subscription.endpoint) return res.status(400).json({ error: 'Missing subscription.' });
+    const out = await pushGateway({ action: 'subscribe', email: req.doctor.email, subscription });
+    if (!out) return res.status(502).json({ error: 'Notification service is not reachable right now.' });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(502).json({ error: 'Notification service is not reachable right now.' });
   }
 });
 
@@ -2156,6 +2223,15 @@ app.patch('/api/appointments/:id', requireApprovedAny, ownApptGuard, async (req,
     const data = await upstream.text();
     res.status(upstream.status).type('application/json').send(data);
 
+    if (upstream.ok && (status === 'cancelled' || startTime !== undefined || doctorName !== undefined)) {
+      try {
+        const rows = JSON.parse(data);
+        const changed = Array.isArray(rows) ? rows[0] : rows;
+        const kind = status === 'cancelled' ? 'cancelled' : 'moved';
+        pushAppointmentChange(kind, changed, req.doctor.email).catch(e => console.error('Push alert failed:', e.message));
+      } catch (e) { /* the alert is optional */ }
+    }
+
     if (upstream.ok && arrived === true) {
       try {
         const rows = JSON.parse(data);
@@ -2205,6 +2281,14 @@ app.patch('/api/appointments/:id', requireApprovedAny, ownApptGuard, async (req,
 app.delete('/api/appointments/:id', requireApprovedAny, ownApptGuard, async (req, res) => {
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
   try {
+    let beforeDelete = null;
+    if (PUSH_GATEWAY_SECRET) {
+      try {
+        const pr = await fetch(`${SUPABASE_URL}/rest/v1/appointments?id=eq.${encodeURIComponent(req.params.id)}&select=patient_name,start_time,doctor_name,doctor_color&limit=1`, { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` }, signal: AbortSignal.timeout(4000) });
+        const pj = pr.ok ? await pr.json() : [];
+        beforeDelete = Array.isArray(pj) ? pj[0] : null;
+      } catch (e) { /* optional */ }
+    }
     const url = `${SUPABASE_URL}/rest/v1/appointments?id=eq.${encodeURIComponent(req.params.id)}`;
     const upstream = await fetch(url, {
       method: 'DELETE',
@@ -2214,6 +2298,7 @@ app.delete('/api/appointments/:id', requireApprovedAny, ownApptGuard, async (req
       },
     });
     res.status(upstream.status).json({ ok: upstream.ok });
+    if (upstream.ok && beforeDelete) pushAppointmentChange('deleted', beforeDelete, req.doctor.email).catch(e => console.error('Push alert failed:', e.message));
   } catch (err) {
     console.error('Appointment DELETE error:', err);
     res.status(500).json({ error: 'Failed to delete appointment: ' + err.message });
