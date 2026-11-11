@@ -932,6 +932,10 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
 #moreTools .mt-panel input,#moreTools .mt-panel select{flex:1 1 100%!important;width:100%;min-width:0!important;box-sizing:border-box;height:46px;border:1.5px solid var(--line)!important;border-radius:14px!important;padding:0 14px!important;font-size:.92rem!important}
 #moreTools .mt-panel #addManualDoctorBtn,#moreTools .mt-panel #sendAllRemindersBtn{width:100%;height:48px;border-radius:14px;background:var(--maroon);color:#f6f4ee;border:0;font-weight:800;font-size:.92rem!important}
 #moreTools .consent-banner{border-radius:14px}
+
+/* Day list: compact rows */
+.appt-chips .pill-badge{font-size:.64rem !important;padding:2px 8px !important;line-height:1.35}
+.appointment-row .arrived-toggle-btn svg,.appointment-row .arrival-wa-btn svg{width:15px;height:15px}
 </style>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
@@ -9980,21 +9984,21 @@ function renderScheduleList(events){
       statusPill = `<span class="pill-badge" style="background:var(--badge-red-bg);color:var(--badge-red-fg);">! Unpaid</span>`;
     }
 
-    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:10px 12px;margin-bottom:6px;border-radius:14px;background:${isCancelled ? '#faf9f5' : (isArrived ? '#dff3e4' : 'var(--panel)')};${isCancelled ? 'opacity:.85;' : ''}box-shadow:var(--card-shadow);border-left:3px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
-      <div class="appt-info" style="flex:1;min-width:0;">
-        <div style="display:flex;align-items:baseline;gap:8px;min-width:0;">
+    return `<div class="appointment-row" data-id="${ev.id}" style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:5px;border-radius:12px;background:${isCancelled ? '#faf9f5' : (isArrived ? '#dff3e4' : 'var(--panel)')};${isCancelled ? 'opacity:.85;' : ''}box-shadow:var(--card-shadow);border-left:3px solid ${colorHex};${isMine && !isCancelled && !isNoShow ? 'outline:1px solid ' + colorHex + '33;' : ''}">
+      <div class="appt-info" style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:2px 8px;">
+        <div style="display:contents;">
           <span class="appt-time" style="font-size:0.72rem;color:#5b6863;flex-shrink:0;font-weight:600;${isCancelled ? 'text-decoration:line-through;' : ''}">${timeStr}</span>
-          <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.95rem;font-weight:700;cursor:pointer;min-width:0;overflow-wrap:anywhere;line-height:1.3;${isCancelled ? 'text-decoration:line-through;text-decoration-color:#b9b3a3;color:#7a847f;font-weight:600;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
+          <div class="patient-name-link" data-id="${ev.id}" data-name="${escapeHtml(ev.patient_name || '')}" style="font-size:0.92rem;font-weight:700;cursor:pointer;min-width:0;flex:1 1 90px;overflow-wrap:anywhere;line-height:1.25;${isCancelled ? 'text-decoration:line-through;text-decoration-color:#b9b3a3;color:#7a847f;font-weight:600;' : 'color:var(--ink);'}">${escapeHtml(ev.patient_name || '(untitled)')}</div>
         </div>
-        <div class="appt-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;">
+        <div class="appt-chips" style="display:flex;flex-wrap:wrap;gap:4px;margin-left:auto;flex:none;">
           ${visitPill}
           ${onlinePill}
           ${isArrived ? `<span class="pill-badge" style="background:#1f7a3f;color:#fff;">● Arrived ${escapeHtml(arrivedTime)}</span>` : ''}
           ${statusPill}
         </div>
       </div>
-      ${(isCancelled || isNoShow) ? '' : `<button type="button" class="arrived-toggle-btn" data-id="${ev.id}" title="${isArrived ? 'Undo arrival' : 'Patient arrived'}" style="width:38px;height:38px;border-radius:50%;border:1.5px solid ${isArrived ? '#1f7a3f' : '#9fb5aa'};background:${isArrived ? '#1f7a3f' : 'transparent'};color:${isArrived ? '#fff' : '#5b6863'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
-      ${(isArrived && (signedInDoctor && (signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary' || hasClientPermission('send_whatsapp')))) ? `<button type="button" class="arrival-wa-btn" data-id="${ev.id}" title="Tell the doctor on WhatsApp" style="width:38px;height:38px;border-radius:50%;border:1.5px solid #25a35a;background:#25a35a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>` : ''}
+      ${(isCancelled || isNoShow) ? '' : `<button type="button" class="arrived-toggle-btn" data-id="${ev.id}" title="${isArrived ? 'Undo arrival' : 'Patient arrived'}" style="width:30px;height:30px;border-radius:50%;border:1.5px solid ${isArrived ? '#1f7a3f' : '#9fb5aa'};background:${isArrived ? '#1f7a3f' : 'transparent'};color:${isArrived ? '#fff' : '#5b6863'};cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button>`}
+      ${(isArrived && (signedInDoctor && (signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary' || hasClientPermission('send_whatsapp')))) ? `<button type="button" class="arrival-wa-btn" data-id="${ev.id}" title="Tell the doctor on WhatsApp" style="width:30px;height:30px;border-radius:50%;border:1.5px solid #25a35a;background:#25a35a;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;padding:0;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></button>` : ''}
       <span style="color:#a9b3ae;font-size:0.9rem;flex-shrink:0;">›</span>
     </div>`;
   }
