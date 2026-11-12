@@ -7062,6 +7062,7 @@ function updateSignInStatusUI(){
   el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('enableNotificationsBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   if(signedInDoctor) refreshNotificationButtonLabel();
+  setTimeout(()=>{ try{ maybeShowNotifPrompt(); }catch(e){} }, 1500);
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
@@ -13512,6 +13513,48 @@ async function enableNotifications(){
 el('enableNotificationsBtn').addEventListener('click', enableNotifications);
 registerServiceWorker();
 
+// ---- First-open reminder: ask a signed-in doctor to turn notifications on (browsers need one tap to allow) ----
+function notifPromptSnoozed(){ try{ const t = +localStorage.getItem('notifPromptSnooze') || 0; return Date.now() < t; }catch(e){ return false; } }
+function notifPromptSnooze(days){ try{ localStorage.setItem('notifPromptSnooze', String(Date.now() + days*86400000)); }catch(e){} }
+async function maybeShowNotifPrompt(){
+  const box = el('notifPrompt');
+  if(!box) return;
+  const hide = ()=>{ box.style.display = 'none'; };
+  try{
+    if(!signedInDoctor || notifPromptSnoozed()){ hide(); return; }
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    const supported = ('serviceWorker' in navigator) && ('PushManager' in window);
+    if(typeof Notification !== 'undefined' && Notification.permission === 'denied'){ hide(); return; }
+    let existing = null;
+    if(supported){
+      const reg = swRegistration || await navigator.serviceWorker.getRegistration('./');
+      existing = reg ? await reg.pushManager.getSubscription() : null;
+    }
+    if(existing){ hide(); return; }
+    const msg = el('notifPromptMsg'), go = el('notifPromptGo');
+    if(isIOS && !standalone){
+      msg.innerHTML = '<b>Get alerts when appointments change</b><br>On iPhone: tap Share, then <b>Add to Home Screen</b>, then open Musaed from the new icon and turn notifications on.<br><span dir="rtl">عشان توصلك تنبيهات: Share ثم Add to Home Screen وافتح التطبيق من الأيقونة.</span>';
+      go.style.display = 'none';
+    } else if(supported){
+      msg.innerHTML = '<b>Turn on notifications</b><br>Get an alert on this phone when a patient cancels or an appointment changes, even when the app is closed.<br><span dir="rtl">فعّل التنبيهات عشان يوصلك إشعار لما مريض يلغي أو ميعاد يتغير.</span>';
+      go.style.display = '';
+    } else { hide(); return; }
+    box.style.display = 'block';
+  }catch(e){ hide(); }
+}
+document.addEventListener('click', async (ev)=>{
+  const t = ev.target && ev.target.closest ? ev.target.closest('#notifPromptGo, #notifPromptLater') : null;
+  if(!t) return;
+  if(t.id === 'notifPromptLater'){ notifPromptSnooze(3); el('notifPrompt').style.display = 'none'; return; }
+  t.disabled = true;
+  await enableNotifications();
+  t.disabled = false;
+  const txt = (el('notificationsStatus').textContent || '');
+  if(/are on|on for this device/i.test(txt)){ el('notifPrompt').style.display = 'none'; }
+  else { el('notifPromptErr').textContent = txt; }
+});
+
 trySilentResumeSignIn();
 loadSessions().then(()=>{
   if(Object.keys(sessions).length === 0){
@@ -14221,5 +14264,13 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   document.addEventListener('click',function(e){ if(e.target&&e.target.id==='branchesGo') window.loadBranches(); });
 })();
 </script>
+<div id="notifPrompt" style="display:none;position:fixed;left:12px;right:12px;bottom:84px;z-index:9000;background:#fff;border:1px solid #cfe3de;border-radius:16px;box-shadow:0 8px 28px rgba(0,0,0,.18);padding:14px 16px;max-width:520px;margin:0 auto;font-size:.92rem;line-height:1.5;color:#1c2a28;">
+  <div id="notifPromptMsg"></div>
+  <div id="notifPromptErr" style="color:#b3261e;font-size:.82rem;margin-top:4px;"></div>
+  <div style="display:flex;gap:8px;margin-top:10px;">
+    <button type="button" id="notifPromptGo" style="flex:1;background:#1f5c56;color:#fff;border:0;border-radius:12px;padding:10px;font-weight:700;font-size:.95rem;">Turn on</button>
+    <button type="button" id="notifPromptLater" style="flex:1;background:#fff;color:#1c2a28;border:1px solid #d9d4c7;border-radius:12px;padding:10px;font-size:.95rem;">Later</button>
+  </div>
+</div>
 </body>
 </html>
