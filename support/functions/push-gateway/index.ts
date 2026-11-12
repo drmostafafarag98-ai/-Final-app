@@ -54,7 +54,8 @@ Deno.serve(async (req) => {
       const list = emails.map((e) => `"${e.replace(/"/g, "")}"`).join(",");
       const r = await fetch(`${URL_}/rest/v1/push_subscriptions?clinic=eq.${encodeURIComponent(b.clinic)}&email=in.(${encodeURIComponent(list)})&select=endpoint,subscription`, { headers: H });
       const subs = await r.json();
-      if (!Array.isArray(subs) || subs.length === 0) return json({ ok: true, sent: 0 });
+      const logIt = (found: number, sent: number) => fetch(`${URL_}/rest/v1/push_log`, { method: "POST", headers: H, body: JSON.stringify({ clinic: String(b.clinic), emails, found, sent, title: b.title || null, body: b.body || null }) }).catch(() => {});
+      if (!Array.isArray(subs) || subs.length === 0) { await logIt(0, 0); return json({ ok: true, sent: 0 }); }
       const v = await vapid();
       webpush.setVapidDetails("mailto:support@musaedapp.com", v.pub, v.priv);
       const payload = JSON.stringify({ title: b.title || "Musaed", body: b.body || "", tag: b.tag || "musaed-appointment" });
@@ -69,6 +70,7 @@ Deno.serve(async (req) => {
             await fetch(`${URL_}/rest/v1/push_subscriptions?endpoint=eq.${encodeURIComponent(row.endpoint)}`, { method: "DELETE", headers: H });
         }
       }));
+      await logIt(subs.length, sent);
       return json({ ok: true, sent });
     }
     return json({ error: "unknown action" }, 400);
