@@ -7794,6 +7794,79 @@ async function addPayrollAdjustment(){
   }catch(e){ st.style.color = 'var(--danger)'; st.textContent = 'Could not save: ' + (e.message || e) + ' (did you run the SQL?)'; }
 }
 el('adjAddBtn').addEventListener('click', addPayrollAdjustment);
+// ---- Payroll payout: tick "paid" and record the cash / InstaPay split as ordinary doctor withdrawals ----
+// No new tables: each payout is a normal withdrawal whose note starts with "payroll:FROM..TO" so it can be found and undone.
+let __payrollPeriod = { from: '', to: '', wd: [] };
+function payrollPayoutBlock(row, withdrawn, remaining, fmt){
+  const key = String(row.doctorName).replace(/"/g, '&quot;');
+  const mine = (__payrollPeriod.wd || []).filter(w=> (w.__key === row.doctorName) && String(w.note || '').indexOf('payroll:' + __payrollPeriod.from + '..' + __payrollPeriod.to) === 0);
+  const paidFull = withdrawn > 0 && remaining <= 0.5;
+  const undo = mine.length ? `<div style="margin-top:6px;font-size:0.74rem;color:#5b6863;">${mine.map(w=> `${w.payment_method === 'instapay' ? 'InstaPay' : 'Cash'} ${fmt(parseFloat(w.amount))} EGP · ${escapeHtml(w.withdrawal_date)} <button type="button" class="payout-undo" data-id="${w.id}" style="border:none;background:transparent;color:var(--danger);text-decoration:underline;cursor:pointer;font-size:0.74rem;">undo</button>`).join('<br>')}</div>` : '';
+  if(paidFull){
+    return `<div style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#e8f5ec;color:#1b6b3a;font-size:0.82rem;font-weight:700;">✅ Paid in full${undo ? '' : ' (from withdrawals)'}${undo}</div>`;
+  }
+  const rem = Math.max(0, Math.round(remaining));
+  return `<div class="payout-box" data-doc="${key}" style="margin-top:8px;padding:8px 10px;border-radius:10px;background:#f6f4ee;">
+    <label style="display:flex;align-items:center;gap:8px;font-size:0.84rem;font-weight:700;cursor:pointer;"><input type="checkbox" class="payout-tick" style="width:18px;height:18px;"> Doctor was paid (${fmt(rem)} EGP left)</label>
+    <div class="payout-fields" style="display:none;margin-top:8px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <label style="font-size:0.78rem;">Cash <input type="number" class="payout-cash" inputmode="decimal" value="${rem}" style="width:92px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;"></label>
+        <label style="font-size:0.78rem;">InstaPay <input type="number" class="payout-insta" inputmode="decimal" value="0" style="width:92px;padding:7px 8px;border:1px solid var(--line);border-radius:8px;"></label>
+        <button type="button" class="ghost payout-save">Save</button>
+      </div>
+      <div class="payout-msg" style="font-size:0.76rem;color:#8a938e;margin-top:4px;">Split what he/she took between cash and InstaPay. Leave one at 0 if it was all one way.</div>
+    </div>${undo}
+  </div>`;
+}
+function wirePayrollPayouts(rows){
+  const root = el('payrollTable');
+  root.querySelectorAll('.payout-tick').forEach(cb=>{
+    cb.addEventListener('change', ()=>{ cb.closest('.payout-box').querySelector('.payout-fields').style.display = cb.checked ? 'block' : 'none'; });
+  });
+  root.querySelectorAll('.payout-box').forEach(box=>{
+    const doc = box.getAttribute('data-doc');
+    const row = rows.find(r=> r.doctorName === doc);
+    const msg = box.querySelector('.payout-msg');
+    const btn = box.querySelector('.payout-save');
+    if(!btn) return;
+    btn.addEventListener('click', async ()=>{
+      const cash = parseFloat(box.querySelector('.payout-cash').value) || 0;
+      const insta = parseFloat(box.querySelector('.payout-insta').value) || 0;
+      if(cash < 0 || insta < 0 || cash + insta <= 0){ msg.style.color = 'var(--danger)'; msg.textContent = 'Enter an amount in Cash and/or InstaPay.'; return; }
+      const withdrawn = (__payrollPeriod.wd || []).filter(w=> w.__key === doc).reduce((a,w)=> a + parseFloat(w.amount || 0), 0);
+      const left = (row && row.totalPay != null ? row.totalPay : 0) - withdrawn;
+      if(cash + insta > left + 0.5 && !confirm(`This is ${Math.round(cash + insta - left).toLocaleString()} EGP more than what is left to pay. Save anyway?`)) return;
+      // Date it today if today is inside the payroll period, else the last day of the period, so the payroll above counts it.
+      const today = new Date().toISOString().slice(0,10);
+      const date = (today >= __payrollPeriod.from && today <= __payrollPeriod.to) ? today : __payrollPeriod.to;
+      const note = `payroll:${__payrollPeriod.from}..${__payrollPeriod.to}`;
+      btn.disabled = true; msg.style.color = '#8a938e'; msg.textContent = 'Saving…';
+      try{
+        const sends = [];
+        if(cash > 0) sends.push({ doctorName: doc, amount: cash, paymentMethod: 'cash', withdrawalDate: date, note });
+        if(insta > 0) sends.push({ doctorName: doc, amount: insta, paymentMethod: 'instapay', withdrawalDate: date, note });
+        for(const body of sends){
+          const r = await fetch(`${BACKEND_URL}/api/doctor-withdrawals`, { method:'POST', headers: Object.assign({'Content-Type':'application/json'}, authHeader()), body: JSON.stringify(body) });
+          if(!r.ok) throw new Error('Server error ' + r.status);
+        }
+        calculatePayroll();
+        loadWithdrawals();
+      }catch(e){ btn.disabled = false; msg.style.color = 'var(--danger)'; msg.textContent = 'Could not save: ' + (e.message || e) + ' — check the Withdrawals list before trying again.'; }
+    });
+  });
+  root.querySelectorAll('.payout-undo').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('Undo this payout? The withdrawal will be deleted.')) return;
+      b.disabled = true;
+      try{
+        const r = await fetch(`${BACKEND_URL}/api/doctor-withdrawals/${encodeURIComponent(b.getAttribute('data-id'))}`, { method:'DELETE', headers: authHeader() });
+        if(!r.ok) throw new Error('Server error ' + r.status);
+        calculatePayroll();
+        loadWithdrawals();
+      }catch(e){ b.disabled = false; alert('Could not undo: ' + (e.message || e)); }
+    });
+  });
+}
 async function calculatePayroll(){
   if(!PAYROLL_RULES.length){ try{ await loadClinicConfig(); }catch(e){} }
   if(!PAYROLL_RULES.length){
@@ -7843,8 +7916,10 @@ async function calculatePayroll(){
     withdrawalRows.forEach(w=>{
       const rule = matchPayrollRule(w.doctor_name);
       const key = rule ? rule.label : (w.doctor_name || 'Unassigned');
+      w.__key = key;
       withdrawnByDoctor[key] = (withdrawnByDoctor[key] || 0) + parseFloat(w.amount || 0);
     });
+    __payrollPeriod = { from: fromVal, to: toVal, wd: withdrawalRows };
     const active = items.filter(ev=> ev.status !== 'cancelled');
     const paidNoteRe = /^paid\s+([\d.,]+)\s*egp\s*\((cash|instapay)\)/i;
 
@@ -8077,9 +8152,11 @@ async function calculatePayroll(){
       ${row.ownItems ? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:0.78rem;color:var(--maroon);font-weight:700;">Tick the patients he/she brought (${row.ownItems.filter(x=> x.own).length} of ${row.ownItems.length})</summary>${row.ownItems.map(x=> `<label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;padding:5px 0;border-bottom:1px solid var(--line);"><input type="checkbox" class="own-pt" data-id="${escapeHtml(x.id)}"${x.own ? ' checked' : ''}><span style="flex:1;">${escapeHtml(x.date)} · ${escapeHtml(x.name)}</span><b>${fmt(x.amount)}</b></label>`).join('') || '<div style="font-size:0.76rem;color:#8a938e;">No paid visits in this period.</div>'}</details>` : ''}
       ${(row.excludedItems || []).slice(0, 8).map(x=> `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px;padding:4px 8px;background:#fdf3f2;border-radius:8px;"><span style="font-size:0.74rem;color:#a33d3d;">${escapeHtml(x.name)} · ${fmt(x.amount)} EGP — ${escapeHtml(x.why)}</span><button type="button" class="ghost payroll-fix-btn" data-id="${escapeHtml(String(x.id))}" data-why="${escapeHtml(x.why)}" style="font-size:0.72rem;padding:4px 10px;flex-shrink:0;">Count it</button></div>`).join('')}` : ''}
       ${withdrawn > 0 ? `<div style="font-size:0.76rem;margin-top:4px;padding-top:4px;border-top:1px dashed var(--line);color:${remaining < 0 ? 'var(--danger)' : '#1b8a4a'};">Withdrawn so far: ${fmt(withdrawn)} EGP · ${remaining < 0 ? `Over by ${fmt(Math.abs(remaining))} EGP` : `Remaining: ${fmt(remaining)} EGP`}</div>` : ''}
+      ${row.totalPay != null ? payrollPayoutBlock(row, withdrawn, remaining, fmt) : ''}
     </div>`;
     }).join('');
     window.__payrollFixWire();
+    wirePayrollPayouts(rows);
   }catch(e){
     console.error(e);
     el('payrollStatus').textContent = 'Could not calculate: ' + (e.message || e);
