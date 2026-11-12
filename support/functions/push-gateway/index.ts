@@ -50,11 +50,11 @@ Deno.serve(async (req) => {
     }
     if (b.action === "notify") {
       const emails: string[] = (b.emails || []).map((e: string) => String(e).toLowerCase());
-      if (!b.clinic || emails.length === 0) return json({ ok: true, sent: 0 });
+      const logIt = (found: number, sent: number) => fetch(`${URL_}/rest/v1/push_log`, { method: "POST", headers: H, body: JSON.stringify({ clinic: String(b.clinic), emails, found, sent, title: b.title || null, body: b.body || null }) }).catch(() => {});
+      if (!b.clinic || emails.length === 0) { if (b.clinic) await logIt(0, 0); return json({ ok: true, sent: 0 }); }
       const list = emails.map((e) => `"${e.replace(/"/g, "")}"`).join(",");
       const r = await fetch(`${URL_}/rest/v1/push_subscriptions?clinic=eq.${encodeURIComponent(b.clinic)}&email=in.(${encodeURIComponent(list)})&select=endpoint,subscription`, { headers: H });
       const subs = await r.json();
-      const logIt = (found: number, sent: number) => fetch(`${URL_}/rest/v1/push_log`, { method: "POST", headers: H, body: JSON.stringify({ clinic: String(b.clinic), emails, found, sent, title: b.title || null, body: b.body || null }) }).catch(() => {});
       if (!Array.isArray(subs) || subs.length === 0) { await logIt(0, 0); return json({ ok: true, sent: 0 }); }
       const v = await vapid();
       webpush.setVapidDetails("mailto:support@musaedapp.com", v.pub, v.priv);
