@@ -13810,7 +13810,7 @@ function onboardText(row){
   L.push('');
   L.push('Payments: ' + [p.cash ? 'cash' : '', p.instapay ? 'InstaPay' : ''].filter(Boolean).join(', ') + ' | InstaPay link: ' + (p.instapay_url || '') + ' | handle: ' + (p.instapay_handle || ''));
   L.push(''); L.push('TEAM:');
-  (d.team || []).forEach(t=> L.push(`- ${t.name} (${t.role}) ${t.email || ''} | pay: ${t.pay}${t.percent ? ' ' + t.percent + '%' : ''}${t.fixed ? ' fixed ' + t.fixed : ''}${t.per_session ? ' per session ' + t.per_session : ''} | days: ${(t.days || []).join(',')} ${t.shift_from || ''}-${t.shift_to || ''}`));
+  (d.team || []).forEach(t=> L.push(`- ${t.name} (${t.role}) ${t.email || ''} ${t.pay ? ' | pay: ' + t.pay : ''}${t.percent ? ' ' + t.percent + '%' : ''}${t.fixed ? ' fixed ' + t.fixed : ''}${t.per_session ? ' per session ' + t.per_session : ''} | days: ${(t.days || []).join(',')} ${t.shift_from || ''}-${t.shift_to || ''}`));
   L.push(''); L.push('SERVICES:');
   (d.services || []).forEach(s=> L.push(`- ${s.name} | ${s.type} | ${s.price} EGP${s.sessions ? ' | ' + s.sessions + ' sessions' : ''}`));
   if(d.package_validity) L.push('Package validity: ' + d.package_validity);
@@ -13835,6 +13835,8 @@ function onboardSeedSql(row){
     const shifts = {}; if(t.shift_from && t.shift_to && t.shift_from < t.shift_to) days.forEach(x=> shifts[x] = [t.shift_from, t.shift_to]);
     hr.push({ label: name, keyword: kw, kind: t.role === 'secretary' ? 'secretary' : 'doctor', days, shifts, allowance: 0, case_rate: 0 });
     const pct = (parseFloat(t.percent) || 0) / 100;
+    // The form no longer asks about pay (kept private): only seed a payroll rule if the form still carries one.
+    if(!t.pay) return;
     if(t.role === 'secretary' || t.pay === 'fixed') rules.push({ keyword: kw, kind: 'fixed_plus_rate', label: name, fixed: parseFloat(t.fixed) || 0, rate: 0 });
     else if(t.pay === 'fixed_rate') rules.push({ keyword: kw, kind: 'fixed_plus_rate', label: name, fixed: parseFloat(t.fixed) || 0, rate: parseFloat(t.per_session) || 0 });
     else if(t.pay === 'partner') rules.push({ keyword: kw, kind: 'partner', label: name, share: pct || 0.5 });

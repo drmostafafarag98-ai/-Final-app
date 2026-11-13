@@ -71,7 +71,7 @@
   </div>
 
   <div class="card"><h2>4. The team · الفريق</h2>
-    <div class="hint">Add everyone who works at the clinic: doctors, nutritionist, secretary. · ضيف كل اللي بيشتغل في العيادة.</div>
+    <div class="hint">Add everyone who works at the clinic: doctors, nutritionist, secretary. Names and roles only — salaries and percentages are set later, inside the app. · ضيف كل اللي بيشتغل في العيادة (الأسامي بس، المرتبات بتتحط بعدين جوه التطبيق).</div>
     <div id="team"></div>
     <button type="button" class="add" id="addTeam">+ Add a person</button>
   </div>
@@ -84,13 +84,8 @@
     <label>Cancellation policy <small>سياسة الإلغاء (مثلاً قبلها بـ5 ساعات)</small></label><textarea id="cancel_policy"></textarea>
   </div>
 
-  <div class="card"><h2>6. Monthly fixed costs · المصاريف الثابتة</h2>
-    <div class="hint">Rent, doorman, internet, ads... · الإيجار والبواب والنت والإعلانات.</div>
-    <div id="fixed"></div>
-    <button type="button" class="add" id="addFixed">+ Add a cost</button>
-  </div>
 
-  <div class="card"><h2>7. Online booking · الحجز أونلاين</h2>
+  <div class="card"><h2>6. Online booking · الحجز أونلاين</h2>
     <label>Do you want patients to book online?</label>
     <select id="online_booking"><option value="yes">Yes</option><option value="no">No</option><option value="later">Maybe later</option></select>
     <label>Session length in minutes <small>مدة الجلسة بالدقايق</small></label><input id="slot_minutes" type="number" placeholder="30">
@@ -98,12 +93,12 @@
     <label>How do patients find the clinic? <small>إزاي المريض يوصل للعيادة (الدور، الأسانسير، كود الباب)</small></label><textarea id="directions"></textarea>
   </div>
 
-    <div class="card"><h2>8. Patient messages · رسائل المرضى</h2>
+    <div class="card"><h2>7. Patient messages · رسائل المرضى</h2>
     <p style="font-size:0.82rem;color:#5b6863;margin:0 0 6px;">These are the WhatsApp messages the system sends to patients. Read each one, edit it the way you like, or keep it as it is. Don't change the words inside { } — the system fills them in automatically (for example {name} = patient name, {clinic} = your clinic name, {date} and {time} = the visit).<br>دي الرسائل اللي السيستم بيبعتها للمرضى. اقرأ كل رسالة وعدّلها زي ما تحب أو سيبها زي ما هي. ما تغيّرش الكلمات اللي بين { } لأن السيستم بيملاها لوحده.</p>
     <div id="tpls"></div>
   </div>
 
-  <div class="card"><h2>9. Accounts and name · الحسابات</h2>
+  <div class="card"><h2>8. Accounts and name · الحسابات</h2>
     <label>Preferred web address <small>الاسم المطلوب للعنوان (مثلاً: yourclinic)</small></label><input id="subdomain" placeholder="yourclinic">
     <label>Anything else we should know? <small>أي حاجة تانية</small></label><textarea id="notes"></textarea>
   </div>
@@ -119,10 +114,6 @@ function rowHtml(inner){ return '<div class="row"><button type="button" class="d
 function teamRow(){
   return rowHtml(`<div class="grid"><div><label>Name</label><input class="t_name"></div><div><label>Role</label><select class="t_role"><option value="doctor">Doctor</option><option value="partner">Partner doctor</option><option value="nutritionist">Nutritionist</option><option value="secretary">Secretary</option><option value="other">Other</option></select></div></div>
   <label>Gmail (to sign in) <small>اختياري</small></label><input class="t_email" type="email">
-  <label>How is this person paid?</label>
-  <select class="t_pay"><option value="share">A % of the money they collect</option><option value="fixed">Fixed monthly salary</option><option value="fixed_rate">Fixed + amount per session</option><option value="partner">Partner (% + share of profit)</option></select>
-  <div class="grid"><div><label>% <small>النسبة</small></label><input class="t_pct" type="number"></div><div><label>Fixed salary <small>الثابت</small></label><input class="t_fixed" type="number"></div></div>
-  <label>Per session <small>عن كل جلسة (لو فيه)</small></label><input class="t_rate" type="number">
   <label>Working days and shift hours <small>أيام الشغل ومواعيد الشفت</small></label>
   <div class="days">${DAYS.map(d=>`<label><input type="checkbox" class="t_day" value="${d}">${d}</label>`).join('')}</div>
   <div class="grid"><div><label>Shift from</label><input class="t_from" type="time"></div><div><label>Shift to</label><input class="t_to" type="time"></div></div>`);
@@ -132,15 +123,11 @@ function serviceRow(){
   <label>Type</label><select class="s_type"><option value="checkup">Check-up (كشف)</option><option value="session">Session (جلسة)</option><option value="recovery">Recovery (ريكفري)</option><option value="package">Package (باكدج)</option><option value="other">Other</option></select>
   <label>Number of sessions in it <small>لو باكدج: كام جلسة</small></label><input class="s_count" type="number">`);
 }
-function fixedRow(){
-  return rowHtml(`<div class="grid"><div><label>What</label><input class="f_name" placeholder="Rent"></div><div><label>Amount per month</label><input class="f_amount" type="number"></div></div>`);
-}
 function wireDel(root){ root.querySelectorAll('.del').forEach(b=> b.onclick = ()=> b.closest('.row').remove()); }
 function add(listId, fn){ const l = $(listId); l.insertAdjacentHTML('beforeend', fn()); wireDel(l); }
 $('addTeam').onclick = ()=> add('team', teamRow);
 $('addService').onclick = ()=> add('services', serviceRow);
-$('addFixed').onclick = ()=> add('fixed', fixedRow);
-add('team', teamRow); add('services', serviceRow); add('fixed', fixedRow);
+add('team', teamRow); add('services', serviceRow);
 
 const imgs = { logo:'', stamp:'' };
 function resize(file, maxW, cb){
@@ -175,16 +162,14 @@ $('f').addEventListener('submit', async e=>{
   if(!v('name') && !v('name_ar')){ msg.style.color = '#a33'; msg.textContent = 'Please write the clinic name.'; return; }
   const team = Array.from(document.querySelectorAll('#team .row')).map(r=>({
     name: r.querySelector('.t_name').value.trim(), role: r.querySelector('.t_role').value, email: r.querySelector('.t_email').value.trim(),
-    pay: r.querySelector('.t_pay').value, percent: r.querySelector('.t_pct').value, fixed: r.querySelector('.t_fixed').value, per_session: r.querySelector('.t_rate').value,
     days: Array.from(r.querySelectorAll('.t_day:checked')).map(c=>c.value), shift_from: r.querySelector('.t_from').value, shift_to: r.querySelector('.t_to').value
   })).filter(x=> x.name);
   const services = Array.from(document.querySelectorAll('#services .row')).map(r=>({ name: r.querySelector('.s_name').value.trim(), price: r.querySelector('.s_price').value, type: r.querySelector('.s_type').value, sessions: r.querySelector('.s_count').value })).filter(x=> x.name);
-  const fixed = Array.from(document.querySelectorAll('#fixed .row')).map(r=>({ name: r.querySelector('.f_name').value.trim(), amount: r.querySelector('.f_amount').value })).filter(x=> x.name);
   const body = { website: v('website'), clinic_name: v('name') || v('name_ar'), data: {
     owner: { name: v('owner_name'), phone: v('owner_phone'), email: v('owner_email') },
     clinic: { name: v('name'), name_ar: v('name_ar'), tagline: v('tagline'), address: v('address'), address_ar: v('address_ar'), map_url: v('map_url'), phone: v('phone'), social: v('social'), review_url: v('review_url'), logo: imgs.logo, stamp: imgs.stamp },
     payments: { cash: $('pay_cash').checked, instapay: $('pay_insta').checked, instapay_url: v('instapay_url'), instapay_handle: v('instapay_handle') },
-    team, services, package_validity: v('package_validity'), cancel_policy: v('cancel_policy'), fixed_costs: fixed,
+    team, services, package_validity: v('package_validity'), cancel_policy: v('cancel_policy'),
     booking: { online: $('online_booking').value, slot_minutes: v('slot_minutes'), opening: v('opening'), directions: v('directions') },
     templates: Object.fromEntries(Array.from(document.querySelectorAll('.tpl')).map(t=>[t.dataset.k, t.value.trim()]).filter(x=>x[1])),
     accounts: { subdomain: v('subdomain'), notes: v('notes') } } };
