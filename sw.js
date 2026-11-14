@@ -20,7 +20,7 @@ self.addEventListener('push', (event) => {
   }
   const options = {
     body: data.body || '',
-    tag: data.tag || 'empower-appointment',
+    tag: data.tag || ('musaed-' + Date.now()),
     renotify: true,
     icon: './icon-192.png',
   };
