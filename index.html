@@ -4789,7 +4789,38 @@ function newSessionId(){
   return 'sess_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
 }
 
+// The patient files cached in this browser belong to ONE clinic. The same browser can be used
+// for several clinics (same address), so when the clinic changes, take the old clinic's cached
+// files out of the way: files already saved on that clinic's server are dropped (they come back
+// when you sign in there); files NOT saved yet are moved to a backup key, never deleted.
+// Before clinic codes existed everything on a device was Empower's, so no stamp = EMPOWER.
+async function guardClinicCache(){
+  try{
+    const cur = (localStorage.getItem('clinic_code') || 'EMPOWER').toUpperCase();
+    const prev = (localStorage.getItem('cache_clinic') || 'EMPOWER').toUpperCase();
+    if(cur !== prev){
+      let synced = [];
+      try{ synced = JSON.parse((await localDB.get('synced_session_ids')).value) || []; }catch(e){}
+      const syncedSet = new Set(synced);
+      const list = await localDB.list('session:');
+      for(const key of (list.keys || [])){
+        const id = key.slice('session:'.length);
+        try{
+          if(!syncedSet.has(id)){
+            const v = localStorage.getItem(key);
+            if(v != null) localStorage.setItem('session_backup:' + prev + ':' + id, v);
+          }
+          localStorage.removeItem(key);
+        }catch(e){}
+      }
+      try{ localStorage.removeItem('synced_session_ids'); }catch(e){}
+    }
+    localStorage.setItem('cache_clinic', cur);
+  }catch(e){ console.error('guardClinicCache', e); }
+}
+
 async function loadSessions(){
+  await guardClinicCache();
   try{
     const list = await localDB.list('session:');
     if(list && list.keys){
