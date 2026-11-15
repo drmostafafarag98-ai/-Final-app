@@ -10885,6 +10885,10 @@ function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
     ls.splice(at + 1, 0, '', '{link_line}');
     text = ls.join('\n');
   }
+  // Same for the location: a clinic's own confirmation text without {address}/{map} still gets the address + map link at the end.
+  if(key === 'confirmation' && custom && custom.trim() && (CLINIC.address || CLINIC.map_url) && !/\{(address|map)(_line)?\}/.test(text)){
+    text = String(text).replace(/\s+$/, '') + '\n\n{address_line}{map_line}';
+  }
   return clinicFill(text, clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra));
 }
 const WHATSAPP_TEMPLATES = {
