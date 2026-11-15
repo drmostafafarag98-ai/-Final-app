@@ -10885,6 +10885,11 @@ function clinicBuild(key, name, dateStrEn, timeStrEn, elevatorCode, extra){
     ls.splice(at + 1, 0, '', '{link_line}');
     text = ls.join('\n');
   }
+  // A clinic's own intake message with a link typed into it (e.g. an old tinyurl) instead of {intake}:
+  // swap that link for {intake}, so it always follows Settings (empty field = the clinic's own /intake page).
+  if(key === 'intake_form' && custom && custom.trim() && !/\{intake\}/.test(text)){
+    text = /https?:\/\/\S+/.test(text) ? String(text).replace(/https?:\/\/\S+/, '{intake}') : String(text).replace(/\s+$/, '') + '\n\n{intake}';
+  }
   // Same for the location: a clinic's own confirmation text without {address}/{map} still gets the address + map link at the end.
   if(key === 'confirmation' && custom && custom.trim() && (CLINIC.address || CLINIC.map_url) && !/\{(address|map)(_line)?\}/.test(text)){
     text = String(text).replace(/\s+$/, '') + '\n\n{address_line}{map_line}';
