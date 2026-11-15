@@ -13942,6 +13942,19 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
 (function(){
   function g(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
   function st(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  // Invite link: app.musaedapp.com/?clinic=CODE picks that clinic for the doctor, so they never type the code.
+  (function(){
+    var want=''; try{ want=(new URLSearchParams(location.search).get('clinic')||'').trim().toUpperCase().replace(/\s+/g,''); }catch(e){}
+    if(!want) return;
+    function clean(){ try{ var u=new URL(location.href); u.searchParams.delete('clinic'); history.replaceState(null,'',u.pathname+(u.search||'')+u.hash); }catch(e){} }
+    if(want===g('clinic_code').toUpperCase() && g('clinic_backend')){ clean(); return; }
+    fetch('clinics.json?'+Date.now(),{cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+      var c=(j.clinics||{})[want];
+      if(!c || !/^https:\/\//.test(c.backend||'')){ clean(); return; }
+      st('clinic_code',want); st('clinic_name',c.name||want); st('clinic_backend',c.backend.replace(/\/+$/,''));
+      clean(); location.reload();
+    }).catch(function(){ clean(); });
+  })();
   document.addEventListener('DOMContentLoaded', function(){
     var step=document.getElementById('clinicStep'), bar=document.getElementById('clinicBar'), fields=document.getElementById('loginFields');
     if(!step) return;
