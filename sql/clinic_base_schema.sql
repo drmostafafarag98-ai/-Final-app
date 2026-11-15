@@ -333,4 +333,14 @@ insert into storage.buckets (id, name, public) values
   ('booking-deposits', 'booking-deposits', false)
 on conflict (id) do nothing;
 
+-- The server uses the service_role key. New Supabase projects do NOT give service_role rights on
+-- tables made in the SQL editor, so without this every request fails with
+-- "permission denied for table ...". anon/authenticated get nothing (the app only talks to server.js).
+grant usage on schema public to service_role;
+grant all on all tables in schema public to service_role;
+grant all on all sequences in schema public to service_role;
+grant execute on all functions in schema public to service_role;
+alter default privileges in schema public grant all on tables to service_role;
+alter default privileges in schema public grant all on sequences to service_role;
+
 notify pgrst, 'reload schema';
