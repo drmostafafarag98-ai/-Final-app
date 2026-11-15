@@ -10853,7 +10853,7 @@ function clinicVars(name, dateStrEn, timeStrEn, elevatorCode, extra){
     // The message links to the clinic's friendly /pay page (intro + steps + a Pay button), not straight to InstaPay.
     instapay_url: (CLINIC.instapay_url || CLINIC.instapay_handle) ? `${BACKEND_URL}/pay?n=${encodeURIComponent(name || '')}${amount ? '&a=' + encodeURIComponent(amount) : ''}${amount && extra.reason ? '&r=' + encodeURIComponent(extra.reason) : ''}` : '',
     instapay_direct: CLINIC.instapay_url, instapay_handle: CLINIC.instapay_handle,
-    review: CLINIC.review_url, intake: CLINIC.intake_url,
+    review: CLINIC.review_url, intake: CLINIC.intake_url || `${BACKEND_URL}/intake`, // empty field = the clinic's own form page on its domain
     amount_line: amount ? `Amount due: ${amount} EGP${extra.reason ? ' (' + extra.reason + ')' : ''}\n\n` : '',
     // The patient's own page (sessions, upcoming visits, cancel, book, intake). Empty unless the clinic turned it on.
     link: (extra && extra.link) || '',
@@ -13785,7 +13785,7 @@ function renderClinicForm(){
     ${clinicField('clInstaUrl','InstaPay payment link',C.instapay_url,'https://ipn.eg/...')}
     ${clinicField('clInstaHandle','InstaPay address',C.instapay_handle,'name@instapay')}
     ${clinicField('clReview','Google review link',C.review_url,'')}
-    ${clinicField('clIntake','Patient intake form link',C.intake_url,'')}
+    ${clinicField('clIntake','Patient intake form link (leave empty to use your clinic\'s own form page)',C.intake_url,(BACKEND_URL||'')+'/intake')}
     <div style="font-weight:700;margin:20px 0 2px;">Logo and stamp</div>
     <div style="font-size:0.74rem;color:#8a938e;">The logo shows on invoices, prescriptions and your public pages. The stamp (optional) prints on prescriptions and invoices. Without a logo, your clinic name is used.</div>
     <label style="font-size:0.76rem;color:#5b6863;display:block;margin-top:10px;">Logo (PNG or JPG)</label>
