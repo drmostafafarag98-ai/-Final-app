@@ -20,6 +20,17 @@
   Supabase `booking_settings.data.features` — not code differences.
 - `demo.html` is a separate demo copy with fake data; it is not kept in sync with `index.html`.
 
+## New clinic checklist / clinic data access
+- Claude has NO access to any clinic's Supabase (owner's decision, also to keep the owner's own
+  Supabase free-plan quota for `musaed-support`). For clinic data problems, diagnose from the code
+  and the clinic's server, then give the owner SQL to paste in that clinic's SQL Editor.
+- New clinic: run `sql/clinic_base_schema.sql` (includes the `service_role` grants; without them the
+  server fails with "permission denied for table ..."; one-off fix: `sql/fix_service_role_grants.sql`).
+  On Render, `SUPABASE_URL` must be `https://<ref>.supabase.co` (`.co`, not `.com`) and
+  `SUPABASE_SERVICE_KEY` the secret/service_role key. Add the code to `clinics.json`.
+- Quick server check without touching data: POST `/api/auth/login` with a fake email should return
+  401 "Wrong email or password" ("fetch failed" = wrong SUPABASE_URL; "permission denied" = grants).
+
 ## Support system ("عندي مشكلة") — plan and status
 Goal: a doctor at any clinic hits a problem while the owner is away, writes it in the app, and
 Claude reads it, answers or fixes it, and the doctor sees the reply in the app.
