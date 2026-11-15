@@ -31,6 +31,7 @@
   First sign-in creates a `pending` doctor (calendar empty, no Stats/Booking). The owner then opens
   Settings → "First time setting this clinic up?" and enters the Render env `OWNER_SECRET`
   (`/api/doctors/bootstrap-owner`) to become owner.
+- Invite link for a clinic's doctors: `https://app.musaedapp.com/?clinic=CODE` (picks the clinic, no code typing).
 - Quick server check without touching data: POST `/api/auth/login` with a fake email should return
   401 "Wrong email or password" ("fetch failed" = wrong SUPABASE_URL; "permission denied" = grants).
 
