@@ -7,6 +7,10 @@
     "PHYSIOHUB": {
       "name": "Physio Hub",
       "backend": "https://physiohub.musaedapp.com"
+    },
+    "RECORRECT": {
+      "name": "ReCorrect Physiotherapy Clinic",
+      "backend": "https://recorrect.musaedapp.com"
     }
   }
 }
