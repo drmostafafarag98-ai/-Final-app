@@ -14260,7 +14260,11 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   var APP_VERSION = '2026-11';
   if(!SUPPORT_URL || !SUPPORT_KEY) return;
 
-  var IDS_KEY = 'support_report_ids', SEEN_KEY = 'support_seen_replies';
+  // Each clinic keeps its own list of reports on this device (the same browser can open several clinics).
+  // Before clinic codes everything was Empower's, so the old shared list moves to Empower.
+  var CLINIC_CODE = (function(){ try{ return (localStorage.getItem('clinic_code') || 'EMPOWER').toUpperCase(); }catch(e){ return 'EMPOWER'; } })();
+  var IDS_KEY = 'support_report_ids:' + CLINIC_CODE, SEEN_KEY = 'support_seen_replies';
+  try{ var legacy = localStorage.getItem('support_report_ids'); if(legacy != null){ if(localStorage.getItem('support_report_ids:EMPOWER') == null) localStorage.setItem('support_report_ids:EMPOWER', legacy); localStorage.removeItem('support_report_ids'); } }catch(e){}
   var recentErrors = [];
   function remember(kind, msg){
     try{
