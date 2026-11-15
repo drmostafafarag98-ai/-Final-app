@@ -28,6 +28,9 @@
   server fails with "permission denied for table ..."; one-off fix: `sql/fix_service_role_grants.sql`).
   On Render, `SUPABASE_URL` must be `https://<ref>.supabase.co` (`.co`, not `.com`) and
   `SUPABASE_SERVICE_KEY` the secret/service_role key. Add the code to `clinics.json`.
+  First sign-in creates a `pending` doctor (calendar empty, no Stats/Booking). The owner then opens
+  Settings → "First time setting this clinic up?" and enters the Render env `OWNER_SECRET`
+  (`/api/doctors/bootstrap-owner`) to become owner.
 - Quick server check without touching data: POST `/api/auth/login` with a fake email should return
   401 "Wrong email or password" ("fetch failed" = wrong SUPABASE_URL; "permission denied" = grants).
 
