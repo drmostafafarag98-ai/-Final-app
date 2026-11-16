@@ -16,8 +16,9 @@
 - `clinics.json` maps a clinic code to that clinic's backend URL.
 - Each clinic has its own backend (copy of `server.js` on its own Render), its own Supabase and
   its own accounts under the clinic's email. Keep `server.js` identical across clinics.
-- Per-clinic differences (booking / HR / team / docs) are feature flags stored in each clinic's
-  Supabase `booking_settings.data.features` — not code differences.
+- Every clinic gets the full app like Empower (owner's decision, Nov 2026): the booking / hr / team /
+  docs flags are ignored by the app. Still per clinic in `booking_settings.data.features`:
+  `branches` (opt-in) and `patientLink` (server: patient page + link in confirmations).
 - `demo.html` is a separate demo copy with fake data; it is not kept in sync with `index.html`.
 
 ## New clinic checklist / clinic data access
