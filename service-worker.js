@@ -1,3 +1,8 @@
+// Push notifications live in sw.js. Only ONE service worker can run for the app, so this one pulls
+// sw.js in: before, the app registered both files at the same scope, and whichever came last
+// replaced the other — when this one won, pushes arrived but nothing showed them.
+importScripts('./sw.js');
+
 // Minimal service worker — exists mainly to satisfy "installability" so the
 // browser offers Add to Home Screen / Install app. Deliberately uses a
 // network-first strategy for everything: it ALWAYS tries to fetch the
