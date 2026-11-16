@@ -7093,7 +7093,7 @@ function updateSignInStatusUI(){
   el('doctorSignOutEverywhereBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   el('enableNotificationsBtn').style.display = signedInDoctor ? 'inline-block' : 'none';
   if(signedInDoctor) refreshNotificationButtonLabel();
-  setTimeout(()=>{ try{ maybeShowNotifPrompt(); }catch(e){} }, 1500);
+  setTimeout(()=>{ try{ maybeShowNotifPrompt(); }catch(e){} try{ ensurePushAlive(true); }catch(e){} }, 1500);
   if(!signedInDoctor){
     el('checkinStatus').textContent = 'Not signed in.';
     el('checkinStatus').style.color = '#5b6863';
@@ -13573,7 +13573,8 @@ let swRegistration = null;
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try{
-    swRegistration = await navigator.serviceWorker.register('./sw.js');
+    // The same single worker the page registers on load (it includes sw.js's push handlers).
+    swRegistration = await navigator.serviceWorker.register('service-worker.js');
     return swRegistration;
   }catch(e){
     console.error('Service worker registration failed:', e);
@@ -13629,6 +13630,33 @@ async function enableNotifications(){
 
 el('enableNotificationsBtn').addEventListener('click', enableNotifications);
 registerServiceWorker();
+
+// ---- Keep notifications alive without asking again ----
+// Once the person allowed notifications, every app open (and every return to the app, at most every
+// 30 min) re-checks the device's subscription: makes a new one if the phone dropped it or it was made
+// with an old key, and re-sends it to the clinic server. Never shows a prompt; failures are silent.
+async function ensurePushAlive(force){
+  try{
+    if(!signedInDoctor || !('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if(typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const last = +(localStorage.getItem('pushAliveAt') || 0);
+    if(!force && Date.now() - last < 30*60*1000) return;
+    const reg = await registerServiceWorker();
+    if(!reg) return;
+    const want = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+    let sub = await reg.pushManager.getSubscription();
+    if(sub){
+      const k = sub.options && sub.options.applicationServerKey ? new Uint8Array(sub.options.applicationServerKey) : null;
+      const same = k && k.length === want.length && k.every((b,i)=> b === want[i]);
+      if(k && !same){ try{ await sub.unsubscribe(); }catch(e){} sub = null; }
+    }
+    if(!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: want });
+    const res = await fetch(`${BACKEND_URL}/api/push/subscribe`, { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() }, body: JSON.stringify({ subscription: sub }) });
+    if(res.ok){ try{ localStorage.setItem('pushAliveAt', String(Date.now())); }catch(e){} }
+    refreshNotificationButtonLabel();
+  }catch(e){ console.log('Push keep-alive skipped:', e); }
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') ensurePushAlive(false); });
 
 // ---- First-open reminder: ask a signed-in doctor to turn notifications on (browsers need one tap to allow) ----
 function notifPromptSnoozed(){ try{ const t = +localStorage.getItem('notifPromptSnooze') || 0; return Date.now() < t; }catch(e){ return false; } }
