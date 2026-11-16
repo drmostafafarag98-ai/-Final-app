@@ -14278,6 +14278,107 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     </div>
   </div>
 </div>
+<script id="notifCenter">
+// ---- In-app notification center (bell, top right) ----
+// 1) "Needs you": the reminder bars (training reminders, event-duty reminder) no longer pop up at the
+//    bottom; while one is active it is listed here with its own buttons. Add a bar's id to BARS to include it.
+// 2) "Latest": every push this device received (saved by sw.js) plus patient arrivals.
+// Red dot = active reminders + items newer than the last time the panel was opened.
+(function(){
+  var BARS = ['trBanner', 'fdBanner'];
+  var live = {}; // id -> bar element (kept even after it is hidden)
+  var DAY = 86400000;
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function seenAt(){ try{ return +(localStorage.getItem('notifSeenAt') || 0); }catch(e){ return 0; } }
+  function markSeen(){ try{ localStorage.setItem('notifSeenAt', String(Date.now())); }catch(e){} }
+  function signedIn(){ try{ return typeof signedInDoctor !== 'undefined' && !!signedInDoctor; }catch(e){ return false; } }
+
+  // --- stored history (IndexedDB shared with the service worker) ---
+  function idb(){ return new Promise(function(res){ try{ var r = indexedDB.open('musaed-notifs', 1);
+    r.onupgradeneeded = function(){ r.result.createObjectStore('items', { keyPath:'id', autoIncrement:true }); };
+    r.onsuccess = function(){ res(r.result); }; r.onerror = function(){ res(null); }; }catch(e){ res(null); } }); }
+  function readHistory(){ return idb().then(function(db){ if(!db) return []; return new Promise(function(res){
+    var out = [], cut = Date.now() - 7*DAY;
+    try{ var tx = db.transaction('items','readwrite'), st = tx.objectStore('items');
+      st.openCursor().onsuccess = function(e){ var c = e.target.result; if(!c) return; if(c.value.at < cut) c.delete(); else out.push(c.value); c.continue(); };
+      tx.oncomplete = function(){ db.close(); out.sort(function(a,b){ return b.at - a.at; }); res(out.slice(0, 60)); };
+      tx.onerror = function(){ db.close(); res(out); };
+    }catch(e){ db.close(); res([]); } }); }); }
+  function addHistory(title, body){ return idb().then(function(db){ if(!db) return; try{ var tx = db.transaction('items','readwrite');
+    tx.objectStore('items').add({ title:String(title||''), body:String(body||''), at:Date.now() }); tx.oncomplete = function(){ db.close(); refresh(); };
+  }catch(e){ db.close(); } }); }
+  function clearHistory(){ return idb().then(function(db){ if(!db) return; try{ var tx = db.transaction('items','readwrite'); tx.objectStore('items').clear(); tx.oncomplete = function(){ db.close(); refresh(); render(); }; }catch(e){ db.close(); } }); }
+
+  // --- catch the bottom reminder bars ---
+  function adopt(node){ if(node && node.nodeType === 1 && BARS.indexOf(node.id) >= 0){ live[node.id] = node; node.style.setProperty('display','none','important'); } }
+  function sweep(){ BARS.forEach(function(id){ var n = $(id); if(n) adopt(n); else delete live[id]; }); refresh(); if($('notifPanel') && $('notifPanel').style.display !== 'none') render(); }
+  try{ new MutationObserver(sweep).observe(document.body, { childList:true }); }catch(e){}
+
+  // --- UI ---
+  var bell = document.createElement('button');
+  bell.type = 'button'; bell.id = 'notifBell'; bell.setAttribute('aria-label','Notifications');
+  bell.style.cssText = 'display:none;position:fixed;top:calc(12px + env(safe-area-inset-top));right:16px;z-index:85;width:44px;height:44px;border-radius:50%;border:1px solid var(--line,#dfe3df);background:#fff;box-shadow:0 2px 10px rgba(0,0,0,0.12);cursor:pointer;font-size:1.25rem;line-height:1;padding:0;';
+  bell.innerHTML = '🔔<span id="notifDot" style="display:none;position:absolute;top:-3px;right:-3px;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;border-radius:9px;background:#d93025;color:#fff;font-size:0.68rem;font-weight:700;line-height:18px;text-align:center;"></span>';
+  document.body.appendChild(bell);
+  var panel = document.createElement('div');
+  panel.id = 'notifPanel';
+  panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:9500;background:rgba(0,0,0,0.35);align-items:flex-start;justify-content:flex-end;padding:calc(64px + env(safe-area-inset-top)) 12px 12px;box-sizing:border-box;';
+  panel.innerHTML = '<div id="notifBox" style="width:min(420px,100%);max-height:100%;overflow:auto;background:#fff;border-radius:16px;box-shadow:0 10px 40px rgba(0,0,0,0.25);padding:14px;box-sizing:border-box;"></div>';
+  document.body.appendChild(panel);
+  panel.addEventListener('click', function(e){ if(e.target === panel) close(); });
+  bell.addEventListener('click', function(){ panel.style.display = 'flex'; render(); });
+  function close(){ panel.style.display = 'none'; markSeen(); refresh(); }
+
+  var historyCache = [];
+  function refresh(){
+    readHistory().then(function(h){
+      historyCache = h;
+      var n = Object.keys(live).length + h.filter(function(x){ return x.at > seenAt(); }).length;
+      var dot = $('notifDot'); if(!dot) return;
+      dot.style.display = n ? 'block' : 'none'; dot.textContent = n > 9 ? '9+' : String(n);
+    });
+  }
+  function when(t){ var d = new Date(t), now = new Date();
+    var time = d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
+    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) + ' ' + time; }
+  function render(){
+    var box = $('notifBox'); if(!box) return;
+    var seen = seenAt(), ids = Object.keys(live), h = historyCache;
+    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"><b style="font-size:1rem;">🔔 Notifications · التنبيهات</b><button type="button" id="notifCloseBtn" style="border:none;background:none;font-size:1.3rem;cursor:pointer;">×</button></div>';
+    html += '<div style="font-size:0.74rem;font-weight:700;color:#8a938e;margin:10px 0 6px;">NEEDS YOU · محتاج منك</div>';
+    if(!ids.length) html += '<div style="font-size:0.8rem;color:#8a938e;">Nothing waiting ✓</div>';
+    ids.forEach(function(id){
+      var bar = live[id], span = bar.querySelector('span'), btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(b){ return !/close/i.test(b.id); });
+      html += '<div style="border:1px solid #f1c7c3;background:#fdf3f2;border-radius:12px;padding:10px;margin-bottom:8px;"><div style="font-size:0.85rem;">' + esc(span ? span.textContent : bar.textContent) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
+        btns.map(function(b, i){ return '<button type="button" class="notif-act" data-bar="' + id + '" data-i="' + i + '" style="border:1px solid var(--maroon,#1f5c56);color:var(--maroon,#1f5c56);background:#fff;border-radius:999px;padding:6px 12px;font-size:0.78rem;cursor:pointer;">' + esc(b.textContent.trim() || 'Open') + '</button>'; }).join('') + '</div></div>';
+    });
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px;"><span style="font-size:0.74rem;font-weight:700;color:#8a938e;">LATEST · آخر التنبيهات</span>' + (h.length ? '<button type="button" id="notifClearBtn" style="border:none;background:none;color:#8a938e;font-size:0.72rem;cursor:pointer;">Clear</button>' : '') + '</div>';
+    if(!h.length) html += '<div style="font-size:0.8rem;color:#8a938e;">No notifications yet. Bookings, changes, cancellations and arrivals show up here.</div>';
+    h.forEach(function(x){
+      var isNew = x.at > seen;
+      html += '<div style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid #eef0ee;">' + (isNew ? '<span style="width:8px;height:8px;border-radius:50%;background:#d93025;margin-top:6px;flex:none;"></span>' : '<span style="width:8px;flex:none;"></span>') +
+        '<div style="flex:1;min-width:0;"><div style="font-size:0.86rem;font-weight:' + (isNew ? '700' : '500') + ';" dir="auto">' + esc(x.title) + '</div><div style="font-size:0.78rem;color:#5b6863;" dir="auto">' + esc(x.body) + '</div></div><div style="font-size:0.7rem;color:#8a938e;white-space:nowrap;">' + esc(when(x.at)) + '</div></div>';
+    });
+    box.innerHTML = html;
+    $('notifCloseBtn').onclick = close;
+    if($('notifClearBtn')) $('notifClearBtn').onclick = function(){ if(confirm('Clear the notification list on this device?')) clearHistory(); };
+    Array.prototype.forEach.call(box.querySelectorAll('.notif-act'), function(b){ b.onclick = function(){
+      var bar = live[b.dataset.bar]; if(!bar) return;
+      var btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(x){ return !/close/i.test(x.id); });
+      var target = btns[+b.dataset.i]; close(); if(target) target.click();
+    }; });
+  }
+
+  // Pushes arriving while the app is open, and patient arrivals, land in the list straight away.
+  try{ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function(e){ if(e.data && e.data.type === 'musaed-push') setTimeout(refresh, 400); }); }catch(e){}
+  try{ if(typeof showArrivalAlert === 'function'){ var orig = showArrivalAlert; showArrivalAlert = function(ev){ try{ addHistory((ev && ev.patient_name ? ev.patient_name : 'Patient') + ' arrived', ev && ev.doctor_name ? ev.doctor_name : ''); }catch(e){} return orig.apply(this, arguments); }; } }catch(e){}
+
+  setInterval(function(){ bell.style.display = signedIn() ? 'block' : 'none'; }, 1500);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') refresh(); });
+  sweep();
+})();
+</script>
 <script id="supportWidget">
 (function(){
   // Owner's support project (musaed-support). Empty = feature hidden.
