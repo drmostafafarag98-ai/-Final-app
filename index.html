@@ -13729,10 +13729,9 @@ function applyClinicFeatures(){
     let st = document.getElementById('featureCss');
     if(!st){ st = document.createElement('style'); st.id = 'featureCss'; document.head.appendChild(st); }
     const css = [];
-    if(ft.booking === false) css.push('#navBookingBtn,#dashTabBar button[data-tab="booking"]{display:none !important;}');
-    if(ft.hr === false) css.push('#dashTabBar button[data-tab="hr"]{display:none !important;}');
-    if(ft.team === false) css.push('#dashTabBar button[data-tab="team"]{display:none !important;}');
-    if(ft.docs === false) css.push('#navDocumentationBtn{display:none !important;}');
+    // Owner's decision (Nov 2026): every clinic gets the full app like Empower — Booking, HR, Team
+    // and Docs are always shown, whatever booking/hr/team/docs flags a clinic has saved.
+    // Only Branches stays opt-in (features.branches === true).
     css.push(ft.branches === true ? '#dashTabBar button[data-tab="branches"]{display:inline-block !important;}' : '#dashTabBar button[data-tab="branches"]{display:none !important;}');
     st.textContent = css.join('\n');
   }catch(e){}
@@ -13885,7 +13884,7 @@ function onboardSeedSql(row){
   const fixed = (d.fixed_costs || []).filter(f=> f.name && parseFloat(f.amount) > 0).map(f=> ({ name: f.name, amount: parseFloat(f.amount), method: 'cash' }));
   const cfg = { name: c.name || '', name_ar: c.name_ar || '', address: c.address || '', address_ar: c.address_ar || '', map_url: c.map_url || '', phone: c.phone || '',
     instapay_url: p.instapay_url || '', instapay_handle: p.instapay_handle || '', review_url: c.review_url || '', tagline: c.tagline || '',
-    logo: c.logo || '', stamp: c.stamp || '', fixed_costs: fixed, hr_staff: hr, payroll_rules: rules, templates: d.templates || {}, features: { booking: false, hr: false, team: false, docs: false, patientLink: true } };
+    logo: c.logo || '', stamp: c.stamp || '', fixed_costs: fixed, hr_staff: hr, payroll_rules: rules, templates: d.templates || {}, features: { patientLink: true } };
   const json = JSON.stringify(cfg).replace(/'/g, "''");
   return "insert into public.booking_settings (id, \"data\", updated_at)\nvalues (2, '" + json + "'::jsonb, now())\non conflict (id) do update set \"data\" = excluded.\"data\" || jsonb_build_object('features', coalesce(booking_settings.\"data\"->'features', excluded.\"data\"->'features')), updated_at = now();";
 }
@@ -14007,7 +14006,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     S.push({ i:'📅', en:['1. The calendar','Your appointments are here. Tap a day to see its schedule. Tap the + button to book: write the patient name and phone, choose the date, time, doctor and visit type (Session, Check-up or Recovery), then press Book appointment.'], ar:['١. التقويم','مواعيدك كلها هنا. دوس على أي يوم تشوف جدوله. دوس زرار + عشان تحجز: اكتب اسم المريض وتليفونه، واختار التاريخ والوقت والدكتور ونوع الزيارة (جلسة أو كشف أو ريكفري)، وبعدين دوس Book appointment.'] });
     S.push({ i:'🧾', en:['2. Open a patient','Tap any appointment. You will see 4 tabs: History (past visits), Payment (record cash or InstaPay and packages), Edit (change the date, time or doctor) and Chat (send WhatsApp messages).'], ar:['٢. فتح المريض','دوس على أي موعد. هتلاقي ٤ تابات: History (الزيارات السابقة)، وPayment (تسجيل الدفع كاش أو انستا باي والباكدجات)، وEdit (تغيير الميعاد أو الدكتور)، وChat (رسايل واتساب).'] });
     S.push({ i:'💬', en:['3. WhatsApp messages','In the Chat tab choose a message (confirmation, directions, payment request...). It opens your own WhatsApp with the message ready, and you press send. Nothing is sent without you.'], ar:['٣. رسايل واتساب','من تاب Chat اختار الرسالة (تأكيد الموعد، إزاي توصل، طلب الدفع...). هيفتح واتساب بتاعك والرسالة جاهزة وأنت بتدوس إرسال. مفيش حاجة بتتبعت من غير ما تدوس.'] });
-    S.push({ i:'🖨️', en:['4. Invoice' + (ft.docs === false ? '' : ' and prescription'),'In the patient window press Invoice to print or save a payment receipt as PDF.' + (ft.docs === false ? '' : ' Prescriptions are written from the Docs tab.')], ar:['٤. الفاتورة' + (ft.docs === false ? '' : ' والروشتة'),'من شاشة المريض دوس Invoice عشان تطبع إيصال الدفع أو تحفظه PDF.' + (ft.docs === false ? '' : ' والروشتة بتتكتب من تاب Docs.')] });
+    S.push({ i:'🖨️', en:['4. Invoice' + (false ? '' : ' and prescription'),'In the patient window press Invoice to print or save a payment receipt as PDF.' + (false ? '' : ' Prescriptions are written from the Docs tab.')], ar:['٤. الفاتورة' + (false ? '' : ' والروشتة'),'من شاشة المريض دوس Invoice عشان تطبع إيصال الدفع أو تحفظه PDF.' + (false ? '' : ' والروشتة بتتكتب من تاب Docs.')] });
     if(owner || (typeof signedInDoctor !== 'undefined' && signedInDoctor && signedInDoctor.can_view_dashboard)){
       S.push({ i:'📊', en:['5. Stats and money','The Stats tab shows today\'s numbers, income, expenses and packages. Add every expense there so your profit is correct.'], ar:['٥. الإحصائيات والفلوس','تاب Stats بيوريك أرقام النهاردة والدخل والمصاريف والباكدجات. سجّل كل مصروف هناك عشان الربح يطلع صح.'] });
     }
