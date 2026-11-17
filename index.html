@@ -1710,6 +1710,20 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
             <button type="button" id="dayScheduleCloseBtn" style="background:transparent;border:none;font-size:1.3rem;cursor:pointer;color:var(--maroon);">×</button>
           </div>
         </div>
+        <div id="exportRangeBox" style="display:none;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--paper);">
+          <div style="font-size:0.78rem;font-weight:700;margin-bottom:6px;">Export to Excel · تصدير لإكسل</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+            <label style="font-size:0.72rem;color:#5b6863;display:flex;flex-direction:column;gap:3px;">From<input type="date" id="exportRangeFrom" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;"></label>
+            <label style="font-size:0.72rem;color:#5b6863;display:flex;flex-direction:column;gap:3px;">To<input type="date" id="exportRangeTo" style="padding:7px 8px;border:1px solid var(--line);border-radius:8px;font-size:0.85rem;"></label>
+            <button type="button" id="exportRangeGo" style="padding:8px 14px;border:none;border-radius:8px;background:var(--maroon);color:#fff;font-size:0.82rem;cursor:pointer;">Download</button>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">
+            <button type="button" class="ghost export-quick" data-q="day" style="font-size:0.72rem;padding:4px 10px;">This day</button>
+            <button type="button" class="ghost export-quick" data-q="week" style="font-size:0.72rem;padding:4px 10px;">Last 7 days</button>
+            <button type="button" class="ghost export-quick" data-q="month" style="font-size:0.72rem;padding:4px 10px;">This month</button>
+          </div>
+          <div id="exportRangeStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div>
+        </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
           <div id="scheduleList" style="margin-bottom:8px;"></div>
           <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
@@ -14281,7 +14295,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   </div>
 </div>
 <script id="dayExcelExport">
-// ---- Export one day's appointments to Excel (.xlsx) ----
+// ---- Export appointments for a date range (one day, a week, a month…) to Excel (.xlsx) ----
 // Columns: time, patient, phone, doctor, visit type, status, how it was paid, amount, details.
 // Money is read from the same "Paid X EGP (Cash|InstaPay)" notes the Dashboard counts.
 // SheetJS loads from cdnjs only when the button is pressed; if it can't load, a .csv (opens in Excel) is saved instead.
@@ -14317,44 +14331,68 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     return 'Booked';
   }
   function typeOf(ev){ var t = ev.visit_type || ''; return t === 'checkup' ? 'Check-up' : t === 'recovery' ? 'Recovery' : t === 'session' ? 'Session' : (ev.visit_label || t || ''); }
+  function ymd(d){ return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function parseYmd(v){ var p = String(v || '').split('-').map(Number); return p.length === 3 && p[0] ? new Date(p[0], p[1] - 1, p[2]) : null; }
+  function setRange(from, to){ el('exportRangeFrom').value = ymd(from); el('exportRangeTo').value = ymd(to); }
+  function toggleBox(){
+    var box = el('exportRangeBox'); var open = box.style.display === 'none';
+    box.style.display = open ? 'block' : 'none';
+    if(open){ var d = calSelectedDate || new Date(); setRange(d, d); el('exportRangeStatus').textContent = ''; }
+  }
+  function quick(q){
+    var d = calSelectedDate || new Date();
+    if(q === 'day') setRange(d, d);
+    else if(q === 'week'){ var f = new Date(d); f.setDate(f.getDate() - 6); setRange(f, d); }
+    else if(q === 'month') setRange(new Date(d.getFullYear(), d.getMonth(), 1), new Date(d.getFullYear(), d.getMonth() + 1, 0));
+  }
   async function exportDay(){
-    var btn = el('exportDayExcelBtn'); var old = btn.textContent; btn.disabled = true; btn.textContent = 'Preparing…';
+    var btn = el('exportRangeGo'), st = el('exportRangeStatus'); var old = btn.textContent;
+    var from = parseYmd(el('exportRangeFrom').value), to = parseYmd(el('exportRangeTo').value);
+    if(!from || !to){ st.textContent = 'Pick both dates first.'; return; }
+    if(to < from){ var tmp = from; from = to; to = tmp; setRange(from, to); }
+    if((to - from) / 86400000 > 92){ st.textContent = 'Pick up to 3 months at a time.'; return; }
+    btn.disabled = true; btn.textContent = 'Preparing…'; st.textContent = '';
     try{
-      var d = calSelectedDate, start = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0), end = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+      var start = new Date(from.getFullYear(), from.getMonth(), from.getDate(), 0, 0, 0), end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23, 59, 59);
       var res = await fetch(BACKEND_URL + '/api/appointments?start=' + encodeURIComponent(start.toISOString()) + '&end=' + encodeURIComponent(end.toISOString()), { headers: authHeader() });
       if(!res.ok) throw new Error('Server error ' + res.status);
       var items = ((await res.json()) || []).slice().sort(function(a, b){ return new Date(a.start_time || 0) - new Date(b.start_time || 0); });
-      var header = ['Time', 'Patient', 'Phone', 'Doctor', 'Visit type', 'Status', 'Payment method', 'Amount (EGP)', 'Details'];
+      var header = ['Date', 'Time', 'Patient', 'Phone', 'Doctor', 'Visit type', 'Status', 'Payment method', 'Amount (EGP)', 'Details'];
       var rows = [header], tCash = 0, tInsta = 0;
       items.forEach(function(ev){
         var p = payInfo(ev); tCash += p.cash; tInsta += p.insta;
-        rows.push([ ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
+        rows.push([ ev.start_time ? ymd(new Date(ev.start_time)) : '', ev.start_time ? new Date(ev.start_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
           ev.patient_name || '', ev.patient_phone || '', ev.doctor_name || '', typeOf(ev), statusOf(ev), p.method, p.amount || '', p.details ]);
       });
       rows.push([]);
-      rows.push(['', '', '', '', '', '', 'Total Cash', tCash, '']);
-      rows.push(['', '', '', '', '', '', 'Total InstaPay', tInsta, '']);
-      rows.push(['', '', '', '', '', '', 'Total', tCash + tInsta, '']);
-      var dayStr = start.getFullYear() + '-' + String(start.getMonth() + 1).padStart(2, '0') + '-' + String(start.getDate()).padStart(2, '0');
+      rows.push(['', '', '', '', '', '', '', 'Total Cash', tCash, '']);
+      rows.push(['', '', '', '', '', '', '', 'Total InstaPay', tInsta, '']);
+      rows.push(['', '', '', '', '', '', '', 'Total', tCash + tInsta, '']);
+      var dayStr = ymd(start) === ymd(end) ? ymd(start) : ymd(start) + '_to_' + ymd(end);
       var base = ((CLINIC && CLINIC.name) || 'clinic').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'clinic';
       var X = await loadXlsx();
       if(X){
         var ws = X.utils.aoa_to_sheet(rows);
-        ws['!cols'] = [{ wch: 7 }, { wch: 24 }, { wch: 15 }, { wch: 20 }, { wch: 11 }, { wch: 10 }, { wch: 22 }, { wch: 12 }, { wch: 34 }];
-        var wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, dayStr);
+        ws['!cols'] = [{ wch: 11 }, { wch: 7 }, { wch: 24 }, { wch: 15 }, { wch: 20 }, { wch: 11 }, { wch: 10 }, { wch: 22 }, { wch: 12 }, { wch: 34 }];
+        var wb = X.utils.book_new(); X.utils.book_append_sheet(wb, ws, dayStr.slice(0, 31));
         X.writeFile(wb, base + '-' + dayStr + '.xlsx');
       }else{
         var csv = rows.map(function(r){ return r.map(function(c){ var s = String(c == null ? '' : c); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(','); }).join('\r\n');
         var url = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' }));
         var a = document.createElement('a'); a.href = url; a.download = base + '-' + dayStr + '.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
       }
-      btn.textContent = '✓ ' + items.length + ' saved';
-      setTimeout(function(){ btn.textContent = old; }, 2500);
-    }catch(e){ console.error(e); alert('Could not export: ' + (e.message || e)); btn.textContent = old; }
-    finally{ btn.disabled = false; }
+      st.textContent = '✓ Downloaded — ' + items.length + ' appointment(s).';
+    }catch(e){ console.error(e); st.textContent = 'Could not export: ' + (e.message || e); }
+    finally{ btn.disabled = false; btn.textContent = old; }
   }
-  document.addEventListener('DOMContentLoaded', function(){ var b = el('exportDayExcelBtn'); if(b) b.addEventListener('click', exportDay); });
-  if(document.readyState !== 'loading'){ var b = el('exportDayExcelBtn'); if(b) b.addEventListener('click', exportDay); }
+  function wire(){
+    var b = el('exportDayExcelBtn'); if(!b || b.dataset.wired) return; b.dataset.wired = '1';
+    b.addEventListener('click', toggleBox);
+    el('exportRangeGo').addEventListener('click', exportDay);
+    Array.prototype.forEach.call(document.querySelectorAll('.export-quick'), function(q){ q.addEventListener('click', function(){ quick(q.dataset.q); }); });
+  }
+  document.addEventListener('DOMContentLoaded', wire);
+  if(document.readyState !== 'loading') wire();
 })();
 </script>
 <script id="notifCenter">
