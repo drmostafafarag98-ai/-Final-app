@@ -39,6 +39,10 @@
   (`/api/doctors/bootstrap-owner`) to become owner.
 - The confirmation message only carries the patient follow-up link (`/me/<token>`) when the clinic has
   `features.patientLink = true` in `booking_settings` id 2 (the "Make setup SQL" seed now sets it).
+- Push notifications (server `pushAppointmentChange` / `pushOnlineBooking` → gateway Edge Function
+  `push-gateway` in musaed-support, log table `push_log`): the visit's doctor AND every owner get each
+  change (not the person who made it); online bookings push too. The app re-asks doctors to turn
+  notifications on at every app open until they do; once allowed, it silently re-subscribes.
 - Invite link for a clinic's doctors: `https://app.musaedapp.com/?clinic=CODE` (picks the clinic, no code typing).
 - Quick server check without touching data: POST `/api/auth/login` with a fake email should return
   401 "Wrong email or password" ("fetch failed" = wrong SUPABASE_URL; "permission denied" = grants).

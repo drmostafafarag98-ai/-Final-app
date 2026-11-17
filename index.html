@@ -13675,8 +13675,10 @@ async function ensurePushAlive(force){
 document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'visible') ensurePushAlive(false); });
 
 // ---- First-open reminder: ask a signed-in doctor to turn notifications on (browsers need one tap to allow) ----
-function notifPromptSnoozed(){ try{ const t = +localStorage.getItem('notifPromptSnooze') || 0; return Date.now() < t; }catch(e){ return false; } }
-function notifPromptSnooze(days){ try{ localStorage.setItem('notifPromptSnooze', String(Date.now() + days*86400000)); }catch(e){} }
+// "Later" only hides the reminder until the app is closed: it comes back on every new open until
+// notifications are on for this device (owner's decision, Nov 2026 — doctors were missing alerts).
+function notifPromptSnoozed(){ try{ return sessionStorage.getItem('notifPromptLater') === '1'; }catch(e){ return false; } }
+function notifPromptSnooze(){ try{ sessionStorage.setItem('notifPromptLater', '1'); }catch(e){} }
 async function maybeShowNotifPrompt(){
   const box = el('notifPrompt');
   if(!box) return;
@@ -13707,7 +13709,7 @@ async function maybeShowNotifPrompt(){
 document.addEventListener('click', async (ev)=>{
   const t = ev.target && ev.target.closest ? ev.target.closest('#notifPromptGo, #notifPromptLater') : null;
   if(!t) return;
-  if(t.id === 'notifPromptLater'){ notifPromptSnooze(3); el('notifPrompt').style.display = 'none'; return; }
+  if(t.id === 'notifPromptLater'){ notifPromptSnooze(); el('notifPrompt').style.display = 'none'; return; }
   t.disabled = true;
   await enableNotifications();
   t.disabled = false;
