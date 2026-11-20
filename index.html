@@ -4002,6 +4002,7 @@ function bkRender(){
   }).join('');
   box.innerHTML=`
     <label style="display:flex;align-items:center;gap:8px;font-size:0.88rem;font-weight:700;margin-bottom:12px;"><input type="checkbox" id="bkEnabled"${s.enabled?' checked':''}> Online booking is OPEN</label>
+    <label style="display:flex;align-items:flex-start;gap:8px;font-size:0.84rem;margin:-4px 0 12px;"><input type="checkbox" id="bkCompact"${s.compact===false?'':' checked'} style="margin-top:3px;"> <span><b>Keep each doctor's day together</b><br><span style="font-size:0.74rem;color:#8a938e;" dir="rtl">لو الدكتور عنده مواعيد في اليوم، المريض يشوف بس الأوقات اللي في النص بينهم أو اللي قبل أول ميعاد / بعد آخر ميعاد على طول. اليوم الفاضي بيبان كله.</span></span></label>
     <div style="font-size:0.78rem;font-weight:700;margin-bottom:4px;">InstaPay account patients should pay to</div>${bkInput('bkInstapay',s.instapay,'e.g. name@instapay or 0100xxxxxxx')}
     <div style="font-size:0.78rem;font-weight:700;margin:10px 0 4px;">Extra note shown to patients (optional)</div>${bkInput('bkNote',s.note,'')}
     <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;">
@@ -4035,7 +4036,7 @@ function bkRender(){
 }
 function bkCollect(){
   const s=bkState.settings;
-  s.enabled=el('bkEnabled').checked; s.instapay=el('bkInstapay').value; s.note=el('bkNote').value;
+  s.enabled=el('bkEnabled').checked; s.compact=!el('bkCompact')||el('bkCompact').checked; s.instapay=el('bkInstapay').value; s.note=el('bkNote').value;
   s.slot_minutes=+el('bkSlot').value||30; s.min_lead_hours=+el('bkLead').value||0; s.max_days_ahead=+el('bkAhead').value||30;
   s.types=Array.from(document.querySelectorAll('#bkTypes [data-bktype]')).map((r,i)=>({key:(s.types[i]&&s.types[i].key)||('type'+i), label:r.querySelector('.bkt-label').value.trim(), label_ar:r.querySelector('.bkt-label-ar').value.trim(), price:+r.querySelector('.bkt-price').value||0, visit_type:r.querySelector('.bkt-vt').value}));
   const hours={};
