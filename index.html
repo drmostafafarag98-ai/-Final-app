@@ -14451,7 +14451,6 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     + '.notif-tab{border:1px solid var(--line,#dfe3df);background:#fff;color:var(--ink,#1c2a28);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:.82rem;cursor:pointer;min-height:36px;}'
     + '.notif-tab.on{background:var(--maroon,#1f5c56);border-color:var(--maroon,#1f5c56);color:#fff;font-weight:700;}'
     + '#navAlertsBtn.open{background:#e3efec !important;color:var(--maroon,#1f5c56) !important;}'
-    + '#notifBox{direction:rtl;}'
     + '.nc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}.nc-title{font-size:1.5rem;font-weight:800;}'
     + '.nc-x{width:44px;height:44px;border-radius:50%;border:none;background:#eae7df;font-size:1.3rem;cursor:pointer;color:#5b6863;}'
     + '.nc-link{border:none;background:none;color:var(--maroon,#1f5c56);font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer;min-height:40px;}'
@@ -14460,10 +14459,11 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     + '.nc-act{border:none;background:var(--maroon,#1f5c56);color:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;min-height:38px;}'
     + '.nc-day{font-size:.78rem;font-weight:800;color:#6b7773;margin:18px 4px 8px;}'
     + '.nc-item{display:flex;gap:12px;align-items:center;background:#fff;border-radius:16px;padding:12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(28,42,40,.06);}'
-    + '.nc-item.new{box-shadow:0 1px 2px rgba(28,42,40,.06),inset -3px 0 0 #c5221f;}'
+    + '.nc-item.new{box-shadow:0 1px 2px rgba(28,42,40,.06),inset 3px 0 0 #c5221f;}[dir=rtl] .nc-item.new{box-shadow:0 1px 2px rgba(28,42,40,.06),inset -3px 0 0 #c5221f;}'
     + '.nc-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:none;}'
-    + '.nc-t{font-size:.95rem;font-weight:600;text-align:right;}.nc-item.new .nc-t{font-weight:800;}'
-    + '.nc-b{font-size:.82rem;color:#5b6863;text-align:right;line-height:1.45;overflow-wrap:anywhere;}'
+    + '.nc-t{font-size:.95rem;font-weight:600;text-align:start;}.nc-item.new .nc-t{font-weight:800;}'
+    + '.nc-b{font-size:.82rem;color:#5b6863;text-align:left;line-height:1.45;overflow-wrap:anywhere;}'
+    + '[dir=rtl] .nc-b{text-align:right;}'
     + '.nc-when{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.74rem;color:#6b7773;white-space:nowrap;}'
     + '.nc-dot{width:8px;height:8px;border-radius:50%;background:#c5221f;}'
     + '.nc-empty{text-align:center;color:#6b7773;font-size:.9rem;line-height:1.7;padding:40px 10px;}'
@@ -14498,6 +14498,11 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     arrive: ['#e7ecf6', '#2a4f8f', '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 11l2 2 4-4"/>'],
     other: ['#eef0ee', '#5b6863', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>']
   };
+  function ar(){ try{ return typeof appLang !== 'undefined' && appLang === 'ar'; }catch(e){ return false; } }
+  function T(en, a){ return ar() ? a : en; }
+  var KIND_TITLE = { book:['New booking','حجز جديد'], cancel:['Appointment cancelled','ميعاد اتلغى'], change:['Appointment changed','ميعاد اتغير'], arrive:['Patient arrived','مريض وصل'] };
+  function titleOf(x){ var k = kind(x.title), t = KIND_TITLE[k]; if(!t) return x.title;
+    var online = /أونلاين|online/i.test(x.title); return online && k === 'book' ? T('New online booking', 'حجز أونلاين جديد') : T(t[0], t[1]); }
   function kind(t){ t = String(t || '').toLowerCase();
     if(/اتلغ|الغ|cancel/.test(t)) return 'cancel';
     if(/وصل|arriv/.test(t)) return 'arrive';
@@ -14507,42 +14512,43 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
   function icon(k){ var c = ICONS[k] || ICONS.other;
     return '<span class="nc-ic" style="background:' + c[0] + ';color:' + c[1] + ';"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + c[2] + '</svg></span>'; }
   function dayKey(t){ var d = new Date(t); d.setHours(0,0,0,0); return d.getTime(); }
-  function dayLabel(k){ var today = dayKey(Date.now()); if(k === today) return 'النهارده'; if(k === today - DAY) return 'امبارح';
-    return new Date(k).toLocaleDateString('ar-EG', { weekday:'long', day:'numeric', month:'long' }); }
+  function dayLabel(k){ var today = dayKey(Date.now()); if(k === today) return T('Today', 'النهارده'); if(k === today - DAY) return T('Yesterday', 'امبارح');
+    return new Date(k).toLocaleDateString(ar() ? 'ar-EG' : 'en-GB', { weekday:'long', day:'numeric', month:'long' }); }
   function when(t){ var m = Math.round((Date.now() - t) / 60000);
-    if(m < 1) return 'دلوقتي'; if(m < 60) return 'من ' + m + ' د';
+    if(m < 1) return T('now', 'دلوقتي'); if(m < 60) return T(m + ' min', 'من ' + m + ' د');
     var d = new Date(t), h = d.getHours(), mm = String(d.getMinutes()).padStart(2, '0');
-    return ((h % 12) || 12) + ':' + mm + (h < 12 ? ' ص' : ' م'); }
+    return ((h % 12) || 12) + ':' + mm + (h < 12 ? T(' AM', ' ص') : T(' PM', ' م')); }
   function render(){
     var box = $('notifBox'); if(!box) return;
     var seen = seenAt(), ids = Object.keys(live), h = historyCache, unread = h.filter(function(x){ return x.at > seen; }).length;
-    var html = '<div class="nc-head"><b class="nc-title">التنبيهات</b><div style="display:flex;gap:8px;align-items:center;">' +
-      (unread ? '<button type="button" id="notifReadBtn" class="nc-link">علّم الكل اتقرا</button>' : '') +
-      '<button type="button" id="notifCloseBtn" aria-label="قفل" class="nc-x">×</button></div></div>';
-    html += '<div role="tablist" class="nc-tabs"><button type="button" role="tab" class="notif-tab' + (tab === 'all' ? ' on' : '') + '" data-tab="all">الكل' + (unread ? ' · ' + unread + ' جديد' : '') + '</button><button type="button" role="tab" class="notif-tab' + (tab === 'needs' ? ' on' : '') + '" data-tab="needs">محتاج منك' + (ids.length ? ' · ' + ids.length : '') + '</button></div>';
+    box.dir = ar() ? 'rtl' : 'ltr';
+    var html = '<div class="nc-head"><b class="nc-title">' + T('Alerts', 'التنبيهات') + '</b><div style="display:flex;gap:8px;align-items:center;">' +
+      (unread ? '<button type="button" id="notifReadBtn" class="nc-link">' + T('Mark all as read', 'علّم الكل اتقرا') + '</button>' : '') +
+      '<button type="button" id="notifCloseBtn" aria-label="' + T('Close', 'قفل') + '" class="nc-x">×</button></div></div>';
+    html += '<div role="tablist" class="nc-tabs"><button type="button" role="tab" class="notif-tab' + (tab === 'all' ? ' on' : '') + '" data-tab="all">' + T('All', 'الكل') + (unread ? ' · ' + unread + T(' new', ' جديد') : '') + '</button><button type="button" role="tab" class="notif-tab' + (tab === 'needs' ? ' on' : '') + '" data-tab="needs">' + T('Needs you', 'محتاج منك') + (ids.length ? ' · ' + ids.length : '') + '</button></div>';
     ids.forEach(function(id){
       var bar = live[id], span = bar.querySelector('span'), btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(b){ return !/close/i.test(b.id); });
-      html += '<div class="nc-need"><div style="display:flex;gap:10px;align-items:flex-start;"><span class="nc-ic" style="background:#b8894f;color:#fff;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><div style="flex:1;font-size:0.9rem;line-height:1.55;" dir="auto"><b>محتاج منك:</b> ' + esc(span ? span.textContent : bar.textContent) + '</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
-        btns.map(function(b, i){ return '<button type="button" class="notif-act nc-act" data-bar="' + id + '" data-i="' + i + '">' + esc(b.textContent.trim() || 'افتح') + '</button>'; }).join('') + '</div></div>';
+      html += '<div class="nc-need"><div style="display:flex;gap:10px;align-items:flex-start;"><span class="nc-ic" style="background:#b8894f;color:#fff;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><div style="flex:1;font-size:0.9rem;line-height:1.55;" dir="auto"><b>' + T('Needs you:', 'محتاج منك:') + '</b> ' + esc(span ? span.textContent : bar.textContent) + '</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+        btns.map(function(b, i){ return '<button type="button" class="notif-act nc-act" data-bar="' + id + '" data-i="' + i + '">' + esc(b.textContent.trim() || T('Open', 'افتح')) + '</button>'; }).join('') + '</div></div>';
     });
-    if(tab === 'needs' && !ids.length) html += '<div class="nc-empty">مفيش حاجة مستنياك ✓</div>';
+    if(tab === 'needs' && !ids.length) html += '<div class="nc-empty">' + T('Nothing waiting for you ✓', 'مفيش حاجة مستنياك ✓') + '</div>';
     if(tab === 'all'){
-      if(!h.length && !ids.length) html += '<div class="nc-empty">لسه مفيش تنبيهات.<br>الحجوزات والإلغاءات والتغييرات ووصول المرضى هتظهر هنا.</div>';
+      if(!h.length && !ids.length) html += '<div class="nc-empty">' + T('No alerts yet.<br>Bookings, cancellations, changes and patient arrivals show up here.', 'لسه مفيش تنبيهات.<br>الحجوزات والإلغاءات والتغييرات ووصول المرضى هتظهر هنا.') + '</div>';
       var lastDay = null;
       h.forEach(function(x){
         var k = dayKey(x.at), isNew = x.at > seen;
         if(k !== lastDay){ html += '<div class="nc-day">' + esc(dayLabel(k)) + '</div>'; lastDay = k; }
         html += '<div class="nc-item' + (isNew ? ' new' : '') + '">' + icon(kind(x.title)) +
-          '<div style="flex:1;min-width:0;"><div class="nc-t" dir="auto">' + esc(x.title) + '</div><div class="nc-b" dir="ltr">' + esc(x.body) + '</div></div>' +
+          '<div style="flex:1;min-width:0;"><div class="nc-t">' + esc(titleOf(x)) + '</div><div class="nc-b" dir="auto">' + esc(/^(.+) arrived$/.test(x.title) ? [x.title.replace(/ arrived$/, ''), x.body].filter(Boolean).join(' · ') : x.body) + '</div></div>' +
           '<div class="nc-when">' + esc(when(x.at)) + (isNew ? '<span class="nc-dot"></span>' : '') + '</div></div>';
       });
-      if(h.length) html += '<div style="text-align:center;margin-top:14px;"><button type="button" id="notifClearBtn" class="nc-link" style="color:#8a938e;font-weight:600;">امسح القايمة من الجهاز ده</button></div>';
+      if(h.length) html += '<div style="text-align:center;margin-top:14px;"><button type="button" id="notifClearBtn" class="nc-link" style="color:#8a938e;font-weight:600;">' + T('Clear this list on this device', 'امسح القايمة من الجهاز ده') + '</button></div>';
     }
     box.innerHTML = html;
     $('notifCloseBtn').onclick = close;
     if($('notifReadBtn')) $('notifReadBtn').onclick = function(){ markSeen(); refresh(); render(); };
     Array.prototype.forEach.call(box.querySelectorAll('.notif-tab'), function(t){ t.onclick = function(){ tab = t.dataset.tab; render(); }; });
-    if($('notifClearBtn')) $('notifClearBtn').onclick = function(){ if(confirm('تمسح قايمة التنبيهات من الجهاز ده؟')) clearHistory(); };
+    if($('notifClearBtn')) $('notifClearBtn').onclick = function(){ if(confirm(T('Clear the alerts list on this device?', 'تمسح قايمة التنبيهات من الجهاز ده؟'))) clearHistory(); };
     Array.prototype.forEach.call(box.querySelectorAll('.notif-act'), function(b){ b.onclick = function(){
       var bar = live[b.dataset.bar]; if(!bar) return;
       var btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(x){ return !/close/i.test(x.id); });
@@ -14552,7 +14558,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
 
   // Pushes arriving while the app is open, and patient arrivals, land in the list straight away.
   try{ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function(e){ if(e.data && e.data.type === 'musaed-push') setTimeout(refresh, 400); }); }catch(e){}
-  try{ if(typeof showArrivalAlert === 'function'){ var orig = showArrivalAlert; showArrivalAlert = function(ev){ try{ addHistory('مريض وصل', [ev && ev.patient_name, ev && ev.doctor_name].filter(Boolean).join(' · ')); }catch(e){} return orig.apply(this, arguments); }; } }catch(e){}
+  try{ if(typeof showArrivalAlert === 'function'){ var orig = showArrivalAlert; showArrivalAlert = function(ev){ try{ addHistory('Patient arrived', [ev && ev.patient_name, ev && ev.doctor_name].filter(Boolean).join(' · ')); }catch(e){} return orig.apply(this, arguments); }; } }catch(e){}
 
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') refresh(); });
   sweep();
