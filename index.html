@@ -14451,6 +14451,22 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
     + '.notif-tab{border:1px solid var(--line,#dfe3df);background:#fff;color:var(--ink,#1c2a28);border-radius:999px;padding:7px 14px;font-family:inherit;font-size:.82rem;cursor:pointer;min-height:36px;}'
     + '.notif-tab.on{background:var(--maroon,#1f5c56);border-color:var(--maroon,#1f5c56);color:#fff;font-weight:700;}'
     + '#navAlertsBtn.open{background:#e3efec !important;color:var(--maroon,#1f5c56) !important;}'
+    + '#notifBox{direction:rtl;}'
+    + '.nc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}.nc-title{font-size:1.5rem;font-weight:800;}'
+    + '.nc-x{width:44px;height:44px;border-radius:50%;border:none;background:#eae7df;font-size:1.3rem;cursor:pointer;color:#5b6863;}'
+    + '.nc-link{border:none;background:none;color:var(--maroon,#1f5c56);font-family:inherit;font-size:.86rem;font-weight:700;cursor:pointer;min-height:40px;}'
+    + '.nc-tabs{display:flex;gap:8px;margin-bottom:16px;}'
+    + '.nc-need{background:#fff6e8;border-radius:18px;padding:14px;margin-bottom:12px;}'
+    + '.nc-act{border:none;background:var(--maroon,#1f5c56);color:#fff;border-radius:999px;padding:8px 16px;font-family:inherit;font-size:.82rem;font-weight:700;cursor:pointer;min-height:38px;}'
+    + '.nc-day{font-size:.78rem;font-weight:800;color:#6b7773;margin:18px 4px 8px;}'
+    + '.nc-item{display:flex;gap:12px;align-items:center;background:#fff;border-radius:16px;padding:12px;margin-bottom:8px;box-shadow:0 1px 2px rgba(28,42,40,.06);}'
+    + '.nc-item.new{box-shadow:0 1px 2px rgba(28,42,40,.06),inset -3px 0 0 #c5221f;}'
+    + '.nc-ic{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:none;}'
+    + '.nc-t{font-size:.95rem;font-weight:600;text-align:right;}.nc-item.new .nc-t{font-weight:800;}'
+    + '.nc-b{font-size:.82rem;color:#5b6863;text-align:right;line-height:1.45;overflow-wrap:anywhere;}'
+    + '.nc-when{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:.74rem;color:#6b7773;white-space:nowrap;}'
+    + '.nc-dot{width:8px;height:8px;border-radius:50%;background:#c5221f;}'
+    + '.nc-empty{text-align:center;color:#6b7773;font-size:.9rem;line-height:1.7;padding:40px 10px;}'
     + '@media (max-width:640px){#notifPanel{left:0;bottom:calc(72px + env(safe-area-inset-bottom));}}';
   document.head.appendChild(css);
   var panel = document.createElement('div');
@@ -14475,34 +14491,58 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
       dot.style.display = n ? 'block' : 'none'; dot.textContent = n > 9 ? '9+' : String(n);
     });
   }
-  function when(t){ var d = new Date(t), now = new Date();
-    var time = d.toLocaleTimeString(undefined, { hour:'2-digit', minute:'2-digit' });
-    return d.toDateString() === now.toDateString() ? time : d.toLocaleDateString(undefined, { day:'numeric', month:'short' }) + ' ' + time; }
+  var ICONS = {
+    book: ['#e3f1ec', '#1f6b4a', '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M12 14v4M10 16h4"/>'],
+    cancel: ['#fbe3e1', '#a3231f', '<circle cx="12" cy="12" r="9"/><path d="M15 9l-6 6M9 9l6 6"/>'],
+    change: ['#fff1dc', '#8a5a12', '<path d="M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3"/>'],
+    arrive: ['#e7ecf6', '#2a4f8f', '<circle cx="9" cy="8" r="4"/><path d="M2 21a7 7 0 0 1 14 0M16 11l2 2 4-4"/>'],
+    other: ['#eef0ee', '#5b6863', '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>']
+  };
+  function kind(t){ t = String(t || '').toLowerCase();
+    if(/اتلغ|الغ|cancel/.test(t)) return 'cancel';
+    if(/وصل|arriv/.test(t)) return 'arrive';
+    if(/اتغير|غير|change|moved|resched/.test(t)) return 'change';
+    if(/حجز|book/.test(t)) return 'book';
+    return 'other'; }
+  function icon(k){ var c = ICONS[k] || ICONS.other;
+    return '<span class="nc-ic" style="background:' + c[0] + ';color:' + c[1] + ';"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + c[2] + '</svg></span>'; }
+  function dayKey(t){ var d = new Date(t); d.setHours(0,0,0,0); return d.getTime(); }
+  function dayLabel(k){ var today = dayKey(Date.now()); if(k === today) return 'النهارده'; if(k === today - DAY) return 'امبارح';
+    return new Date(k).toLocaleDateString('ar-EG', { weekday:'long', day:'numeric', month:'long' }); }
+  function when(t){ var m = Math.round((Date.now() - t) / 60000);
+    if(m < 1) return 'دلوقتي'; if(m < 60) return 'من ' + m + ' د';
+    var d = new Date(t), h = d.getHours(), mm = String(d.getMinutes()).padStart(2, '0');
+    return ((h % 12) || 12) + ':' + mm + (h < 12 ? ' ص' : ' م'); }
   function render(){
     var box = $('notifBox'); if(!box) return;
-    var seen = seenAt(), ids = Object.keys(live), h = historyCache;
-    var html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;" dir="rtl"><b style="font-size:1.35rem;">التنبيهات</b><button type="button" id="notifCloseBtn" aria-label="Close" style="width:44px;height:44px;border-radius:50%;border:none;background:#eef0ee;font-size:1.3rem;cursor:pointer;">×</button></div>';
-    html += '<div role="tablist" style="display:flex;gap:6px;margin-bottom:14px;" dir="rtl"><button type="button" role="tab" class="notif-tab' + (tab === 'all' ? ' on' : '') + '" data-tab="all">الكل · ' + (ids.length + h.length) + '</button><button type="button" role="tab" class="notif-tab' + (tab === 'needs' ? ' on' : '') + '" data-tab="needs">محتاج منك · ' + ids.length + '</button></div>';
-    html += '<div style="font-size:0.74rem;font-weight:700;color:#8a938e;margin:10px 0 6px;">NEEDS YOU · محتاج منك</div>';
-    if(!ids.length) html += '<div style="font-size:0.8rem;color:#8a938e;">Nothing waiting ✓</div>';
+    var seen = seenAt(), ids = Object.keys(live), h = historyCache, unread = h.filter(function(x){ return x.at > seen; }).length;
+    var html = '<div class="nc-head"><b class="nc-title">التنبيهات</b><div style="display:flex;gap:8px;align-items:center;">' +
+      (unread ? '<button type="button" id="notifReadBtn" class="nc-link">علّم الكل اتقرا</button>' : '') +
+      '<button type="button" id="notifCloseBtn" aria-label="قفل" class="nc-x">×</button></div></div>';
+    html += '<div role="tablist" class="nc-tabs"><button type="button" role="tab" class="notif-tab' + (tab === 'all' ? ' on' : '') + '" data-tab="all">الكل' + (unread ? ' · ' + unread + ' جديد' : '') + '</button><button type="button" role="tab" class="notif-tab' + (tab === 'needs' ? ' on' : '') + '" data-tab="needs">محتاج منك' + (ids.length ? ' · ' + ids.length : '') + '</button></div>';
     ids.forEach(function(id){
       var bar = live[id], span = bar.querySelector('span'), btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(b){ return !/close/i.test(b.id); });
-      html += '<div style="border:1px solid #f1c7c3;background:#fdf3f2;border-radius:12px;padding:10px;margin-bottom:8px;"><div style="font-size:0.85rem;">' + esc(span ? span.textContent : bar.textContent) + '</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">' +
-        btns.map(function(b, i){ return '<button type="button" class="notif-act" data-bar="' + id + '" data-i="' + i + '" style="border:1px solid var(--maroon,#1f5c56);color:var(--maroon,#1f5c56);background:#fff;border-radius:999px;padding:6px 12px;font-size:0.78rem;cursor:pointer;">' + esc(b.textContent.trim() || 'Open') + '</button>'; }).join('') + '</div></div>';
+      html += '<div class="nc-need"><div style="display:flex;gap:10px;align-items:flex-start;"><span class="nc-ic" style="background:#b8894f;color:#fff;"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span><div style="flex:1;font-size:0.9rem;line-height:1.55;" dir="auto"><b>محتاج منك:</b> ' + esc(span ? span.textContent : bar.textContent) + '</div></div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">' +
+        btns.map(function(b, i){ return '<button type="button" class="notif-act nc-act" data-bar="' + id + '" data-i="' + i + '">' + esc(b.textContent.trim() || 'افتح') + '</button>'; }).join('') + '</div></div>';
     });
+    if(tab === 'needs' && !ids.length) html += '<div class="nc-empty">مفيش حاجة مستنياك ✓</div>';
     if(tab === 'all'){
-    html += '<div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 6px;"><span style="font-size:0.74rem;font-weight:700;color:#8a938e;">LATEST · آخر التنبيهات</span>' + (h.length ? '<button type="button" id="notifClearBtn" style="border:none;background:none;color:#8a938e;font-size:0.72rem;cursor:pointer;">Clear</button>' : '') + '</div>';
-    if(!h.length) html += '<div style="font-size:0.8rem;color:#8a938e;">No notifications yet. Bookings, changes, cancellations and arrivals show up here.</div>';
-    h.forEach(function(x){
-      var isNew = x.at > seen;
-      html += '<div style="display:flex;gap:8px;padding:8px 4px;border-bottom:1px solid #eef0ee;">' + (isNew ? '<span style="width:8px;height:8px;border-radius:50%;background:#d93025;margin-top:6px;flex:none;"></span>' : '<span style="width:8px;flex:none;"></span>') +
-        '<div style="flex:1;min-width:0;"><div style="font-size:0.86rem;font-weight:' + (isNew ? '700' : '500') + ';" dir="auto">' + esc(x.title) + '</div><div style="font-size:0.78rem;color:#5b6863;" dir="auto">' + esc(x.body) + '</div></div><div style="font-size:0.7rem;color:#8a938e;white-space:nowrap;">' + esc(when(x.at)) + '</div></div>';
-    });
+      if(!h.length && !ids.length) html += '<div class="nc-empty">لسه مفيش تنبيهات.<br>الحجوزات والإلغاءات والتغييرات ووصول المرضى هتظهر هنا.</div>';
+      var lastDay = null;
+      h.forEach(function(x){
+        var k = dayKey(x.at), isNew = x.at > seen;
+        if(k !== lastDay){ html += '<div class="nc-day">' + esc(dayLabel(k)) + '</div>'; lastDay = k; }
+        html += '<div class="nc-item' + (isNew ? ' new' : '') + '">' + icon(kind(x.title)) +
+          '<div style="flex:1;min-width:0;"><div class="nc-t" dir="auto">' + esc(x.title) + '</div><div class="nc-b" dir="ltr">' + esc(x.body) + '</div></div>' +
+          '<div class="nc-when">' + esc(when(x.at)) + (isNew ? '<span class="nc-dot"></span>' : '') + '</div></div>';
+      });
+      if(h.length) html += '<div style="text-align:center;margin-top:14px;"><button type="button" id="notifClearBtn" class="nc-link" style="color:#8a938e;font-weight:600;">امسح القايمة من الجهاز ده</button></div>';
     }
     box.innerHTML = html;
     $('notifCloseBtn').onclick = close;
+    if($('notifReadBtn')) $('notifReadBtn').onclick = function(){ markSeen(); refresh(); render(); };
     Array.prototype.forEach.call(box.querySelectorAll('.notif-tab'), function(t){ t.onclick = function(){ tab = t.dataset.tab; render(); }; });
-    if($('notifClearBtn')) $('notifClearBtn').onclick = function(){ if(confirm('Clear the notification list on this device?')) clearHistory(); };
+    if($('notifClearBtn')) $('notifClearBtn').onclick = function(){ if(confirm('تمسح قايمة التنبيهات من الجهاز ده؟')) clearHistory(); };
     Array.prototype.forEach.call(box.querySelectorAll('.notif-act'), function(b){ b.onclick = function(){
       var bar = live[b.dataset.bar]; if(!bar) return;
       var btns = Array.prototype.filter.call(bar.querySelectorAll('button'), function(x){ return !/close/i.test(x.id); });
@@ -14512,7 +14552,7 @@ document.addEventListener('DOMContentLoaded', ()=>{ const b = document.getElemen
 
   // Pushes arriving while the app is open, and patient arrivals, land in the list straight away.
   try{ navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function(e){ if(e.data && e.data.type === 'musaed-push') setTimeout(refresh, 400); }); }catch(e){}
-  try{ if(typeof showArrivalAlert === 'function'){ var orig = showArrivalAlert; showArrivalAlert = function(ev){ try{ addHistory((ev && ev.patient_name ? ev.patient_name : 'Patient') + ' arrived', ev && ev.doctor_name ? ev.doctor_name : ''); }catch(e){} return orig.apply(this, arguments); }; } }catch(e){}
+  try{ if(typeof showArrivalAlert === 'function'){ var orig = showArrivalAlert; showArrivalAlert = function(ev){ try{ addHistory('مريض وصل', [ev && ev.patient_name, ev && ev.doctor_name].filter(Boolean).join(' · ')); }catch(e){} return orig.apply(this, arguments); }; } }catch(e){}
 
   document.addEventListener('visibilitychange', function(){ if(document.visibilityState === 'visible') refresh(); });
   sweep();
