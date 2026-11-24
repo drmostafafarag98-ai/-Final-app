@@ -1624,6 +1624,20 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
         <div id="hrAtOut" style="margin-top:12px;"></div>
       </div>
 
+      <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Secretary overtime <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><polyline points="6 9 12 15 18 9"/></svg></div>
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Any booked patient before her shift starts or after it ends means she was there, so that time is overtime. It is counted from the calendar: first booking to the start of her shift, and the end of the last booking to the end of her shift. Cancelled visits are ignored. Untick a day she was not actually there.</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="text" inputmode="none" id="secOtFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="text" inputmode="none" id="secOtTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
+          <label style="font-size:0.76rem;color:#5b6863;">Shift from <input type="time" id="secOtStart" value="14:00" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></label>
+          <label style="font-size:0.76rem;color:#5b6863;">to <input type="time" id="secOtEnd" value="22:00" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></label>
+          <label style="font-size:0.76rem;color:#5b6863;">Arrives before 1st patient (min) <input type="number" id="secOtBuf" min="0" max="120" value="0" style="width:70px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></label>
+          <label style="font-size:0.76rem;color:#5b6863;">Rate per hour (EGP) <input type="number" id="secOtRate" min="0" placeholder="optional" style="width:100px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></label>
+          <button type="button" class="primary" id="secOtGo" style="padding:8px 14px;">Calculate</button>
+        </div>
+        <div id="secOtOut" style="margin-top:12px;"></div>
+      </div>
+
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">HR — staff and working days <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;flex-shrink:0;"><polyline points="9 18 15 12 9 6"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
         <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">For each doctor: the match word (part of the name as written in the calendar), the days they normally work, and their yearly leave days (optional).</div>
@@ -11393,7 +11407,7 @@ function makeDateInputCustom(inputId){
     });
   });
 }
-['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput','payAmtFrom','payAmtTo','hrWlFrom','hrWlTo','hrAtFrom','hrAtTo','hrStartInput'].forEach(makeDateInputCustom);
+['statsInlineDatePicker','statsRangeFromInput','statsRangeToInput','manualSendDateInput','exportFromDate','exportToDate','editAppointmentDateInput','invoiceDateInput','surgeryDateInput','expenseDateInput','payrollFromInput','payrollToInput','transferDateInput','incomeDateInput','dayReviewDateInput','withdrawalDateInput','paidNoAmountFromInput','paidNoAmountToInput','dupCheckFromInput','dupCheckToInput','ledgerFromInput','ledgerToInput','payAmtFrom','payAmtTo','hrWlFrom','hrWlTo','hrAtFrom','hrAtTo','secOtFrom','secOtTo','hrStartInput'].forEach(makeDateInputCustom);
 
 async function loadTomorrowReminders(){
   if(!isApproved()){
@@ -12883,6 +12897,51 @@ async function loadAttendanceCard(){
     };
   }catch(e){ card.style.display = 'none'; }
 }
+async function secOvertime(){
+  const out=el('secOtOut'); hrDefaultRange('secOtFrom','secOtTo',30);
+  const from=el('secOtFrom').value, to=el('secOtTo').value;
+  const a=hrMin(el('secOtStart').value||'14:00'), b=hrMin(el('secOtEnd').value||'22:00');
+  const buf=Math.max(0, parseInt(el('secOtBuf').value,10)||0), rate=parseFloat(el('secOtRate').value)||0;
+  try{ localStorage.setItem('secOt', JSON.stringify({s:el('secOtStart').value,e:el('secOtEnd').value,b:buf,r:rate||''})); }catch(e){}
+  if(!from||!to||from>to){ out.innerHTML='<div style="color:var(--danger);font-size:0.8rem;">Pick a valid date range.</div>'; return; }
+  if(!(b>a)){ out.innerHTML='<div style="color:var(--danger);font-size:0.8rem;">Shift end must be after shift start.</div>'; return; }
+  out.innerHTML='<div style="font-size:0.8rem;color:#8a938e;">Calculating…</div>';
+  try{
+    const sD=new Date(from+'T00:00:00'), eD=new Date(to+'T23:59:59');
+    const r=await fetch(`${BACKEND_URL}/api/appointments?start=${encodeURIComponent(sD.toISOString())}&end=${encodeURIComponent(eD.toISOString())}`,{headers:authHeader()});
+    if(!r.ok) throw new Error('Could not load appointments ('+r.status+')');
+    const live=((await r.json())||[]).filter(ev=> ev.status!=='cancelled' && !ev.deleted_at && ev.start_time);
+    const byDay={}; live.forEach(ev=>{ const k=hrYmd(new Date(ev.start_time)); (byDay[k]=byDay[k]||[]).push(ev); });
+    const fmtT=m=>{ const h=Math.floor(m/60), mm=Math.round(m%60); return String(h).padStart(2,'0')+':'+String(mm).padStart(2,'0'); };
+    const dur=m=>{ m=Math.round(m); return Math.floor(m/60)+'h '+String(m%60).padStart(2,'0')+'m'; };
+    const rows=[];
+    Object.keys(byDay).sort().forEach(k=>{
+      const evs=byDay[k]; let first=1e9, last=-1;
+      evs.forEach(ev=>{ const st=new Date(ev.start_time), en=ev.end_time?new Date(ev.end_time):new Date(st.getTime()+30*60000);
+        const m1=st.getHours()*60+st.getMinutes(), m2=m1+(en-st)/60000; if(m1<first) first=m1; if(m2>last) last=m2; });
+      const before=first-buf<a ? a-(first-buf) : 0, after=last>b ? last-b : 0;
+      if(before+after<=0) return;
+      rows.push({k, wd:HR_DAY_NAMES[new Date(k+'T12:00:00').getDay()], first, last, before, after, n:evs.length});
+    });
+    if(!rows.length){ out.innerHTML='<div style="font-size:0.82rem;color:#5b6863;">No bookings outside her shift in this range.</div>'; return; }
+    const render=()=>{
+      let tot=0, days=0;
+      out.querySelectorAll('.sec-ot-row').forEach(row=>{ if(row.querySelector('input').checked){ tot+=parseFloat(row.dataset.min); days++; } });
+      out.querySelector('#secOtTotal').innerHTML=`<b>${days} day${days===1?'':'s'}</b> · <b>${dur(tot)}</b> overtime`+(rate?` · <b>${Math.round(tot/60*rate).toLocaleString('en-US')} EGP</b>`:'');
+    };
+    out.innerHTML=`<div id="secOtTotal" style="font-size:0.9rem;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);margin-bottom:8px;"></div>`+
+      rows.map(x=>`<label class="sec-ot-row" data-min="${x.before+x.after}" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+        <input type="checkbox" checked>
+        <div style="flex:1;min-width:150px;"><b>${x.wd} ${x.k.split('-').reverse().join('/')}</b>
+          <div style="font-size:0.76rem;color:#5b6863;">${x.n} booking${x.n===1?'':'s'} · first ${fmtT(x.first)} · last ends ${fmtT(x.last)}</div></div>
+        <div style="text-align:right;font-size:0.82rem;"><b>${dur(x.before+x.after)}</b>
+          <div style="font-size:0.72rem;color:#5b6863;">${x.before?'before: '+dur(x.before):''}${x.before&&x.after?' · ':''}${x.after?'after: '+dur(x.after):''}</div></div></label>`).join('');
+    out.querySelectorAll('.sec-ot-row input').forEach(c=> c.addEventListener('change', render));
+    render();
+  }catch(e){ out.innerHTML=`<div style="color:var(--danger);font-size:0.8rem;">${escapeHtml(e.message||String(e))}</div>`; }
+}
+try{ const sv=JSON.parse(localStorage.getItem('secOt')||'null'); if(sv){ if(sv.s) el('secOtStart').value=sv.s; if(sv.e) el('secOtEnd').value=sv.e; if(sv.b!=null) el('secOtBuf').value=sv.b; if(sv.r) el('secOtRate').value=sv.r; } }catch(e){}
+el('secOtGo').addEventListener('click', secOvertime);
 el('hrWlGo').addEventListener('click', hrWorkload);
 el('hrAtGo').addEventListener('click', hrAttendance);
 el('hrAddStaff').addEventListener('click', ()=>{ const w = el('hrStaffRows'); if(!w.querySelector('.hr-staff')) w.innerHTML = ''; w.insertAdjacentHTML('beforeend', hrStaffRowHtml()); hrWireDeletes(); hrWireTimeInputs(w); });
