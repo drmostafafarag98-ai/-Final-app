@@ -1746,6 +1746,7 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
           <div id="exportRangeStatus" style="font-size:0.72rem;color:#8a938e;margin-top:6px;"></div>
         </div>
         <div style="padding:14px 16px;flex:1;overflow-y:auto;">
+          <div id="dayBlocksList"></div>
           <div id="scheduleList" style="margin-bottom:8px;"></div>
           <div id="scheduleStatus" style="font-size:0.78rem;color:#8a938e;margin-bottom:12px;"></div>
           <div style="border-top:1px dashed var(--line);padding-top:10px;margin-bottom:10px;">
@@ -1760,6 +1761,7 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
             <div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;display:flex;align-items:center;gap:6px;"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><line x1="4.9" y1="4.9" x2="19.1" y2="19.1"/></svg> Mark a doctor unavailable this day</div>
             <div id="dayUnavailabilityList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
           </div>
+          <div style="border-top:1px dashed var(--line);padding-top:10px;" id="dayBlocksForm"></div>
         </div>
         <div style="padding:12px 16px;border-top:1px solid var(--line);">
           <button type="button" class="primary" id="openQuickBookBtn" style="width:100%;">+ Book appointment</button>
@@ -9368,10 +9370,13 @@ async function loadMonthAndDay(){
     const monthEnd = new Date(calViewMonth.getFullYear(), calViewMonth.getMonth()+1, 0, 23,59,59);
     const url = `${BACKEND_URL}/api/appointments?start=${encodeURIComponent(monthStart.toISOString())}&end=${encodeURIComponent(monthEnd.toISOString())}`;
     const unavailUrl = `${BACKEND_URL}/api/doctor-unavailability?start=${dayKey(monthStart)}&end=${dayKey(monthEnd)}`;
-    const [res, unavailRes] = await Promise.all([
+    const [res, unavailRes, blocksRes] = await Promise.all([
       fetch(url, { headers: authHeader() }),
       fetch(unavailUrl, { headers: authHeader() }),
+      fetch(`${BACKEND_URL}/api/doctor-time-blocks?start=${dayKey(monthStart)}&end=${dayKey(monthEnd)}`, { headers: authHeader() }).catch(()=> null),
     ]);
+    timeBlocksByDay = {};
+    try{ if(blocksRes && blocksRes.ok){ (await blocksRes.json() || []).forEach(b=>{ const k=String(b.date).slice(0,10); (timeBlocksByDay[k]=timeBlocksByDay[k]||[]).push(b); }); } }catch(e){}
     if(!res.ok){
       const errText = await res.text();
       throw new Error(`Server error ${res.status}: ${errText.slice(0,200)}`);
@@ -9524,7 +9529,58 @@ async function addDayReminder(){
   }
 }
 
+let timeBlocksByDay = {};
+const tbT = t => String(t||'').slice(0,5);
+function renderDayBlocks(){
+  const key = dayKey(calSelectedDate);
+  const blocks = (timeBlocksByDay[key] || []).slice().sort((a,b)=> tbT(a.from_time) < tbT(b.from_time) ? -1 : 1);
+  const canAny = !!(signedInDoctor && (signedInDoctor.role === 'owner' || signedInDoctor.role === 'secretary'));
+  const myName = signedInDoctor ? String(signedInDoctor.name || signedInDoctor.email || '') : '';
+  const canDel = b => canAny || String(b.doctor_name||'').trim().toLowerCase() === myName.trim().toLowerCase();
+  const list = el('dayBlocksList');
+  if(list){
+    list.innerHTML = blocks.map(b=>`<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:8px;border-radius:10px;border-left:5px solid #b3261e;background:repeating-linear-gradient(135deg,#fdecea,#fdecea 8px,#f9d9d5 8px,#f9d9d5 16px);color:#8a1c14;">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <div style="flex:1;font-size:0.84rem;"><b>Closed · ${escapeHtml(b.doctor_name)}</b> · ${tbT(b.from_time)} – ${tbT(b.to_time)}${b.note?` <span style="opacity:.75;">· ${escapeHtml(b.note)}</span>`:''}</div>
+      ${canDel(b)?`<button type="button" class="ghost tb-del" data-id="${escapeHtml(String(b.id))}" style="font-size:0.74rem;padding:5px 9px;">Open it</button>`:''}</div>`).join('');
+    list.querySelectorAll('.tb-del').forEach(btn=> btn.addEventListener('click', async ()=>{
+      if(!confirm('Open this time again for booking?')) return;
+      try{
+        const r = await fetch(`${BACKEND_URL}/api/doctor-time-blocks/${encodeURIComponent(btn.dataset.id)}`, { method:'DELETE', headers: authHeader() });
+        if(!r.ok){ const b = await r.json().catch(()=>({})); throw new Error(b.error || ('Server error '+r.status)); }
+        await loadMonthAndDay();
+      }catch(e){ alert('Could not open it: ' + (e.message||e)); }
+    }));
+  }
+  const box = el('dayBlocksForm');
+  if(box){
+    const names = canAny ? Object.keys(doctorNameToColorHex) : (myName ? [myName] : []);
+    if(!names.length){ box.innerHTML = ''; return; }
+    const inp = 'padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);font-size:0.8rem;';
+    box.innerHTML = `<div style="font-size:0.78rem;font-weight:600;color:var(--maroon);margin-bottom:6px;">Close part of the day (for this date only)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <select id="tbDoctor" style="${inp}">${names.map(n=>`<option value="${escapeHtml(n)}"${n.trim().toLowerCase()===myName.trim().toLowerCase()?' selected':''}>${escapeHtml(n)}</option>`).join('')}</select>
+        <label style="font-size:0.74rem;color:#5b6863;">from <input type="time" id="tbFrom" value="17:00" style="${inp}"></label>
+        <label style="font-size:0.74rem;color:#5b6863;">to <input type="time" id="tbTo" value="23:00" style="${inp}"></label>
+        <input type="text" id="tbNote" placeholder="Note (optional)" style="${inp}flex:1;min-width:110px;">
+        <button type="button" class="ghost" id="tbAdd" style="font-size:0.78rem;padding:7px 12px;">Close it</button>
+      </div>`;
+    el('tbAdd').addEventListener('click', async ()=>{
+      const from = el('tbFrom').value, to = el('tbTo').value;
+      if(!from || !to || to <= from){ alert('Pick a from time, and a to time that is after it.'); return; }
+      const btn = el('tbAdd'); btn.disabled = true;
+      try{
+        const r = await fetch(`${BACKEND_URL}/api/doctor-time-blocks`, { method:'POST', headers:{ 'Content-Type':'application/json', ...authHeader() },
+          body: JSON.stringify({ doctorName: el('tbDoctor').value, date: dayKey(calSelectedDate), from, to, note: el('tbNote').value.trim() }) });
+        const b = await r.json().catch(()=>({}));
+        if(!r.ok) throw new Error(b.error || ('Server error '+r.status));
+        await loadMonthAndDay();
+      }catch(e){ alert('Could not close it: ' + (e.message||e)); btn.disabled = false; }
+    });
+  }
+}
 function renderDayUnavailabilityList(){
+  try{ renderDayBlocks(); }catch(e){ console.error(e); }
   const container = el('dayUnavailabilityList');
   if(!container) return;
   const key = dayKey(calSelectedDate);

@@ -1107,6 +1107,58 @@ app.delete('/api/doctor-unavailability/:id', requireApprovedAny, async (req, res
   }
 });
 
+// ---- Doctor time blocks (one-off: "I'm not available this Saturday after 5") ----
+// Table doctor_time_blocks (sql/doctor_time_blocks.sql). Until that SQL is run, GET returns [] and nothing is blocked.
+const TB_HEADERS = () => ({ apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` });
+function canBlockFor(doctor, name) {
+  if (!doctor) return false;
+  if (doctor.role === 'owner' || doctor.role === 'secretary') return true;
+  return String(name || '').trim().toLowerCase() === ownDoctorName(doctor).trim().toLowerCase();
+}
+app.get('/api/doctor-time-blocks', requireApprovedAny, async (req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.json([]);
+  try {
+    let url = `${SUPABASE_URL}/rest/v1/doctor_time_blocks?order=date.asc,from_time.asc&limit=2000`;
+    const { start, end } = req.query;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(start || '')) && /^\d{4}-\d{2}-\d{2}$/.test(String(end || ''))) url += `&date=gte.${start}&date=lte.${end}`;
+    const r = await fetch(url, { headers: TB_HEADERS() });
+    const rows = r.ok ? await r.json().catch(() => []) : [];
+    res.json(Array.isArray(rows) ? rows : []);
+  } catch (err) { res.json([]); }
+});
+app.post('/api/doctor-time-blocks', requireApprovedAny, async (req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
+  const b = req.body || {};
+  const doctorName = String(b.doctorName || '').trim(), date = String(b.date || ''), from = String(b.from || ''), to = String(b.to || '');
+  if (!doctorName || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(from) || !/^\d{2}:\d{2}$/.test(to)) return res.status(400).json({ error: 'Pick a doctor, a date and a from/to time.' });
+  if (hmToMin(to) <= hmToMin(from)) return res.status(400).json({ error: 'The end time must be after the start time.' });
+  if (!canBlockFor(req.doctor, doctorName)) return res.status(403).json({ error: 'You can only close times in your own schedule.' });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/doctor_time_blocks`, {
+      method: 'POST', headers: { ...TB_HEADERS(), 'Content-Type': 'application/json', Prefer: 'return=representation' },
+      body: JSON.stringify({ doctor_name: doctorName, date, from_time: from, to_time: to, note: String(b.note || '').slice(0, 200) || null, created_by: req.doctor.email }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (r.status === 404 || /doctor_time_blocks/.test(JSON.stringify(data))) return res.status(400).json({ error: 'Closing times is not set up yet. The owner needs to run the doctor_time_blocks SQL once.' });
+      throw new Error(JSON.stringify(data));
+    }
+    res.json(Array.isArray(data) ? data[0] : data);
+  } catch (err) { console.error('Time-block POST error:', err); res.status(500).json({ error: 'Failed: ' + err.message }); }
+});
+app.delete('/api/doctor-time-blocks/:id', requireApprovedAny, async (req, res) => {
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) return res.status(500).json({ error: 'Server is missing SUPABASE_URL or SUPABASE_SERVICE_KEY.' });
+  try {
+    const id = encodeURIComponent(req.params.id);
+    const g = await fetch(`${SUPABASE_URL}/rest/v1/doctor_time_blocks?id=eq.${id}&select=doctor_name&limit=1`, { headers: TB_HEADERS() });
+    const rows = g.ok ? await g.json() : [];
+    if (!rows[0]) return res.json({ ok: true });
+    if (!canBlockFor(req.doctor, rows[0].doctor_name)) return res.status(403).json({ error: 'You can only open times in your own schedule.' });
+    await fetch(`${SUPABASE_URL}/rest/v1/doctor_time_blocks?id=eq.${id}`, { method: 'DELETE', headers: TB_HEADERS() });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: 'Failed: ' + err.message }); }
+});
+
 // ---- TimeTree / generic iCal import ----
 // TimeTree's own "Share calendar" feature gives a read-only iCal
 // (webcal://... or https://...ics) feed — this is the only officially
@@ -4602,6 +4654,13 @@ async function computeBookingSlots(settings, doc, ymd) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/appointments?doctor_name=eq.${encodeURIComponent(doc.name)}&start_time=gte.${encodeURIComponent(dayStart.toISOString())}&start_time=lt.${encodeURIComponent(dayEnd.toISOString())}&deleted_at=is.null&select=start_time,end_time,status`, { headers: bookHeaders() });
   const appts = await r.json();
   const busy = (Array.isArray(appts) ? appts : []).filter(a => a.status !== 'cancelled').map(a => [new Date(a.start_time).getTime(), new Date(a.end_time || new Date(a.start_time).getTime() + 30 * 60000).getTime()]);
+  // Times the doctor closed for this day (doctor_time_blocks). Kept apart from `busy` so "keep the day together" is not affected.
+  let blocked = [];
+  try {
+    const br = await fetch(`${SUPABASE_URL}/rest/v1/doctor_time_blocks?doctor_name=eq.${encodeURIComponent(doc.name)}&date=eq.${ymd}&select=from_time,to_time`, { headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` } });
+    const brows = br.ok ? await br.json() : [];
+    blocked = (Array.isArray(brows) ? brows : []).map(x => [cairoToDate(ymd, String(x.from_time).slice(0, 5)).getTime(), cairoToDate(ymd, String(x.to_time).slice(0, 5)).getTime()]);
+  } catch (e) { /* table not created yet: nothing is blocked */ }
   const earliest = Date.now() + settings.min_lead_hours * 3600000;
   // "Keep the day together" (on unless the clinic turns it off): once the doctor has visits that day,
   // patients only see times inside that block (gaps between visits) or the slot right before the first
@@ -4618,6 +4677,7 @@ async function computeBookingSlots(settings, doc, ymd) {
       const s = cairoToDate(ymd, hm).getTime(), e = s + step * 60000;
       if (s < earliest) continue;
       if (busy.some(([bs, be]) => s < be && e > bs)) continue;
+      if (blocked.some(([bs, be]) => s < be && e > bs)) continue;
       if (near && (e <= near[0] || s >= near[1])) continue;
       if (!out.includes(hm)) out.push(hm);
     }
