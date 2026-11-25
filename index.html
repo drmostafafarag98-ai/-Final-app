@@ -1626,7 +1626,7 @@ html[dir=rtl] button.set-row::after,html[data-lang=ar] button.set-row::after{tra
 
       <div class="section-title collapsible-title" style="display:flex;align-items:center;gap:6px;cursor:pointer;">Secretary overtime <svg class="collapsible-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto;"><polyline points="6 9 12 15 18 9"/></svg></div>
       <div style="background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:20px;">
-        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">Any booked patient before her shift starts or after it ends means she was there, so that time is overtime. It is counted from the calendar: first booking to the start of her shift, and the end of the last booking to the end of her shift. Cancelled visits are ignored. Untick a day she was not actually there.</div>
+        <div style="font-size:0.78rem;color:#5b6863;margin-bottom:10px;">She is counted as there from her first booking (or her shift start, whichever is earlier) until the last booking ends. Overtime is only the time beyond her normal shift length, so coming at 11 and leaving at 7 is a full 8-hour day, not overtime. Cancelled visits are ignored. Untick a day she was not actually there.</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"><input type="text" inputmode="none" id="secOtFrom" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"><input type="text" inputmode="none" id="secOtTo" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px;">
           <label style="font-size:0.76rem;color:#5b6863;">Shift from <input type="time" id="secOtStart" value="14:00" style="padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--paper);"></label>
@@ -12975,9 +12975,11 @@ async function secOvertime(){
       const evs=byDay[k]; let first=1e9, last=-1;
       evs.forEach(ev=>{ const st=new Date(ev.start_time), en=ev.end_time?new Date(ev.end_time):new Date(st.getTime()+30*60000);
         const m1=st.getHours()*60+st.getMinutes(), m2=m1+(en-st)/60000; if(m1<first) first=m1; if(m2>last) last=m2; });
-      const before=first-buf<a ? a-(first-buf) : 0, after=last>b ? last-b : 0;
-      if(before+after<=0) return;
-      rows.push({k, wd:HR_DAY_NAMES[new Date(k+'T12:00:00').getDay()], first, last, before, after, n:evs.length});
+      // She is counted as present from the earlier of (first booking minus the buffer) and her shift start, until the last booking ends.
+      // Overtime is only what is left after her normal shift length (e.g. 11:00 to 19:00 = 8h = no overtime for an 8h shift).
+      const start=Math.min(first-buf, a), span=last-start, over=span-(b-a);
+      if(over<=0) return;
+      rows.push({k, wd:HR_DAY_NAMES[new Date(k+'T12:00:00').getDay()], first, last, start, span, over, n:evs.length});
     });
     if(!rows.length){ out.innerHTML='<div style="font-size:0.82rem;color:#5b6863;">No bookings outside her shift in this range.</div>'; return; }
     const render=()=>{
@@ -12986,12 +12988,12 @@ async function secOvertime(){
       out.querySelector('#secOtTotal').innerHTML=`<b>${days} day${days===1?'':'s'}</b> · <b>${dur(tot)}</b> overtime`+(rate?` · <b>${Math.round(tot/60*rate).toLocaleString('en-US')} EGP</b>`:'');
     };
     out.innerHTML=`<div id="secOtTotal" style="font-size:0.9rem;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--paper);margin-bottom:8px;"></div>`+
-      rows.map(x=>`<label class="sec-ot-row" data-min="${x.before+x.after}" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
+      rows.map(x=>`<label class="sec-ot-row" data-min="${x.over}" style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);cursor:pointer;">
         <input type="checkbox" checked>
         <div style="flex:1;min-width:150px;"><b>${x.wd} ${x.k.split('-').reverse().join('/')}</b>
-          <div style="font-size:0.76rem;color:#5b6863;">${x.n} booking${x.n===1?'':'s'} · first ${fmtT(x.first)} · last ends ${fmtT(x.last)}</div></div>
-        <div style="text-align:right;font-size:0.82rem;"><b>${dur(x.before+x.after)}</b>
-          <div style="font-size:0.72rem;color:#5b6863;">${x.before?'before: '+dur(x.before):''}${x.before&&x.after?' · ':''}${x.after?'after: '+dur(x.after):''}</div></div></label>`).join('');
+          <div style="font-size:0.76rem;color:#5b6863;">${x.n} booking${x.n===1?'':'s'} · there ${fmtT(x.start)} → ${fmtT(x.last)} = ${dur(x.span)}</div></div>
+        <div style="text-align:right;font-size:0.82rem;"><b>${dur(x.over)}</b>
+          <div style="font-size:0.72rem;color:#5b6863;">over her ${dur(b-a)} shift</div></div></label>`).join('');
     out.querySelectorAll('.sec-ot-row input').forEach(c=> c.addEventListener('change', render));
     render();
   }catch(e){ out.innerHTML=`<div style="color:var(--danger);font-size:0.8rem;">${escapeHtml(e.message||String(e))}</div>`; }
