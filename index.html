@@ -2462,10 +2462,21 @@ async function chooseReportDoctor(){
     document.body.appendChild(overlay);
   });
 }
-function printWhenReady(){
+function printWhenReady(fileTitle){
   const imgs = Array.from(document.querySelectorAll('#printableNote img'));
   const waits = imgs.map(im=> (im.complete && im.naturalWidth) ? Promise.resolve() : (im.decode ? im.decode().catch(()=>{}) : new Promise(r=>{ im.onload = im.onerror = r; })));
-  Promise.race([Promise.all(waits), new Promise(r=> setTimeout(r, 4000))]).then(()=> setTimeout(()=> window.print(), 200));
+  Promise.race([Promise.all(waits), new Promise(r=> setTimeout(r, 4000))]).then(()=> setTimeout(()=>{
+    // "Save as PDF" suggests the page <title> as the file name, so show the patient name instead of the app name just for the print.
+    const clean = String(fileTitle || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
+    if(clean){
+      const originalTitle = document.title;
+      document.title = clean;
+      const restore = ()=>{ document.title = originalTitle; window.removeEventListener('afterprint', restore); };
+      window.addEventListener('afterprint', restore);
+      setTimeout(restore, 60000);
+    }
+    window.print();
+  }, 200));
 }
 function isEmpowerBrand(){ return !CLINIC.logo && /empower/i.test(CLINIC.name || ''); }
 function brandSvgUri(svg){ return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); }
@@ -5595,7 +5606,7 @@ async function downloadNoteExpandSummaryPdf(){
   if(doctorLabel === null) return;
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(heading)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  printWhenReady();
+  printWhenReady(heading.startsWith('Referral Summary') ? `${noteExpandCurrentPatient} - Summary` : heading);
 }
 
 function setSessionType(type){
@@ -12056,7 +12067,7 @@ async function downloadNotePDF(){
   const doctorLabel = await chooseReportDoctor();
   if(doctorLabel === null) return;
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">PT Clinical Note</div><p><strong>Patient:</strong> ${escapeHtml(patientName)}</p><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Doctor:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  printWhenReady();
+  printWhenReady(`${patientName} - Note`);
 }
 
 async function generatePatientSummary(patientName){
@@ -12138,7 +12149,7 @@ async function downloadSummaryPdf(){
   if(doctorLabel === null) return;
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
-  printWhenReady();
+  printWhenReady(`${title.replace(/^Referral Summary\s*[—-]\s*/, '')} - Summary`);
 }
 
 function openPrescriptionOverlay(){
@@ -12192,7 +12203,7 @@ async function downloadPrescriptionPdf(){
   container.className = 'rx-mode';
   container.style.setProperty('--rx-red', isEmpowerBrand() ? '#b23b3b' : '#1f4e8c');
   container.innerHTML = `<div class="rx-page" style="min-height:248mm;"><div class="rx-header">${(!isEmpowerBrand() && CLINIC.logo) ? `<img src="${clinicLogoSrc()}" style="max-height:80px;max-width:240px;width:auto;height:auto;object-fit:contain;display:block;">` : `<div class="rx-dots"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="rx-logo-word">${rxWordHtml()}</div><div class="rx-tagline">Physical Therapy and Rehabilitation</div>`}</div><div class="rx-divider"><span class="line"></span><span class="diamond">&#9670;</span></div><div class="rx-namedate"><div class="field name"><strong>NAME:</strong><span class="val" title="${escapeHtml(patientName)}">${escapeHtml(patientName)}</span></div><div class="field date"><strong>DATE:</strong><span class="val" title="${escapeHtml(sessionDateVal)}">${escapeHtml(sessionDateVal)}</span></div><div class="field doctor"><strong>DOCTOR:</strong><span class="val" title="${escapeHtml(doctorLabel)}">${escapeHtml(doctorLabel)}</span></div></div><div class="rx-body-wrap">${(!isEmpowerBrand() && CLINIC.logo) ? (wmSrc ? `<img src="${wmSrc}" class="rx-watermark" style="opacity:0.22;width:55%;">` : '') : `<img src="${clinicLogoSrc()}" class="rx-watermark">`}<div class="rx-body">${escapeHtml(bodyText)}</div></div><div class="rx-stamp"><img src="${clinicStampSrc()}"></div><div class="rx-footer"><img src="${clinicFooterSrc()}"></div></div>`;
-  printWhenReady();
+  printWhenReady(patientName ? `${patientName} - Prescription` : '');
   container.className = '';
 }
 
