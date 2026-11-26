@@ -5123,6 +5123,7 @@ let noteExpandTabs = [];
 let noteExpandActiveTabIndex = 0;
 let noteExpandSummaryText = '';
 let noteExpandSummaryLoading = false;
+let noteExpandSummaryError = '';
 
 function openNoteExpand(patientName, latestId, opts){
   opts = opts || {};
@@ -5144,6 +5145,7 @@ function openNoteExpand(patientName, latestId, opts){
   noteExpandTabs.push({ type: 'new', date: opts.draftDate || todayStr(), sessionType: opts.draftType || (sortedIds.length ? 'followup' : 'assessment'), draftText: '' });
   noteExpandTabs.push({ type: 'summary' });
   noteExpandSummaryText = '';
+  noteExpandSummaryError = '';
   noteExpandSummaryLoading = false;
 
   el('noteExpandMergeBtn').style.display = sortedIds.length > 1 ? 'block' : 'none';
@@ -5188,7 +5190,7 @@ function switchNoteExpandTab(index){
   if(!tab) return;
   if(tab.type === 'summary'){
     el('noteExpandTextarea').value = noteExpandSummaryLoading ? '' : noteExpandSummaryText;
-    el('noteExpandTabStatus').textContent = noteExpandSummaryLoading ? 'Generating summary…' : (noteExpandSummaryText ? '' : 'Could not generate a summary — try reopening this file.');
+    el('noteExpandTabStatus').textContent = noteExpandSummaryLoading ? 'Generating summary…' : (noteExpandSummaryText ? '' : (noteExpandSummaryError || 'Could not generate a summary — try reopening this file.'));
     el('noteExpandSaveBtn').style.display = 'none';
     el('noteExpandDownloadTxtBtn').style.display = 'block';
     el('noteExpandDownloadPdfBtn').style.display = 'block';
@@ -5465,11 +5467,14 @@ function openPatientDocsFromAppointment(ev){
 async function generateNoteExpandSummaryInBackground(patientName){
   noteExpandSummaryLoading = true;
   try{
+    noteExpandSummaryError = '';
     const text = await buildPatientSummaryText(patientName);
     noteExpandSummaryText = text || '';
+    if(!text) noteExpandSummaryError = 'No saved sessions found for this name, so there is nothing to summarize yet.';
   }catch(e){
     console.error(e);
     noteExpandSummaryText = '';
+    noteExpandSummaryError = 'Could not generate a summary: ' + String((e && e.message) || e).slice(0, 220);
   }
   noteExpandSummaryLoading = false;
   const stillOnSamePatient = noteExpandCurrentPatient === patientName;
