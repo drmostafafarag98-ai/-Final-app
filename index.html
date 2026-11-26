@@ -2468,14 +2468,14 @@ function printWhenReady(fileTitle){
   Promise.race([Promise.all(waits), new Promise(r=> setTimeout(r, 4000))]).then(()=> setTimeout(()=>{
     // "Save as PDF" suggests the page <title> as the file name, so show the patient name instead of the app name just for the print.
     const clean = String(fileTitle || '').replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim();
-    if(clean){
-      const originalTitle = document.title;
-      document.title = clean;
-      const restore = ()=>{ document.title = originalTitle; window.removeEventListener('afterprint', restore); };
-      window.addEventListener('afterprint', restore);
-      setTimeout(restore, 60000);
-    }
-    window.print();
+    if(!clean){ window.print(); return; }
+    const originalTitle = document.title;
+    document.title = clean;
+    const restore = ()=>{ document.title = originalTitle; window.removeEventListener('afterprint', restore); };
+    window.addEventListener('afterprint', restore);
+    setTimeout(restore, 60000);
+    // iPhone/Safari needs a moment to pick up the new title before the print sheet is built
+    setTimeout(()=> window.print(), 700);
   }, 200));
 }
 function isEmpowerBrand(){ return !CLINIC.logo && /empower/i.test(CLINIC.name || ''); }
