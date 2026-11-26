@@ -662,6 +662,10 @@
   #printableNote{ display:none; }
   @page{ size:A4; margin:0; }
   @media print{
+    /* Print ONLY the report: the rest of the app is removed from layout (not just hidden),
+       otherwise the PDF gets blank extra pages and iPhone can drop strips of text. */
+    html, body{ background:#fff !important; margin:0 !important; padding:0 !important; }
+    body > *:not(#printableNote){ display:none !important; }
     body *{ visibility:hidden; }
     #printableNote, #printableNote *{ visibility:visible; }
     #printableNote{
