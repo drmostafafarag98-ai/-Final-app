@@ -2402,6 +2402,66 @@ document.addEventListener('click', (e)=>{
 // Empower keeps its built-in artwork; every other clinic uses what it uploads in
 // Settings > Clinic, or a clean text logo made from its name.
 // Print only after the logo / stamp images are fully loaded, otherwise a slower phone prints the page without them
+// ---- Report doctor picker: choose whose name goes on a PDF report ----
+let reportDoctorsCache = { at: 0, names: [] };
+async function loadReportDoctorNames(){
+  if(reportDoctorsCache.names.length && Date.now() - reportDoctorsCache.at < 5 * 60 * 1000) return reportDoctorsCache.names;
+  let names = [];
+  try{
+    if(typeof isApproved === 'function' && isApproved()){
+      const res = await fetch(`${BACKEND_URL}/api/doctors/colors`, { headers: authHeader() });
+      if(res.ok){
+        const items = await res.json();
+        (items || []).forEach(d => {
+          const n = String((d && (d.name || d.email)) || '').trim();
+          if(n && !names.some(x => x.toLowerCase() === n.toLowerCase())) names.push(n);
+        });
+      }
+    }
+  }catch(e){ console.error('Could not load doctor names for reports:', e); }
+  if(names.length) reportDoctorsCache = { at: Date.now(), names };
+  return names;
+}
+// Resolves to the chosen doctor name, or null if the user cancels.
+// If the team list can't be loaded it falls back to the signed-in doctor (old behaviour).
+async function chooseReportDoctor(){
+  const own = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const names = await loadReportDoctorNames();
+  if(!names.length) return own;
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const card = document.createElement('div');
+    card.style.cssText = 'background:var(--paper,#fff);border-radius:var(--radius,14px);padding:16px;max-width:360px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,0.25);';
+    const title = document.createElement('div');
+    title.textContent = 'Issue this report under which doctor?';
+    title.style.cssText = 'font-weight:700;margin-bottom:10px;color:var(--maroon,#1f5c56);';
+    card.appendChild(title);
+    const done = (v) => { document.removeEventListener('keydown', onKey, true); overlay.remove(); resolve(v); };
+    const onKey = (e) => { if(e.key === 'Escape'){ e.stopPropagation(); done(null); } };
+    document.addEventListener('keydown', onKey, true);
+    names.forEach(n => {
+      const isOwn = n.toLowerCase() === own.toLowerCase();
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = n + (isOwn ? '  (you)' : '');
+      b.style.cssText = 'display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:8px;border-radius:var(--radius,14px);cursor:pointer;font-size:0.95rem;' +
+        (isOwn ? 'border:2px solid var(--maroon,#1f5c56);background:#eef6f4;font-weight:600;' : 'border:1px solid var(--line,#ccc);background:#fff;');
+      b.addEventListener('click', () => done(n));
+      card.appendChild(b);
+    });
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'ghost';
+    cancel.textContent = 'Cancel';
+    cancel.style.cssText = 'display:block;width:100%;padding:10px;margin-top:4px;cursor:pointer;';
+    cancel.addEventListener('click', () => done(null));
+    card.appendChild(cancel);
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) done(null); });
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  });
+}
 function printWhenReady(){
   const imgs = Array.from(document.querySelectorAll('#printableNote img'));
   const waits = imgs.map(im=> (im.complete && im.naturalWidth) ? Promise.resolve() : (im.decode ? im.decode().catch(()=>{}) : new Promise(r=>{ im.onload = im.onerror = r; })));
@@ -5515,7 +5575,7 @@ function exportPatientListPdf(){
   printWhenReady();
 }
 
-function downloadNoteExpandSummaryPdf(){
+async function downloadNoteExpandSummaryPdf(){
   const text = el('noteExpandTextarea').value;
   if(!text) return;
   const tab = noteExpandTabs[noteExpandActiveTabIndex];
@@ -5526,7 +5586,8 @@ function downloadNoteExpandSummaryPdf(){
     const dateLabel = s ? (s.date || '') : '';
     heading = `${noteExpandCurrentPatient} — ${typeLabel}${dateLabel ? ' — ' + dateLabel : ''}`;
   }
-  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const doctorLabel = await chooseReportDoctor();
+  if(doctorLabel === null) return;
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(heading)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   printWhenReady();
@@ -11975,7 +12036,7 @@ function downloadNote(){
   URL.revokeObjectURL(url);
 }
 
-function downloadNotePDF(){
+async function downloadNotePDF(){
   const text = el('noteText').value;
   if(!text){
     el('status').textContent = 'Generate a note first.';
@@ -11987,7 +12048,8 @@ function downloadNotePDF(){
   }
   const patientName = el('patientName').value || 'Unnamed patient';
   const container = el('printableNote');
-  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const doctorLabel = await chooseReportDoctor();
+  if(doctorLabel === null) return;
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">PT Clinical Note</div><p><strong>Patient:</strong> ${escapeHtml(patientName)}</p><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Doctor:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   printWhenReady();
 }
@@ -12063,11 +12125,12 @@ function downloadSummaryTxt(){
   URL.revokeObjectURL(url);
 }
 
-function downloadSummaryPdf(){
+async function downloadSummaryPdf(){
   const text = el('patientSummaryText').value;
   if(!text) return;
   const title = el('patientSummaryTitle').textContent;
-  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const doctorLabel = await chooseReportDoctor();
+  if(doctorLabel === null) return;
   const container = el('printableNote');
   container.innerHTML = `<img src="${clinicLogoSrc()}" style="max-width:280px;width:100%;height:auto;display:block;margin-bottom:16px;"><div style="font-size:0.8rem;color:#5b6863;margin-bottom:10px;letter-spacing:0.04em;text-transform:uppercase;">${escapeHtml(title)}</div><div>${escapeHtml(text)}</div>${doctorLabel ? `<p style="margin-top:24px;border-top:1px solid #ccc;padding-top:12px;"><strong>Prepared by:</strong> ${escapeHtml(doctorLabel)}</p>` : ''}`;
   printWhenReady();
@@ -12117,7 +12180,8 @@ async function downloadPrescriptionPdf(){
   }
   const patientName = el('patientName').value || '';
   const sessionDateVal = el('sessionDate').value || new Date().toLocaleDateString('en-GB').replace(/\//g,'/');
-  const doctorLabel = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  const doctorLabel = await chooseReportDoctor();
+  if(doctorLabel === null) return;
   const wmSrc = (!isEmpowerBrand() && CLINIC.logo) ? await makeWatermark(CLINIC.logo) : '';
   const container = el('printableNote');
   container.className = 'rx-mode';
@@ -12158,6 +12222,13 @@ function openInvoiceOverlay(){
   const pad = n => String(n).padStart(2,'0');
   el('invoiceDateInput').value = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
   el('invoiceDoctorInput').value = (signedInDoctor && (signedInDoctor.name || signedInDoctor.email)) || clinicianName || '';
+  loadReportDoctorNames().then(ns => {
+    const inp = el('invoiceDoctorInput');
+    if(!inp || !ns.length) return;
+    let dl = el('invoiceDoctorList');
+    if(!dl){ dl = document.createElement('datalist'); dl.id = 'invoiceDoctorList'; inp.after(dl); inp.setAttribute('list', 'invoiceDoctorList'); }
+    dl.innerHTML = ns.map(n => `<option value="${escapeHtml(n)}"></option>`).join('');
+  });
   el('invoiceSessionsInput').value = '';
   el('invoicePriceInput').value = '';
   el('invoiceTotalInput').value = '';
