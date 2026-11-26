@@ -666,6 +666,8 @@
        otherwise the PDF gets blank extra pages and iPhone can drop strips of text. */
     html, body{ background:#fff !important; margin:0 !important; padding:0 !important; }
     body > *:not(#printableNote){ display:none !important; }
+    /* the iPhone status-bar cover strip (body::before, fixed, paper colour) was painting over the report */
+    body::before{ display:none !important; content:none !important; }
     body *{ visibility:hidden; }
     #printableNote, #printableNote *{ visibility:visible; }
     #printableNote{
