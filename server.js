@@ -4306,6 +4306,8 @@ const DUTY_HEADERS = () => ({ apikey: SUPABASE_SERVICE_KEY, Authorization: `Bear
 const DUTY_EVENTS = {
   main: { table: 'friday_duty', ar: 'الإيفنت بتاع الجمعة', ownerAr: 'إيفنت' },
   football: { table: 'friday_duty_football', ar: 'ماتش الأمريكان فوتبول', ownerAr: 'ماتش الأمريكان فوتبول' },
+  // Second doctor for the football match (a male + a female doctor): same columns, own table friday_duty_football2.
+  football2: { table: 'friday_duty_football2', ar: 'ماتش الأمريكان فوتبول', ownerAr: 'ماتش الأمريكان فوتبول' },
 };
 function dutyEventKey(req) { const k = String((req.query && req.query.event) || 'main'); return DUTY_EVENTS[k] ? k : null; }
 
@@ -4386,13 +4388,15 @@ setTimeout(runFridayDutyReminders, 45 * 1000);
 app.get('/api/friday-duty', requireOwnerDoctor, async (req, res) => {
   try {
     const since = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
-    const [dr, pr, fr] = await Promise.all([
+    const [dr, pr, fr, f2r] = await Promise.all([
       fetch(`${SUPABASE_URL}/rest/v1/friday_duty?duty_date=gte.${since}&order=duty_date.asc&limit=200`, { headers: DUTY_HEADERS() }),
       fetch(`${SUPABASE_URL}/rest/v1/doctors?status=eq.approved&role=in.(doctor,owner)&select=email,name,phone,telegram_chat_id&order=name.asc`, { headers: DUTY_HEADERS() }),
       fetch(`${SUPABASE_URL}/rest/v1/friday_duty_football?duty_date=gte.${since}&order=duty_date.asc&limit=200`, { headers: DUTY_HEADERS() }),
+      fetch(`${SUPABASE_URL}/rest/v1/friday_duty_football2?duty_date=gte.${since}&order=duty_date.asc&limit=200`, { headers: DUTY_HEADERS() }),
     ]);
     // The football table is optional: a clinic that never ran its SQL simply doesn't see the second event.
     const fduties = fr.ok ? await fr.json().catch(() => []) : [];
+    const f2duties = f2r.ok ? await f2r.json().catch(() => []) : [];
     const duties = await dr.json();
     const docs = await pr.json();
     if (!dr.ok) return res.status(500).json({ error: 'Could not load duties. Did you run the friday_duty SQL?' });
@@ -4403,6 +4407,8 @@ app.get('/api/friday-duty', requireOwnerDoctor, async (req, res) => {
     res.json({
       football_ready: fr.ok,
       football_duties: withText(fduties, 'football'),
+      football2_ready: f2r.ok,
+      football2_duties: withText(f2duties, 'football2'),
       telegram_ready: !!TELEGRAM_BOT_TOKEN,
       duties: (Array.isArray(duties) ? duties : []).map(d => {
         const date = String(d.duty_date).slice(0, 10);
