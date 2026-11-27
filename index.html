@@ -4035,13 +4035,13 @@ function fdNextFridays(n){
   return out;
 }
 async function fdSendWhatsApp(date, data, ev){
-  ev = ev==='football' ? 'football' : 'main';
-  const d=((ev==='football'?data.football_duties:data.duties)||[]).find(x=> String(x.duty_date).slice(0,10)===date);
+  ev = (ev==='football' || ev==='football2') ? ev : 'main';
+  const d=((ev==='football2'?data.football2_duties:(ev==='football'?data.football_duties:data.duties))||[]).find(x=> String(x.duty_date).slice(0,10)===date);
   const doc=(data.doctors||[]).find(x=> d && x.email===d.doctor_email);
   if(!d) return;
   if(!doc || !doc.phone){ alert('No WhatsApp number saved for this doctor. Add it in Manage Doctors first.'); return; }
   window.open(waAppUrl(`https://wa.me/${normalizeEgyptPhoneForWhatsApp(doc.phone)}?text=${encodeURIComponent(d.whatsapp_text)}`),'_blank');
-  try{ await fetch(`${BACKEND_URL}/api/friday-duty/${date}/whatsapp-sent${ev==='football'?'?event=football':''}`,{method:'POST',headers:authHeader()}); }catch(e){}
+  try{ await fetch(`${BACKEND_URL}/api/friday-duty/${date}/whatsapp-sent${ev==='main'?'':'?event='+ev}`,{method:'POST',headers:authHeader()}); }catch(e){}
   setTimeout(()=>{ loadFridayDuty(); fdCheckBanner(); }, 800);
 }
 // Floating reminder for the owner: a Friday is within 3 days and WhatsApp was not sent yet.
@@ -4054,12 +4054,12 @@ async function fdCheckBanner(){
     const data=await res.json();
     const today=new Date().toLocaleDateString('en-CA',{timeZone:'Africa/Cairo'});
     const isDue=d=>{ const dt=String(d.duty_date).slice(0,10); const diff=Math.round((Date.parse(dt)-Date.parse(today))/86400000); return diff>=0 && diff<=3 && !d.whatsapp_sent_at; };
-    const due=[...(data.duties||[]).filter(isDue).map(d=>({...d,_ev:'main'})), ...(data.football_duties||[]).filter(isDue).map(d=>({...d,_ev:'football'}))];
+    const due=[...(data.duties||[]).filter(isDue).map(d=>({...d,_ev:'main'})), ...(data.football_duties||[]).filter(isDue).map(d=>({...d,_ev:'football'})), ...(data.football2_duties||[]).filter(isDue).map(d=>({...d,_ev:'football2'}))];
     if(!due.length){ if(bar) bar.remove(); return; }
     if(!bar){ bar=document.createElement('div'); bar.id='fdBanner'; bar.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:90;background:var(--maroon);color:#fff;border-radius:12px;padding:10px 12px;font-size:0.82rem;box-shadow:0 4px 14px rgba(0,0,0,0.25);display:flex;gap:8px;align-items:center;flex-wrap:wrap;'; document.body.appendChild(bar); }
     const d=due[0];
     const label=new Date(String(d.duty_date).slice(0,10)+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
-    bar.innerHTML=`<span style="flex:1;min-width:180px;">📌 Remind ${escapeHtml(d.doctor_name||'the doctor')} on WhatsApp — ${d._ev==='football'?'American football':'event'} duty ${label}</span><button type="button" id="fdBannerSend" style="border:none;border-radius:999px;padding:6px 12px;font-weight:700;cursor:pointer;">Send now</button><button type="button" id="fdBannerClose" style="background:transparent;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">×</button>`;
+    bar.innerHTML=`<span style="flex:1;min-width:180px;">📌 Remind ${escapeHtml(d.doctor_name||'the doctor')} on WhatsApp — ${d._ev==='main'?'event':'American football'} duty ${label}</span><button type="button" id="fdBannerSend" style="border:none;border-radius:999px;padding:6px 12px;font-weight:700;cursor:pointer;">Send now</button><button type="button" id="fdBannerClose" style="background:transparent;border:none;color:#fff;font-size:1.1rem;cursor:pointer;">×</button>`;
     document.getElementById('fdBannerSend').onclick=()=> fdSendWhatsApp(String(d.duty_date).slice(0,10), data, d._ev);
     document.getElementById('fdBannerClose').onclick=()=> bar.remove();
   }catch(e){}
@@ -4311,9 +4311,11 @@ async function loadFridayDuty(){
     if(!res.ok) throw new Error(data.error||`Server error ${res.status}`);
     const docs=data.doctors||[];
     const two=!!data.football_ready;
-    const maps={main:{}, football:{}};
+    const three=!!data.football2_ready;
+    const maps={main:{}, football:{}, football2:{}};
     (data.duties||[]).forEach(d=>{ maps.main[String(d.duty_date).slice(0,10)]=d; });
     (data.football_duties||[]).forEach(d=>{ maps.football[String(d.duty_date).slice(0,10)]=d; });
+    (data.football2_duties||[]).forEach(d=>{ maps.football2[String(d.duty_date).slice(0,10)]=d; });
     if(!data.telegram_ready) msg.textContent='Telegram bot is not set up on the server, reminders cannot be sent.';
     const row=(date, ev)=>{
       const d=maps[ev][date];
@@ -4328,7 +4330,7 @@ async function loadFridayDuty(){
         else status='<span style="color:#5b6863;">Telegram will be sent 3 days before</span>';
         status += wa;
       }
-      const tag = two ? `<div style="font-size:0.72rem;font-weight:700;color:#5b6863;text-transform:uppercase;letter-spacing:0.04em;margin:${ev==='main'?'0':'10px'} 0 4px;">${ev==='football'?'American football':'Frisbee'}</div>` : '';
+      const tag = two ? `<div style="font-size:0.72rem;font-weight:700;color:#5b6863;text-transform:uppercase;letter-spacing:0.04em;margin:${ev==='main'?'0':'10px'} 0 4px;">${ev==='football'?(three?'American football · doctor 1':'American football'):(ev==='football2'?'American football · doctor 2':'Frisbee')}</div>` : '';
       return `${tag}<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
           <select class="fd-sel" data-date="${date}" data-ev="${ev}" style="padding:8px;border:1px solid var(--line);border-radius:8px;font-size:0.82rem;min-width:170px;">${opts}</select>
           ${d?`<button type="button" class="ghost fd-wa" data-date="${date}" data-ev="${ev}" style="font-size:0.75rem;padding:6px 10px;">Send on WhatsApp</button>`:''}
@@ -4340,9 +4342,9 @@ async function loadFridayDuty(){
       const label=new Date(date+'T12:00:00Z').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short',timeZone:'UTC'});
       return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;">
         <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px;">${label}</div>
-        ${row(date,'main')}${two?row(date,'football'):''}</div>`;
+        ${row(date,'main')}${two?row(date,'football'):''}${two&&three?row(date,'football2'):''}</div>`;
     }).join('');
-    const q=ev=> ev==='football' ? '?event=football' : '';
+    const q=ev=> ev==='main' ? '' : '?event='+ev;
     list.querySelectorAll('.fd-sel').forEach(sel=> sel.addEventListener('change', async ()=>{
       const date=sel.dataset.date, ev=sel.dataset.ev;
       try{
